@@ -45,6 +45,7 @@ if (args.help || (!args.source && !args.input)) {
     --min-tier   which tier to notify and draft for   (default A)
     --audit-base base URL for audit pages, e.g. https://mbonyx.com/audit
     --sender     your first name, used to sign drafts (default Micah)
+    --allow-local  permit auditing localhost / private addresses (testing only)
 
   Drafts are written to app/out/drafts/ for you to read, edit and send
   yourself. Nothing in this tool ever emails a prospect.
@@ -129,13 +130,17 @@ const run = async () => {
   const worker = async queue => {
     while (queue.length) {
       const business = queue.shift();
-      const slug = slugify(business.name);
+      const slug = uniqueSlug(business.name, business.website);
       const shotPath = wantShots ? path.join(outDir, "shots", `${slug}.jpg`) : null;
-      const audit = await auditSite(business.website, { browser, screenshotPath: shotPath });
+      const audit = await auditSite(business.website, {
+        browser, screenshotPath: shotPath, allowLocal: Boolean(args["allow-local"]),
+      });
 
       if (audit.fetchFailed) {
         leads.push({ business, audit, dropReason: `unreachable: ${audit.error}`, tier: "-", score: null });
-        console.log(`  ✗ ${pad(business.name)} unreachable`);
+        // Say which kind of failure. "Refused a private address" and "the site
+        // is down" both used to print the same word.
+        console.log(`  ✗ ${pad(business.name)} ${short(audit.error)}`);
       } else {
         // Ask Claude what the screenshot looks like, then re-score with that
         // in hand so the visual judgement actually affects the tier.
@@ -259,5 +264,35 @@ function draftToText(lead) {
   ].filter(x => x !== "").join("\n");
 }
 
-const slugify = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+const slugify = s => String(s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+
+/*
+  Screenshots and drafts are written to <slug>.jpg / <slug>.txt, so two
+  businesses that slugify the same silently overwrite each other's files —
+  and two 70-character names, or any name with no letters in it at all, do
+  exactly that. Keep a register and disambiguate.
+*/
+const usedSlugs = new Map();
+function uniqueSlug(name, website) {
+  let base = slugify(name);
+  if (!base) base = slugify(website?.replace(/^https?:\/\//, "")) || "business";
+  const seen = usedSlugs.get(base) ?? 0;
+  usedSlugs.set(base, seen + 1);
+  return seen === 0 ? base : `${base}-${seen + 1}`;
+}
 const pad = s => String(s).slice(0, 34).padEnd(35);
+
+/** Turns a raw error into something readable at the end of a console line. */
+function short(err = "") {
+  const e = String(err);
+  if (/refusing to audit/.test(e)) return e.replace(/^refusing to audit /, "refused: ");
+  if (/net::ERR_NAME_NOT_RESOLVED|ENOTFOUND/.test(e)) return "domain does not resolve";
+  if (/net::ERR_TUNNEL_CONNECTION_FAILED|ERR_PROXY/.test(e)) return "blocked by a proxy, or the domain is dead";
+  if (/net::ERR_CONNECTION_REFUSED|ECONNREFUSED/.test(e)) return "connection refused";
+  if (/net::ERR_ABORTED|ERR_EMPTY_RESPONSE/.test(e)) return "server closed the connection";
+  if (/net::ERR_TOO_MANY_REDIRECTS/.test(e)) return "redirect loop";
+  if (/403|Forbidden/.test(e)) return "blocked us (403) — likely a bot filter";
+  if (/net::ERR_CERT|CERT_/.test(e)) return "certificate error (site still audited if reachable)";
+  if (/Timeout|timeout/.test(e)) return "timed out";
+  return e.slice(0, 60);
+}

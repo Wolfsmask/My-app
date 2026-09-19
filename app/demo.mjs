@@ -73,8 +73,11 @@ fs.mkdirSync(outDir, { recursive: true });
 const listPath = path.join(outDir, "demo-list.txt");
 fs.writeFileSync(listPath, list.map(([n, p, ph, r, c]) => `${n}, ${base}/${p}, ${ph}, ${r}, ${c}`).join("\n"));
 
+// The demo serves its fixtures from this machine, so it opts in to local
+// targets. Real runs do not, and the guard in audit.js refuses them.
 const args = ["src/cli.js", "--source", "file", "--input", listPath,
-              "--out", outDir, "--concurrency", "2", ...process.argv.slice(2)];
+              "--out", outDir, "--concurrency", "2", "--allow-local",
+              ...process.argv.slice(2)];
 
 const child = spawn(process.execPath, args, { cwd: here, stdio: "inherit" });
 

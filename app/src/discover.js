@@ -155,28 +155,51 @@ async function geocode(place) {
 /* -------------------------------------------------------------------- File */
 
 /**
- * Reads a hand-made list. One business per line, either just a website or
- * `Name, website, phone, rating, reviewCount`. Blank lines and #comments skipped.
+ * Reads a hand-made list. One business per line:
+ *
+ *   acehvac.com
+ *   Bob's Heating, Inc, bobsheating.com, (555) 111-2222, 4.5, 87
+ *
+ * Blank lines and #comments are skipped.
+ *
+ * Fields are located by *shape*, not by position. Splitting on commas and
+ * assuming field 1 is the website breaks on any name containing a comma —
+ * "Inc", "LLC", "Co." — and those lines produced `website: "https://Inc"`,
+ * which then failed to load and was reported as an unreachable business. That
+ * silently discarded real leads, which is the worst thing this file can do.
  */
 export function discoverFile(text, { category = "manual", city = "manual" } = {}) {
+  const looksLikeUrl = s =>
+    /^(https?:\/\/|www\.)/i.test(s) ||
+    // bare domain: at least one dot and a plausible TLD, and no spaces
+    (/^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(s) && /\.[a-z]{2,}(\/|$)/i.test(s));
+
   return text
     .split("\n")
     .map(l => l.trim())
     .filter(l => l && !l.startsWith("#"))
     .map((line, i) => {
-      const [a, b, c, d, e] = line.split(",").map(s => (s ?? "").trim());
-      const looksLikeUrl = s => /^(https?:\/\/|www\.|[\w-]+\.[a-z]{2,})/i.test(s);
+      const fields = line.split(",").map(s => s.trim());
+      const urlAt = fields.findIndex(looksLikeUrl);
 
-      const name = looksLikeUrl(a) && !b ? a : a;
-      const website = looksLikeUrl(a) ? a : b;
+      // Everything before the website is the name, commas and all.
+      const rawName = urlAt > 0 ? fields.slice(0, urlAt).join(", ").trim() : "";
+      const website = urlAt >= 0 ? fields[urlAt] : null;
+      const [phone, rating, reviews] = urlAt >= 0 ? fields.slice(urlAt + 1) : [];
+
+      const url = website
+        ? (/^https?:\/\//i.test(website) ? website : `https://${website}`)
+        : null;
 
       return {
         sourceId: `file-${i}`,
-        name,
-        website: website ? (website.startsWith("http") ? website : `https://${website}`) : null,
-        phone: c || null,
-        rating: d ? parseFloat(d) : null,
-        reviewCount: e ? parseInt(e, 10) : null,
+        // A line that is only a URL still needs a readable name for the report
+        // and for the draft email, so derive one from the domain.
+        name: rawName || (url ? nameFromUrl(url) : line),
+        website: url,
+        phone: phone || null,
+        rating: rating && !Number.isNaN(parseFloat(rating)) ? parseFloat(rating) : null,
+        reviewCount: reviews && !Number.isNaN(parseInt(reviews, 10)) ? parseInt(reviews, 10) : null,
         status: "OPERATIONAL",
         address: null,
         category,
@@ -184,6 +207,23 @@ export function discoverFile(text, { category = "manual", city = "manual" } = {}
         source: "file",
       };
     });
+}
+
+/** "https://www.bobs-heating.com/x" -> "Bobs Heating" */
+function nameFromUrl(url) {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return host
+      .split(".")
+      .slice(0, -1)
+      .join(" ")
+      .replace(/[-_]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\b\w/g, c => c.toUpperCase()) || host;
+  } catch {
+    return url;
+  }
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));

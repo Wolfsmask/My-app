@@ -70,6 +70,7 @@ until the setup checklist is done. Start with `file` and `osm`.
 --out          output folder                default app/out
 --shots        save a screenshot of each site
 --concurrency  how many at once             default 3
+--allow-local  permit localhost / private addresses (testing only)
 ```
 
 ## The full pipeline
@@ -198,6 +199,22 @@ the whole system.
 
 The fix is `window.visualViewport.width`, which is the physical screen. There is a
 regression test for it in both suites.
+
+## Safety
+
+**It will not audit a local or private address.** URLs from Google Places and
+OpenStreetMap are user-editable, so a listing whose "website" is
+`http://169.254.169.254/` (cloud metadata) or `http://192.168.1.1/` would
+otherwise be fetched, screenshotted and written into a report. Loopback,
+RFC1918, link-local, carrier-grade NAT and multicast ranges are all refused,
+hostname *and* resolved IP, including on redirects from the link checker.
+
+`--allow-local` opts out. The demo and the end-to-end tests use it because they
+serve fixtures from this machine; nothing else should.
+
+**CSV output is formula-safe.** A cell beginning `=`, `+`, `-` or `@` is
+prefixed with an apostrophe, because Excel and Sheets execute those and a
+business name like `=HYPERLINK(...)` comes straight from Google Places.
 
 ## Politeness
 

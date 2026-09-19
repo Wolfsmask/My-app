@@ -134,3 +134,66 @@ test("a page wider than the phone screen is not responsive", () => {
   assert.ok(hit, "overflowing page must be flagged");
   assert.match(hit.evidence, /940px/);
 });
+
+/* ------------------------------------------------------ list parsing */
+
+test("a comma inside a business name does not become the website", async () => {
+  /*
+    Regression: fields were read by position, so "Bob's Heating, Inc, site.com"
+    produced website "https://Inc". That URL failed to load and the business was
+    reported unreachable — a real lead silently discarded, which is the worst
+    outcome this file can produce.
+  */
+  const { discoverFile } = await import("../src/discover.js");
+  const [r] = discoverFile("Bob's Heating, Inc, bobsheating.com, (555) 111-2222, 4.5, 87");
+  assert.equal(r.name, "Bob's Heating, Inc");
+  assert.equal(r.website, "https://bobsheating.com");
+  assert.equal(r.phone, "(555) 111-2222");
+  assert.equal(r.rating, 4.5);
+  assert.equal(r.reviewCount, 87);
+});
+
+test("a bare URL still gets a readable business name", async () => {
+  const { discoverFile } = await import("../src/discover.js");
+  const [a] = discoverFile("https://www.riverside-plumbing.co.uk/services");
+  assert.equal(a.name, "Riverside Plumbing Co");
+  const [b] = discoverFile("acehvac.com");
+  assert.equal(b.website, "https://acehvac.com");
+  assert.equal(b.name, "Acehvac");
+});
+
+test("a line with no website is kept, so it can be dropped with a reason", async () => {
+  const { discoverFile } = await import("../src/discover.js");
+  const [r] = discoverFile("A business with no website at all");
+  assert.equal(r.website, null);
+  assert.equal(disqualify(r), "no_website");
+});
+
+/* --------------------------------------------------------- csv safety */
+
+test("spreadsheet formula injection is neutralised", async () => {
+  const { toCsv } = await import("../src/report.js");
+  const mk = name => ({ tier: "A", score: 80, business: { name, website: "x.com" }, hits: [], audit: {} });
+  for (const evil of ['=HYPERLINK("http://evil","go")', "+1 Heating", "-Cold Air", "@handle"]) {
+    const line = toCsv([mk(evil)]).split("\n")[1];
+    assert.ok(/,'?["']?[=+\-@]/.test(line) === false || line.includes("'" + evil[0]),
+      `formula prefix must be escaped: ${line}`);
+    assert.ok(!/(^|,)[=+\-@]/.test(line), `no cell may start with a formula character: ${line}`);
+  }
+});
+
+/* -------------------------------------------------------- ssrf guard */
+
+test("local and private addresses are refused unless opted in", async () => {
+  const { assertPublicTarget } = await import("../src/audit.js");
+  for (const host of ["localhost", "127.0.0.1", "10.0.0.5", "192.168.1.1", "169.254.169.254", "172.16.9.9", "::1"]) {
+    await assert.rejects(() => assertPublicTarget(host), /refusing to audit/, `${host} must be refused`);
+    await assertPublicTarget(host, { allowLocal: true });   // opt-in must work
+  }
+});
+
+test("a public hostname is allowed", async () => {
+  const { assertPublicTarget } = await import("../src/audit.js");
+  await assertPublicTarget("93.184.216.34");   // public IP, no DNS needed
+  await assertPublicTarget("8.8.8.8");
+});

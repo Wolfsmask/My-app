@@ -26,11 +26,21 @@ export function toCsv(leads) {
   ]);
 
   return [cols, ...rows]
-    .map(r => r.map(cell => {
-      const s = String(cell ?? "");
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    }).join(","))
+    .map(r => r.map(csvCell).join(","))
     .join("\n");
+}
+
+/**
+ * Quoting alone is not enough. Excel and Sheets treat a cell beginning with
+ * =, +, - or @ as a formula, so a business whose name is `=HYPERLINK(...)`
+ * becomes a live formula the moment this file is opened. Business names come
+ * from Google Places, which is user-editable, so prefix those with an
+ * apostrophe — the standard mitigation, and invisible in the spreadsheet.
+ */
+function csvCell(value) {
+  let s = String(value ?? "");
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 const fmtBool = v => (v === undefined || v === null ? "" : v ? "yes" : "no");

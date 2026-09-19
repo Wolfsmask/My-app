@@ -6,11 +6,62 @@
 
 import { chromium } from "playwright";
 import tls from "node:tls";
+import dns from "node:dns/promises";
+import net from "node:net";
 import { structure, interpretStructure } from "./visual.js";
 
 const UA =
   "Mozilla/5.0 (compatible; MBOnyxAudit/1.0; +https://mbonyx.netlify.app/) " +
   "Chrome/120.0.0.0 Safari/537.36";
+
+/**
+ * Refuses to fetch anything on the local machine or a private network.
+ *
+ * The URLs audited here come from Google Places and OpenStreetMap — data
+ * anybody can edit. A listing whose "website" is http://169.254.169.254/ or
+ * http://192.168.1.1/ would otherwise have this tool fetch it, screenshot it,
+ * and put the result in a report. Harmless on a laptop, not harmless once this
+ * runs on a server, which is where the plan takes it.
+ *
+ * Local targets are allowed only when explicitly opted in, which is what the
+ * fixtures and the demo do.
+ */
+export async function assertPublicTarget(hostname, { allowLocal = false } = {}) {
+  if (allowLocal) return;
+
+  const isPrivate = ip => {
+    if (net.isIPv4(ip)) {
+      const [a, b] = ip.split(".").map(Number);
+      return a === 10 || a === 127 || a === 0 ||
+             (a === 172 && b >= 16 && b <= 31) ||
+             (a === 192 && b === 168) ||
+             (a === 169 && b === 254) ||
+             (a === 100 && b >= 64 && b <= 127) ||
+             a >= 224;
+    }
+    const v = ip.toLowerCase();
+    return v === "::1" || v === "::" || v.startsWith("fe80") ||
+           v.startsWith("fc") || v.startsWith("fd") ||
+           v.startsWith("::ffff:127.") || v.startsWith("::ffff:10.") ||
+           v.startsWith("::ffff:192.168.");
+  };
+
+  if (/^(localhost|.*\.local|.*\.internal|.*\.localhost)$/i.test(hostname)) {
+    throw new Error(`refusing to audit a local address: ${hostname}`);
+  }
+  if (net.isIP(hostname) && isPrivate(hostname)) {
+    throw new Error(`refusing to audit a private address: ${hostname}`);
+  }
+
+  let addrs;
+  try {
+    addrs = await dns.lookup(hostname, { all: true });
+  } catch {
+    return; // let the page load fail with its own, clearer error
+  }
+  const bad = addrs.find(a => isPrivate(a.address));
+  if (bad) throw new Error(`refusing to audit ${hostname}: resolves to a private address (${bad.address})`);
+}
 
 /** Signatures for platforms that cannot be made fast or secure. */
 const OBSOLETE = [
@@ -93,7 +144,7 @@ export function detectPlatform(html, headers = {}) {
  * Audits one site. Shares a browser across calls so a run of 50 sites does not
  * pay browser startup 50 times.
  */
-export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPath = null } = {}) {
+export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPath = null, allowLocal = false } = {}) {
   const out = {
     url,
     auditedAt: new Date().toISOString(),
@@ -108,12 +159,13 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
   try {
     const target = url.startsWith("http") ? url : `https://${url}`;
     const hostname = new URL(target).hostname;
+    await assertPublicTarget(hostname, { allowLocal });
 
     // --- Certificate, asked of the socket rather than the browser ----------
     // Local fixtures are served over plain HTTP and have no certificate. That
     // is a property of the test harness, not of the site, so the check is
     // recorded as "did not run" instead of handing every fixture 15 points.
-    const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(hostname) || hostname.endsWith(".local");
+    const isLocal = allowLocal || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(hostname) || hostname.endsWith(".local");
     if (isLocal) {
       out.sslValid = null;
       out.sslDaysLeft = null;
@@ -239,7 +291,7 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
     const struct = await structure(page);
     Object.assign(out, struct, interpretStructure(struct));
 
-    out.brokenLinks = await countBrokenLinks(measured.links, hostname);
+    out.brokenLinks = await countBrokenLinks(measured.links, hostname, { allowLocal });
 
     if (screenshotPath) {
       await page.screenshot({ path: screenshotPath, type: "jpeg", quality: 72 });
@@ -260,7 +312,7 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
  * Checks only same-site links, and only a handful. We are measuring their
  * homepage, not crawling their server.
  */
-async function countBrokenLinks(links, hostname, max = 12) {
+async function countBrokenLinks(links, hostname, { allowLocal = false, max = 12 } = {}) {
   const sameSite = [...new Set(links.filter(h => {
     try { return new URL(h).hostname === hostname; } catch { return false; }
   }))].slice(0, max);
@@ -268,6 +320,8 @@ async function countBrokenLinks(links, hostname, max = 12) {
   let broken = 0;
   for (const link of sameSite) {
     try {
+      // Same-host only, but a redirect can still leave the public internet.
+      await assertPublicTarget(new URL(link).hostname, { allowLocal });
       const r = await fetch(link, {
         method: "HEAD",
         redirect: "follow",
