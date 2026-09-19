@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="description" content="Concept website build for a boutique law firm — by MBOnyx Studio.">
+<title>Meridian Law Group — Concept Build by MBOnyx</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  @font-face{font-family:"Inter";font-style:normal;font-weight:100 900;font-display:swap;src:url("/assets/fonts/inter-var.woff2") format("woff2")}
+  @font-face{font-family:"Playfair Display";font-style:normal;font-weight:600;font-display:swap;src:url("/assets/fonts/playfair-600.woff2") format("woff2")}
+
+  :root{--forest:#12332b;--forest-d:#0b2119;--sage:#7d9b8c;--gold:#b08d47;--paper:#f7f6f1;--white:#fff;--ink:#1c2420;--ink-soft:#586560;--line:#ddd9cd}
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:"Inter",system-ui,sans-serif;line-height:1.7;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none} img,svg{display:block;max-width:100%}
+  h1,h2,h3,p{margin:0 0 .6em} ul{margin:0;padding:0;list-style:none}
+  :focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+  .wrap{width:min(100% - 40px,1140px);margin-inline:auto}
+  .serif{font-family:"Playfair Display",Georgia,serif;font-weight:600}
+  .kick{font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);font-weight:700;display:block;margin-bottom:14px}
+
+  .concept-bar{background:#0b1016;color:#cfd6e0;font-size:.78rem;padding:9px 0}
+  .concept-bar .wrap{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;text-align:center}
+  .concept-bar b{color:#e6d3a5;font-weight:600}
+  .concept-bar a{color:#fff;border-bottom:1px solid rgba(255,255,255,.45)}
+
+  header.nav{background:var(--forest);color:var(--paper);position:sticky;top:0;z-index:50}
+  .nav__inner{display:flex;align-items:center;justify-content:space-between;gap:22px;min-height:82px}
+  .logo{font-family:"Playfair Display",Georgia,serif;font-size:1.3rem;font-weight:600;letter-spacing:.02em;display:flex;align-items:center;gap:12px}
+  .logo__mark{width:36px;height:36px;border:1px solid var(--gold);color:var(--gold);display:grid;place-items:center;font-size:.9rem}
+  .nav__links{display:flex;gap:30px;font-size:.85rem;font-weight:500;color:#b6c8c0}
+  .nav__links a:hover{color:var(--gold)}
+  @media(max-width:900px){.nav__links{display:none}}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:52px;padding:14px 28px;font-size:.84rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border:1px solid transparent;cursor:pointer;transition:background .25s,color .25s,border-color .25s}
+  .btn--gold{background:var(--gold);color:var(--forest-d)}.btn--gold:hover{background:#c9a35c}
+  .btn--out{border-color:currentColor;color:inherit}.btn--out:hover{background:var(--forest);color:var(--paper);border-color:var(--forest)}
+  .btn--outlight{border-color:rgba(255,255,255,.4);color:#fff}.btn--outlight:hover{background:#fff;color:var(--forest)}
+
+  .hero{background:var(--forest);color:var(--paper);padding:clamp(60px,9vw,120px) 0;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;right:-10%;bottom:-40%;width:52%;aspect-ratio:1;border:1px solid rgba(176,141,71,.18);border-radius:50%}
+  .hero__grid{position:relative;z-index:2;display:grid;grid-template-columns:1.2fr .8fr;gap:clamp(34px,6vw,72px);align-items:end}
+  .hero h1{font-family:"Playfair Display",Georgia,serif;font-weight:600;font-size:clamp(2.6rem,6vw,4.8rem);line-height:1.02;letter-spacing:-.03em;margin-bottom:22px}
+  .hero p{color:#b6c8c0;font-size:clamp(1rem,1.4vw,1.18rem);max-width:48ch;margin-bottom:30px}
+  .hero__actions{display:flex;gap:12px;flex-wrap:wrap}
+  .creds{border-left:1px solid rgba(176,141,71,.35);padding-left:26px}
+  .creds div{margin-bottom:22px}
+  .creds b{font-family:"Playfair Display",Georgia,serif;font-size:2.1rem;display:block;line-height:1;color:var(--gold)}
+  .creds span{font-size:.82rem;color:#9db3aa}
+
+  section{padding:clamp(56px,7vw,96px) 0}
+  .band{background:var(--white);border-block:1px solid var(--line)}
+  .shead{max-width:640px;margin-bottom:46px}
+  .shead h2{font-family:"Playfair Display",Georgia,serif;font-weight:600;font-size:clamp(1.9rem,4vw,3rem);letter-spacing:-.025em;line-height:1.1;margin-bottom:12px}
+  .shead p{color:var(--ink-soft);margin:0}
+
+  .practice{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+  .pr{background:var(--white);padding:34px 30px;transition:background .25s}
+  .pr:hover{background:var(--paper)}
+  .pr .n{font-family:"Playfair Display",Georgia,serif;color:var(--gold);font-size:1.1rem;display:block;margin-bottom:24px}
+  .pr h3{font-family:"Playfair Display",Georgia,serif;font-size:1.35rem;font-weight:600;margin-bottom:8px}
+  .pr p{font-size:.9rem;color:var(--ink-soft);margin:0 0 16px}
+  .pr a{font-size:.78rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--forest);border-bottom:1px solid var(--gold);padding-bottom:2px}
+
+  .split{display:grid;grid-template-columns:.85fr 1.15fr;gap:clamp(32px,6vw,76px);align-items:center}
+  .portrait{aspect-ratio:3/4;background:linear-gradient(160deg,#1c4a3e,#12332b 55%,#0b2119);position:relative;overflow:hidden}
+  .portrait::after{content:"";position:absolute;inset:14px;border:1px solid rgba(176,141,71,.3)}
+  .split h2{font-family:"Playfair Display",Georgia,serif;font-size:clamp(1.85rem,3.6vw,2.7rem);font-weight:600;letter-spacing:-.025em;line-height:1.12;margin-bottom:16px}
+  .split p{color:var(--ink-soft)}
+  .bars li{display:grid;grid-template-columns:auto 1fr;gap:14px;padding:14px 0;border-bottom:1px solid var(--line);font-size:.92rem}
+  .bars .d{color:var(--gold)}
+
+  .results{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+  .res{background:var(--paper);border-top:3px solid var(--gold);padding:30px 26px}
+  .res b{font-family:"Playfair Display",Georgia,serif;font-size:2.2rem;display:block;line-height:1;margin-bottom:10px;letter-spacing:-.02em}
+  .res h3{font-size:.95rem;font-weight:700;margin-bottom:6px}
+  .res p{font-size:.86rem;color:var(--ink-soft);margin:0}
+
+  .consult{background:var(--forest-d);color:var(--paper)}
+  .consult__grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(34px,6vw,76px);align-items:start}
+  .consult h2{font-family:"Playfair Display",Georgia,serif;font-size:clamp(2rem,4.2vw,3.1rem);font-weight:600;letter-spacing:-.025em;line-height:1.08;margin-bottom:16px}
+  .consult p{color:#9db3aa}
+  .form{background:rgba(255,255,255,.04);border:1px solid rgba(176,141,71,.25);padding:clamp(24px,3vw,36px)}
+  .fld{display:grid;gap:6px;margin-bottom:16px}
+  .fld label{font-size:.71rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#9db3aa}
+  .fld input,.fld select,.fld textarea{width:100%;min-height:48px;padding:12px 14px;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.25);color:var(--paper);font:inherit}
+  .fld textarea{min-height:110px;resize:vertical}
+  .fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--gold)}
+  .form .btn{width:100%}
+  .fine{font-size:.76rem;color:#7d9287;margin:14px 0 0}
+
+  footer.ft{background:var(--forest);color:#9db3aa;padding:48px 0 30px;font-size:.87rem}
+  .ft__grid{display:grid;grid-template-columns:1.8fr 1fr 1fr;gap:34px;margin-bottom:30px}
+  .ft h4{color:var(--paper);font-size:.74rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px}
+  .ft li{margin-bottom:8px}.ft a:hover{color:var(--gold)}
+  .ft__bot{border-top:1px solid rgba(255,255,255,.12);padding-top:18px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:.78rem}
+  .disclaimer{font-size:.76rem;color:#6b8078;max-width:70ch;margin-top:14px}
+
+  @media(max-width:920px){.hero__grid,.practice,.split,.results,.consult__grid,.ft__grid{grid-template-columns:1fr}.creds{border-left:0;padding-left:0;display:flex;gap:30px;flex-wrap:wrap}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="concept-bar">
+  <div class="wrap">
+    <span><b>Concept build</b> — a demonstration site, not a real firm.</span>
+    <a href="/#work">← Back to MBOnyx Studio</a>
+  </div>
+</div>
+
+<header class="nav">
+  <div class="wrap nav__inner">
+    <a href="#" class="logo"><span class="logo__mark">M</span> Meridian Law Group</a>
+    <nav class="nav__links"><a href="#practice">Practice Areas</a><a href="#about">Attorneys</a><a href="#results">Results</a><a href="#consult">Contact</a></nav>
+    <a href="#consult" class="btn btn--gold">Free Consultation</a>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap hero__grid">
+    <div>
+      <span class="kick">Business &amp; Employment Law</span>
+      <h1>When the stakes are your livelihood.</h1>
+      <p>A boutique firm representing small businesses and the people who work for them. You will speak to the attorney handling your case — every time you call.</p>
+      <div class="hero__actions">
+        <a href="#consult" class="btn btn--gold">Request a consultation</a>
+        <a href="tel:5558820140" class="btn btn--outlight">(555) 882-0140</a>
+      </div>
+    </div>
+    <div class="creds">
+      <div><b>31</b><span>Years of combined practice</span></div>
+      <div><b>400+</b><span>Matters resolved</span></div>
+      <div><b>48hr</b><span>Response commitment</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="practice">
+  <div class="wrap">
+    <div class="shead"><span class="kick">Practice Areas</span><h2>Focused, deliberately</h2>
+      <p>We do not take every case. We take the ones we can genuinely move.</p></div>
+    <div class="practice">
+      <article class="pr"><span class="n">I.</span><h3>Business formation</h3><p>Entity selection, operating agreements, and partner arrangements built to survive a disagreement.</p><a href="#consult">Learn more →</a></article>
+      <article class="pr"><span class="n">II.</span><h3>Employment disputes</h3><p>Wrongful termination, wage claims and severance negotiation — on either side of the table.</p><a href="#consult">Learn more →</a></article>
+      <article class="pr"><span class="n">III.</span><h3>Contract litigation</h3><p>Breach, collection and commercial disputes. We settle when settling is right and try when it isn't.</p><a href="#consult">Learn more →</a></article>
+    </div>
+  </div>
+</section>
+
+<section id="about">
+  <div class="wrap split">
+    <div class="portrait" role="img" aria-label="Attorney portrait"></div>
+    <div>
+      <span class="kick">The Firm</span>
+      <h2>Two attorneys. No case handed to a junior you've never met.</h2>
+      <p>Meridian was founded on a simple frustration: clients at larger firms kept paying senior rates for work done by someone three years out of law school.</p>
+      <p>We keep our caseload small on purpose. It is the only way to promise you'll recognize the voice on the phone.</p>
+      <ul class="bars">
+        <li><span class="d">◆</span><span>Admitted in state and federal district courts</span></li>
+        <li><span class="d">◆</span><span>Flat-fee pricing available for formation and contract work</span></li>
+        <li><span class="d">◆</span><span>Evening and weekend consultations by appointment</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="results">
+  <div class="wrap">
+    <div class="shead"><span class="kick">Representative Matters</span><h2>Outcomes we can discuss</h2>
+      <p>Illustrative results from concluded matters. Past results do not guarantee a similar outcome.</p></div>
+    <div class="results">
+      <article class="res"><b>$1.4M</b><h3>Partnership dissolution</h3><p>Recovered for a minority owner squeezed out of a regional distributor.</p></article>
+      <article class="res"><b>Dismissed</b><h3>Non-compete enforcement</h3><p>Overbroad restrictive covenant struck in full; client began new role on schedule.</p></article>
+      <article class="res"><b>$310K</b><h3>Unpaid wage class</h3><p>Settled on behalf of 22 hourly employees at a hospitality group.</p></article>
+    </div>
+  </div>
+</section>
+
+<section class="consult" id="consult">
+  <div class="wrap consult__grid">
+    <div>
+      <span class="kick">Contact</span>
+      <h2>Tell us what happened.</h2>
+      <p>Consultations are free and confidential. We will tell you honestly whether you have a matter worth pursuing — including when the answer is no.</p>
+      <p style="margin-top:22px"><strong style="color:var(--paper)">Meridian Law Group</strong><br>900 Commerce Street, Suite 1150<br><a href="tel:5558820140" style="color:var(--gold)">(555) 882-0140</a></p>
+    </div>
+    <form class="form" onsubmit="return false">
+      <div class="fld"><label for="n">Full name</label><input id="n" placeholder="Your name"></div>
+      <div class="fld"><label for="e">Email</label><input id="e" type="email" placeholder="you@example.com"></div>
+      <div class="fld"><label for="m">Matter type</label>
+        <select id="m"><option>Business formation</option><option>Employment dispute</option><option>Contract litigation</option><option>Not sure yet</option></select></div>
+      <div class="fld"><label for="d">Brief description</label><textarea id="d" placeholder="A few sentences is plenty."></textarea></div>
+      <button class="btn btn--gold" type="submit">Request consultation</button>
+      <p class="fine">Submitting this form does not create an attorney–client relationship. Please do not send confidential information until a relationship is established.</p>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="ft">
+  <div class="wrap">
+    <div class="ft__grid">
+      <div><div class="logo" style="color:var(--paper);margin-bottom:12px"><span class="logo__mark">M</span> Meridian Law Group</div>
+        <p>900 Commerce Street, Suite 1150<br>(555) 882-0140</p></div>
+      <div><h4>Practice</h4><ul><li><a href="#practice">Business formation</a></li><li><a href="#practice">Employment</a></li><li><a href="#practice">Litigation</a></li></ul></div>
+      <div><h4>Firm</h4><ul><li><a href="#about">Attorneys</a></li><li><a href="#results">Results</a></li><li><a href="#consult">Contact</a></li></ul></div>
+    </div>
+    <p class="disclaimer">This concept site is for demonstration only. Nothing here is legal advice, and no attorney–client relationship is formed by viewing it.</p>
+    <div class="ft__bot">
+      <span>© <span id="y">2026</span> Meridian Law Group — concept build.</span>
+      <a href="/#work">Built by MBOnyx Studio ↗</a>
+    </div>
+  </div>
+</footer>
+
+<script>document.getElementById('y').textContent = new Date().getFullYear();</script>
+</body>
+</html>

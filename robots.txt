@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Concept builds are demonstrations, not real businesses. Keeping them out of
+# search results avoids competing with (or being mistaken for) a real company.
+Disallow: /work/
+
+Sitemap: https://mbonyx.netlify.app/sitemap.xml

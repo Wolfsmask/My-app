@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="description" content="Concept website build for a heating and cooling contractor — by MBOnyx Studio.">
+<title>Northpoint Heating &amp; Air — Concept Build by MBOnyx</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  @font-face{font-family:"Inter";font-style:normal;font-weight:100 900;font-display:swap;src:url("/assets/fonts/inter-var.woff2") format("woff2")}
+
+  :root{--navy:#10233d;--navy-d:#0a1830;--steel:#33506f;--ice:#eef3f8;--fire:#f4612a;--fire-d:#d64a15;--line:#d3dde8;--ok:#1f9d55}
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--navy);font-family:"Inter",system-ui,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none} img,svg{display:block;max-width:100%}
+  h1,h2,h3,p{margin:0 0 .55em} ul{margin:0;padding:0;list-style:none}
+  :focus-visible{outline:3px solid var(--fire);outline-offset:3px}
+  .wrap{width:min(100% - 36px,1160px);margin-inline:auto}
+  .up{text-transform:uppercase;letter-spacing:.08em}
+
+  .concept-bar{background:#0b1016;color:#cfd6e0;font-size:.78rem;padding:9px 0}
+  .concept-bar .wrap{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;text-align:center}
+  .concept-bar b{color:#e6d3a5;font-weight:600}
+  .concept-bar a{color:#fff;border-bottom:1px solid rgba(255,255,255,.45)}
+
+  .alert{background:var(--fire);color:#fff;font-weight:700;font-size:.86rem;padding:10px 0;text-align:center}
+  .alert a{border-bottom:2px solid rgba(255,255,255,.6)}
+
+  header.nav{background:var(--navy);color:#fff;position:sticky;top:0;z-index:50}
+  .nav__inner{display:flex;align-items:center;justify-content:space-between;gap:18px;min-height:78px}
+  .logo{display:flex;align-items:center;gap:11px;font-weight:900;font-size:1.02rem;letter-spacing:-.01em}
+  .logo__mark{width:38px;height:38px;background:var(--fire);display:grid;place-items:center;font-size:1.05rem;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+  .nav__links{display:flex;gap:26px;font-size:.88rem;font-weight:600}
+  .nav__links a{color:#b9c9dc}.nav__links a:hover{color:#fff}
+  .phone{display:flex;flex-direction:column;align-items:flex-end;line-height:1.15}
+  .phone small{font-size:.66rem;color:#8fa6c0;font-weight:700}
+  .phone b{font-size:1.28rem;font-weight:900;color:#fff}
+  @media(max-width:960px){.nav__links{display:none}}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:54px;padding:15px 30px;font-weight:800;font-size:.95rem;border:2px solid transparent;cursor:pointer;transition:transform .18s,background .18s;text-transform:uppercase;letter-spacing:.04em}
+  .btn:hover{transform:translateY(-2px)}
+  .btn--fire{background:var(--fire);color:#fff}.btn--fire:hover{background:var(--fire-d)}
+  .btn--out{border-color:#fff;color:#fff}.btn--out:hover{background:#fff;color:var(--navy)}
+  .btn--dark{background:var(--navy);color:#fff}
+
+  .hero{background:linear-gradient(115deg,var(--navy-d) 0%,var(--navy) 48%,var(--steel) 100%);color:#fff;padding:clamp(56px,8vw,104px) 0;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;right:-12%;top:-20%;width:58%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(244,97,42,.28),transparent 62%)}
+  .hero__grid{position:relative;z-index:2;display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(30px,5vw,60px);align-items:center}
+  .tag{display:inline-block;background:rgba(244,97,42,.18);border:1px solid rgba(244,97,42,.5);color:#ffb593;font-size:.74rem;font-weight:800;padding:7px 14px;margin-bottom:20px}
+  .hero h1{font-size:clamp(2.6rem,6vw,4.6rem);font-weight:900;line-height:.98;letter-spacing:-.04em}
+  .hero h1 span{color:var(--fire)}
+  .hero p{color:#c3d3e5;font-size:clamp(1rem,1.5vw,1.2rem);max-width:46ch;margin-bottom:28px}
+  .hero__actions{display:flex;gap:12px;flex-wrap:wrap}
+  .badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:32px}
+  .badge{border:1px solid rgba(255,255,255,.2);padding:9px 14px;font-size:.76rem;font-weight:700;color:#c3d3e5}
+
+  .quote{background:#fff;color:var(--navy);padding:28px;border-top:6px solid var(--fire);box-shadow:0 28px 60px rgba(0,0,0,.3)}
+  .quote h3{font-weight:900;font-size:1.22rem;margin-bottom:3px}
+  .quote .sub{font-size:.85rem;color:var(--steel);margin-bottom:20px}
+  .fld{display:grid;gap:5px;margin-bottom:13px}
+  .fld label{font-size:.71rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--steel)}
+  .fld input,.fld select{width:100%;min-height:48px;padding:12px;border:2px solid var(--line);font:inherit;color:var(--navy);background:#fff}
+  .fld input:focus,.fld select:focus{outline:none;border-color:var(--fire)}
+  .quote .btn{width:100%}
+  .quote .fine{font-size:.74rem;color:var(--steel);margin:12px 0 0;text-align:center}
+
+  section{padding:clamp(52px,7vw,92px) 0}
+  .band{background:var(--ice)}
+  .shead{max-width:640px;margin-bottom:44px}
+  .shead .kick{color:var(--fire);font-size:.76rem;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
+  .shead h2{font-size:clamp(1.9rem,4vw,3rem);font-weight:900;letter-spacing:-.03em;line-height:1.06;margin-top:8px}
+  .shead p{color:var(--steel)}
+
+  .svcs{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;background:var(--line);border:2px solid var(--line)}
+  .svc{background:#fff;padding:30px 26px;transition:background .2s}
+  .svc:hover{background:var(--navy);color:#fff}
+  .svc:hover p{color:#b9c9dc}
+  .svc .n{font-size:.72rem;font-weight:900;color:var(--fire);letter-spacing:.1em;margin-bottom:26px;display:block}
+  .svc h3{font-size:1.15rem;font-weight:800;margin-bottom:6px}
+  .svc p{font-size:.88rem;color:var(--steel);margin:0}
+
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+  .step{border-left:4px solid var(--fire);padding-left:22px}
+  .step b{display:block;font-size:2.4rem;font-weight:900;line-height:1;color:var(--line);margin-bottom:8px}
+  .step h3{font-size:1.1rem;font-weight:800;margin-bottom:5px}
+  .step p{font-size:.9rem;color:var(--steel);margin:0}
+
+  .strip{background:var(--navy);color:#fff;padding:clamp(38px,5vw,60px) 0}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;text-align:center}
+  .stat b{display:block;font-size:clamp(2rem,4vw,3rem);font-weight:900;color:var(--fire);letter-spacing:-.03em;line-height:1}
+  .stat span{font-size:.82rem;color:#b9c9dc;font-weight:600}
+
+  .revs{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .rev{background:#fff;border:2px solid var(--line);padding:26px}
+  .stars{color:var(--fire);letter-spacing:2px;font-size:1.05rem;margin-bottom:10px}
+  .rev p{font-size:.92rem;color:var(--steel)}
+  .rev cite{font-style:normal;font-weight:800;font-size:.86rem;display:block;margin-top:12px}
+
+  .final{background:var(--fire);color:#fff;text-align:center;padding:clamp(46px,6vw,80px) 0}
+  .final h2{font-size:clamp(2rem,4.4vw,3.2rem);font-weight:900;letter-spacing:-.03em}
+  .final p{max-width:44ch;margin-inline:auto;margin-bottom:26px;color:#ffe2d6}
+
+  footer.ft{background:var(--navy-d);color:#8fa6c0;padding:46px 0 30px;font-size:.87rem}
+  .ft__grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:32px;margin-bottom:30px}
+  .ft h4{color:#fff;font-size:.76rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase;margin-bottom:13px}
+  .ft li{margin-bottom:7px}.ft a:hover{color:#fff}
+  .ft__bot{border-top:1px solid rgba(255,255,255,.12);padding-top:18px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:.78rem}
+
+  @media(max-width:980px){.svcs{grid-template-columns:repeat(2,1fr)}.stats{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:880px){.hero__grid,.steps,.revs,.ft__grid{grid-template-columns:1fr}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="concept-bar">
+  <div class="wrap">
+    <span><b>Concept build</b> — a demonstration site, not a real company.</span>
+    <a href="/#work">← Back to MBOnyx Studio</a>
+  </div>
+</div>
+
+<div class="alert">24/7 EMERGENCY SERVICE — NO OVERTIME CHARGES — <a href="tel:5559300000">CALL (555) 930-0000</a></div>
+
+<header class="nav">
+  <div class="wrap nav__inner">
+    <a href="#" class="logo"><span class="logo__mark">▲</span> NORTHPOINT<br>HEATING &amp; AIR</a>
+    <nav class="nav__links">
+      <a href="#services">Services</a><a href="#how">How It Works</a><a href="#reviews">Reviews</a><a href="#quote">Free Quote</a>
+    </nav>
+    <a href="tel:5559300000" class="phone"><small class="up">Call 24/7</small><b>(555) 930-0000</b></a>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap hero__grid">
+    <div>
+      <span class="tag up">Licensed · Bonded · Insured — Lic #HV-40192</span>
+      <h1>Heat out? We're there <span>today.</span></h1>
+      <p>Straight-priced repairs, installs and tune-ups. You get the number before we pick up a wrench — no hourly surprises.</p>
+      <div class="hero__actions">
+        <a href="tel:5559300000" class="btn btn--fire">📞 Call (555) 930-0000</a>
+        <a href="#quote" class="btn btn--out">Get a free quote</a>
+      </div>
+      <div class="badges">
+        <span class="badge">✓ Same-day service</span>
+        <span class="badge">✓ 10-year parts warranty</span>
+        <span class="badge">✓ Financing available</span>
+      </div>
+    </div>
+
+    <div class="quote" id="quote">
+      <h3>Get a free quote</h3>
+      <p class="sub">We call back in under 30 minutes, 7am–9pm.</p>
+      <div class="fld"><label for="n">Name</label><input id="n" placeholder="Your name"></div>
+      <div class="fld"><label for="p">Phone</label><input id="p" type="tel" placeholder="(555) 000-0000"></div>
+      <div class="fld"><label for="s">What do you need?</label>
+        <select id="s"><option>No heat / no cooling — urgent</option><option>New system estimate</option><option>Seasonal tune-up</option><option>Duct work</option><option>Something else</option></select>
+      </div>
+      <button class="btn btn--fire" type="button">Request my quote</button>
+      <p class="fine">No obligation. We never sell your information.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="services">
+  <div class="wrap">
+    <div class="shead"><span class="kick">What we handle</span><h2>One crew, every season</h2>
+      <p>Residential and light commercial across the metro and surrounding counties.</p></div>
+    <div class="svcs">
+      <article class="svc"><span class="n">01</span><h3>AC repair</h3><p>Diagnosed and fixed same day in most cases, including weekends.</p></article>
+      <article class="svc"><span class="n">02</span><h3>Furnace service</h3><p>Repairs, safety inspections and full replacements before the first freeze.</p></article>
+      <article class="svc"><span class="n">03</span><h3>System installs</h3><p>Right-sized equipment with a written load calculation, not a guess.</p></article>
+      <article class="svc"><span class="n">04</span><h3>Maintenance plans</h3><p>Two visits a year, priority scheduling and 15% off any repair.</p></article>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="shead"><span class="kick">How it works</span><h2>No mystery, no runaround</h2></div>
+    <div class="steps">
+      <div class="step"><b>01</b><h3>Call or request online</h3><p>A real dispatcher picks up. You get a two-hour arrival window, not "sometime Tuesday."</p></div>
+      <div class="step"><b>02</b><h3>Flat-rate diagnosis</h3><p>$89, credited toward the repair. We show you the problem before we quote it.</p></div>
+      <div class="step"><b>03</b><h3>You approve, we fix</h3><p>Nothing happens until you say yes to a written price. Most repairs finish the same visit.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="strip">
+  <div class="wrap stats">
+    <div class="stat"><b>22</b><span>Years in business</span></div>
+    <div class="stat"><b>9,400+</b><span>Jobs completed</span></div>
+    <div class="stat"><b>4.8★</b><span>318 Google reviews</span></div>
+    <div class="stat"><b>&lt;30min</b><span>Average callback</span></div>
+  </div>
+</section>
+
+<section class="band" id="reviews">
+  <div class="wrap">
+    <div class="shead"><span class="kick">Reviews</span><h2>Neighbors, not strangers</h2></div>
+    <div class="revs">
+      <article class="rev"><div class="stars">★★★★★</div><p>"Furnace quit at 6am in January. Truck was in my driveway by 9. Quoted $340, charged $340."</p><cite>— Marcus T.</cite></article>
+      <article class="rev"><div class="stars">★★★★★</div><p>"Two other companies told me I needed a whole new system. Northpoint replaced a $180 part. Still running two years later."</p><cite>— Angela V.</cite></article>
+      <article class="rev"><div class="stars">★★★★★</div><p>"They put down floor covers without being asked and hauled the old unit away. Little things."</p><cite>— Ray D.</cite></article>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <h2>Stop sweating it.</h2>
+    <p>Call now and talk to a dispatcher in your own time zone, or send us the details and we'll call you.</p>
+    <a href="tel:5559300000" class="btn btn--dark">📞 (555) 930-0000</a>
+  </div>
+</section>
+</main>
+
+<footer class="ft">
+  <div class="wrap">
+    <div class="ft__grid">
+      <div><div class="logo" style="color:#fff;margin-bottom:12px"><span class="logo__mark">▲</span> NORTHPOINT</div>
+        <p>2201 Industrial Parkway<br>Lic #HV-40192 · Bonded &amp; insured<br>Open 24/7 for emergencies</p></div>
+      <div><h4>Services</h4><ul><li><a href="#services">AC repair</a></li><li><a href="#services">Furnace service</a></li><li><a href="#services">Installs</a></li><li><a href="#services">Maintenance plans</a></li></ul></div>
+      <div><h4>Contact</h4><ul><li><a href="tel:5559300000">(555) 930-0000</a></li><li><a href="#quote">Free quote</a></li></ul></div>
+    </div>
+    <div class="ft__bot">
+      <span>© <span id="y">2026</span> Northpoint Heating &amp; Air — concept build.</span>
+      <a href="/#work">Built by MBOnyx Studio ↗</a>
+    </div>
+  </div>
+</footer>
+
+<script>document.getElementById('y').textContent = new Date().getFullYear();</script>
+</body>
+</html>

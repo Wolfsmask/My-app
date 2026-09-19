@@ -1,0 +1,4365 @@
+<!DOCTYPE html>
+<html lang="en" class="fonts-pending">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+  <meta
+    name="description"
+    content="MBOnyx Studio builds fast, custom-coded websites for local businesses. Sub-2-second load times, mobile-first, no templates. Packages from $900."
+  >
+  <meta name="theme-color" content="#080b10">
+  <meta name="author" content="MBOnyx Studio">
+  <link rel="canonical" href="https://mbonyx.netlify.app/">
+
+  <title>Custom Website Design for Local Businesses | MBOnyx Studio</title>
+
+  <!-- Social preview: controls how the link looks when texted, emailed or posted. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="MBOnyx Studio">
+  <meta property="og:url" content="https://mbonyx.netlify.app/">
+  <meta property="og:title" content="Custom Website Design for Local Businesses">
+  <meta
+    property="og:description"
+    content="Fast, custom-coded websites for local businesses. Sub-2-second load times, mobile-first, no templates."
+  >
+  <meta property="og:image" content="https://mbonyx.netlify.app/assets/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Custom Website Design for Local Businesses">
+  <meta
+    name="twitter:description"
+    content="Fast, custom-coded websites for local businesses. Sub-2-second load times, mobile-first, no templates."
+  >
+  <meta name="twitter:image" content="https://mbonyx.netlify.app/assets/og.png">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+
+  <!--
+    Self-hosted fonts. No third-party DNS lookup, no render-blocking request to
+    Google, and the whole set is 96KB. Preloaded so text paints at first render.
+  -->
+  <link rel="preload" href="/assets/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/playfair-600.woff2" as="font" type="font/woff2" crossorigin>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ProfessionalService",
+    "name": "MBOnyx Studio",
+    "description": "Custom-coded website design and development for local businesses.",
+    "url": "https://mbonyx.netlify.app/",
+    "email": "hello@mbonyx.com",
+    "priceRange": "$900-$2400",
+    "serviceType": "Web Design and Development"
+  }
+  </script>
+
+  <script>
+    /*
+      Render immediately with system fallbacks, then let Google Fonts swap in.
+      The entrance starts after the DOM exists, so slow or blocked font requests
+      can never leave visitors staring at a blank page.
+    */
+    (() => {
+      const root = document.documentElement;
+
+      root.classList.remove("fonts-pending");
+      root.classList.add("fonts-loaded");
+
+      const beginEntrance = () => {
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            root.classList.add("intro-ready");
+
+            if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+              root.classList.add("intro-complete");
+            } else {
+              /*
+                Must outlast the longest entrance delay + duration
+                (signatureDraw: 0.83s + 0.5s). Kept deliberately tight: the
+                hero is readable in well under half a second.
+              */
+              window.setTimeout(() => {
+                root.classList.add("intro-complete");
+              }, 1400);
+            }
+          });
+        });
+      };
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", beginEntrance, { once: true });
+      } else {
+        beginEntrance();
+      }
+    })();
+  </script>
+
+  <noscript>
+    <style>
+      html.fonts-pending body {
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
+
+      .site-header,
+      .hero__availability,
+      .hero-word,
+      .hero__description,
+      .hero__actions .button,
+      .hero__atmosphere,
+      .hero__signature-line {
+        opacity: 1 !important;
+        filter: none !important;
+        transform: none !important;
+        animation: none !important;
+      }
+
+      .hero__atmosphere {
+        transform: translate3d(0, -50%, 0) !important;
+      }
+    </style>
+  </noscript>
+
+  <style>
+    /* =========================================================
+       SELF-HOSTED FONTS (latin subset)
+    ========================================================= */
+
+    @font-face {
+      font-family: "Inter";
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: swap;
+      src: url("/assets/fonts/inter-var.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Playfair Display";
+      font-style: normal;
+      font-weight: 600;
+      font-display: swap;
+      src: url("/assets/fonts/playfair-600.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Playfair Display";
+      font-style: italic;
+      font-weight: 600;
+      font-display: swap;
+      src: url("/assets/fonts/playfair-600-italic.woff2") format("woff2");
+    }
+
+    /* =========================================================
+       DESIGN TOKENS
+    ========================================================= */
+
+    :root {
+      --color-bg: #080b10;
+      --color-bg-soft: #0d1118;
+      --color-surface: rgba(18, 23, 31, 0.76);
+      --color-surface-solid: #12171f;
+      --color-surface-light: #171d27;
+
+      --color-text: #f5f3ed;
+      --color-text-soft: #b3b6bd;
+      --color-text-muted: #7d828c;
+
+      --color-accent: #c9ad72;
+      --color-accent-light: #e6d3a5;
+      --color-accent-dark: #8f7441;
+
+      --color-line: rgba(255, 255, 255, 0.09);
+      --color-line-strong: rgba(201, 173, 114, 0.28);
+
+      --font-heading: "Playfair Display", Georgia, serif;
+      --font-body: "Inter", Arial, sans-serif;
+
+      --container: 1180px;
+      --radius-small: 10px;
+      --radius-medium: 18px;
+      --radius-large: 28px;
+
+      --shadow-card:
+        0 24px 60px rgba(0, 0, 0, 0.28),
+        0 2px 12px rgba(0, 0, 0, 0.18);
+
+      --shadow-accent:
+        0 20px 60px rgba(201, 173, 114, 0.13);
+
+      --transition-fast: 180ms ease;
+      --transition-medium: 350ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      --transition-slow: 700ms cubic-bezier(0.16, 1, 0.3, 1);
+
+      /* Fixed header height + safe area + comfortable section breathing room. */
+      --anchor-offset: calc(72px + max(12px, env(safe-area-inset-top)) + 28px);
+
+      /* Updated by one requestAnimationFrame-driven scroll loop. */
+      --grid-scroll-y: 0px;
+      --hero-scroll-y: 0px;
+    }
+
+    /* =========================================================
+       RESET, FOUT, AND TEXT-HIGHLIGHT LOCK
+    ========================================================= */
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      width: 100%;
+      max-width: 100vw;
+      min-width: 0;
+      scroll-padding-top: var(--anchor-offset);
+      background: var(--color-bg);
+      color-scheme: dark;
+      overflow-x: hidden !important;
+      overscroll-behavior-x: none;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      html {
+        scroll-behavior: smooth;
+      }
+    }
+
+    body {
+      position: relative;
+      width: 100%;
+      max-width: 100vw;
+      min-width: 0;
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden !important;
+      overscroll-behavior-x: none;
+
+      /*
+        Text selection stays ON. Visitors need to copy the price, the email
+        address and the package names to forward to a partner or accountant.
+        Only the purely decorative hero geometry opts out, below.
+      */
+      background:
+        radial-gradient(
+          circle at 12% 4%,
+          rgba(201, 173, 114, 0.09),
+          transparent 31rem
+        ),
+        radial-gradient(
+          circle at 92% 24%,
+          rgba(91, 115, 148, 0.09),
+          transparent 30rem
+        ),
+        var(--color-bg);
+      color: var(--color-text);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.6;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    html.fonts-pending body,
+    html.fonts-loaded body {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    img,
+    svg {
+      display: block;
+      max-width: 100%;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      max-width: 100%;
+      font: inherit;
+      font-family: var(--font-body);
+    }
+
+    /* Decoration only: nothing here is readable content worth selecting. */
+    .hero__atmosphere,
+    .background-grid,
+    .hero__signature-line {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    button,
+    a,
+    summary {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+      overflow-wrap: anywhere;
+    }
+
+    ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--color-accent-light);
+      outline-offset: 4px;
+    }
+
+    /* =========================================================
+       GLOBAL LAYOUT
+    ========================================================= */
+
+    /*
+      The only global clipping boundary. It spans the full viewport, so the
+      entrance can travel outside the content column without creating scroll
+      or being cut off by a smaller invisible box.
+    */
+    .viewport-clip {
+      position: relative;
+      width: 100%;
+      max-width: 100vw;
+      min-width: 0;
+      overflow-x: hidden;
+    }
+
+    .site-shell {
+      position: relative;
+      width: 100%;
+      max-width: 100vw;
+      min-width: 0;
+      overflow-x: hidden;
+      isolation: isolate;
+    }
+
+    .site-header,
+    main,
+    .site-footer {
+      width: 100%;
+      max-width: 100vw;
+      min-width: 0;
+    }
+
+    /*
+      The background uses two independent layers: the fixed viewport wrapper
+      receives scroll-linked vertical drift, while the oversized inner plane
+      rotates forever. Keeping those transforms separate prevents animation
+      snapping and preserves rotation throughout scrolling.
+    */
+    .background-grid {
+      position: fixed;
+      z-index: -2;
+      inset: -14vh 0 0;
+      overflow: hidden;
+      transform: translate3d(0, var(--grid-scroll-y), 0);
+      pointer-events: none;
+      contain: strict;
+      will-change: transform;
+    }
+
+    .background-grid__plane {
+      position: absolute;
+      inset: -70vmax;
+      transform: rotate(0deg) scale(1.04);
+      transform-origin: center;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+      background-size: 64px 64px;
+      mask-image: radial-gradient(
+        circle at center,
+        black 0 42%,
+        rgba(0, 0, 0, 0.78) 58%,
+        transparent 78%
+      );
+      -webkit-mask-image: radial-gradient(
+        circle at center,
+        black 0 42%,
+        rgba(0, 0, 0, 0.78) 58%,
+        transparent 78%
+      );
+      opacity: 0.9;
+      will-change: transform;
+      animation: gridFieldRotate 180s linear infinite;
+    }
+
+    @keyframes gridFieldRotate {
+      from {
+        transform: rotate(0deg) scale(1.04);
+      }
+
+      to {
+        transform: rotate(360deg) scale(1.04);
+      }
+    }
+
+    .container {
+      width: min(calc(100% - clamp(28px, 5vw, 64px)), var(--container));
+      margin-inline: auto;
+    }
+
+    .section {
+      position: relative;
+      padding-block: clamp(76px, 9vw, 140px);
+      scroll-margin-top: var(--anchor-offset);
+    }
+
+    .section--soft {
+      overflow-x: clip;
+      border-block: 1px solid var(--color-line);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent),
+        rgba(255, 255, 255, 0.006);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: clamp(24px, 5vw, 56px);
+      margin-bottom: clamp(38px, 6vw, 72px);
+    }
+
+    .section-header__copy {
+      min-width: 0;
+    }
+
+    .section-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 17px;
+      color: var(--color-accent-light);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .section-kicker::before {
+      width: 28px;
+      height: 1px;
+      background: var(--color-accent);
+      content: "";
+    }
+
+    .section-heading {
+      max-width: 780px;
+      margin-bottom: 20px;
+      font-family: var(--font-heading);
+      font-size: clamp(2.35rem, 5vw, 5rem);
+      font-weight: 600;
+      letter-spacing: -0.04em;
+      line-height: 1.02;
+    }
+
+    .section-description {
+      max-width: 650px;
+      margin-bottom: 0;
+      color: var(--color-text-soft);
+      font-size: clamp(0.98rem, 1.35vw, 1.15rem);
+    }
+
+    /* =========================================================
+       NAVIGATION
+    ========================================================= */
+
+    .site-header {
+      position: fixed;
+      z-index: 900;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding-top: max(12px, env(safe-area-inset-top));
+      transition:
+        background var(--transition-medium),
+        border-color var(--transition-medium),
+        backdrop-filter var(--transition-medium),
+        box-shadow var(--transition-medium);
+    }
+
+    .site-header.is-scrolled,
+    .site-header.menu-open {
+      border-bottom: 1px solid var(--color-line);
+      background: rgba(8, 11, 16, 0.88);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .navbar {
+      display: flex;
+      min-height: 72px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand {
+      display: inline-flex;
+      min-width: 0;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 1;
+      font-size: 0.83rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .brand__mark {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid var(--color-line-strong);
+      border-radius: 50%;
+      color: var(--color-accent-light);
+      font-family: var(--font-heading);
+      font-size: 0.72rem;
+      letter-spacing: -0.04em;
+    }
+
+    .brand__name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .nav-menu {
+      display: flex;
+      align-items: center;
+      gap: clamp(18px, 3vw, 34px);
+    }
+
+    .nav-link {
+      position: relative;
+      padding-block: 8px;
+      color: var(--color-text-soft);
+      font-size: 0.87rem;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: color var(--transition-fast);
+    }
+
+    .nav-link::after {
+      position: absolute;
+      right: 0;
+      bottom: 3px;
+      left: 0;
+      height: 1px;
+      transform: scaleX(0);
+      transform-origin: right;
+      background: var(--color-accent);
+      transition: transform var(--transition-medium);
+      content: "";
+    }
+
+    .nav-link:hover,
+    .nav-link.active,
+    .nav-link.is-active {
+      color: var(--color-text);
+    }
+
+    .nav-link:hover::after,
+    .nav-link.active::after,
+    .nav-link.is-active::after {
+      transform: scaleX(1);
+      transform-origin: left;
+    }
+
+    .nav-menu .button.active,
+    .nav-menu .button.is-active {
+      border-color: rgba(201, 173, 114, 0.58);
+      background: rgba(201, 173, 114, 0.09);
+      box-shadow: 0 0 0 1px rgba(201, 173, 114, 0.08);
+    }
+
+    .menu-toggle {
+      display: none;
+      width: 44px;
+      height: 44px;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid var(--color-line);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.025);
+      color: var(--color-text);
+      cursor: pointer;
+    }
+
+    .menu-toggle__icon,
+    .menu-toggle__icon::before,
+    .menu-toggle__icon::after {
+      width: 18px;
+      height: 1px;
+      background: currentColor;
+      transition: transform var(--transition-medium), opacity var(--transition-fast);
+    }
+
+    .menu-toggle__icon {
+      position: relative;
+    }
+
+    .menu-toggle__icon::before,
+    .menu-toggle__icon::after {
+      position: absolute;
+      left: 0;
+      content: "";
+    }
+
+    .menu-toggle__icon::before {
+      transform: translateY(-6px);
+    }
+
+    .menu-toggle__icon::after {
+      transform: translateY(6px);
+    }
+
+    .menu-toggle[aria-expanded="true"] .menu-toggle__icon {
+      background: transparent;
+    }
+
+    .menu-toggle[aria-expanded="true"] .menu-toggle__icon::before {
+      transform: rotate(45deg);
+    }
+
+    .menu-toggle[aria-expanded="true"] .menu-toggle__icon::after {
+      transform: rotate(-45deg);
+    }
+
+    /* =========================================================
+       BUTTONS
+    ========================================================= */
+
+    .button {
+      display: inline-flex;
+      min-height: 54px;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 25px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      font-size: 0.91rem;
+      font-weight: 650;
+      line-height: 1.1;
+      text-align: center;
+      cursor: pointer;
+      transition:
+        transform var(--transition-medium),
+        box-shadow var(--transition-medium),
+        background var(--transition-medium),
+        border-color var(--transition-medium),
+        color var(--transition-medium);
+    }
+
+    .button:hover {
+      transform: translateY(-3px);
+    }
+
+    .button--primary {
+      background: linear-gradient(135deg, var(--color-accent-light), var(--color-accent));
+      box-shadow: 0 14px 38px rgba(201, 173, 114, 0.16);
+      color: #090b0f;
+    }
+
+    .button--primary:hover {
+      box-shadow: 0 18px 46px rgba(201, 173, 114, 0.26);
+    }
+
+    .button--secondary {
+      border-color: var(--color-line);
+      background: rgba(255, 255, 255, 0.025);
+      color: var(--color-text);
+    }
+
+    .button--secondary:hover {
+      border-color: rgba(201, 173, 114, 0.45);
+      background: rgba(201, 173, 114, 0.06);
+    }
+
+    .nav-menu .button {
+      min-height: 42px;
+      padding: 10px 20px;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+
+    /* =========================================================
+       HERO & CINEMATIC 3D ENTRANCE
+    ========================================================= */
+
+    .hero {
+      position: relative;
+      display: grid;
+      width: 100%;
+      max-width: 100vw;
+      min-width: 0;
+      min-height: 100svh;
+      margin: 0;
+      align-items: center;
+      padding-top: clamp(120px, 15vh, 170px);
+      padding-bottom: clamp(72px, 9vh, 110px);
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    /* Full-width hero clips only at the actual viewport edges. */
+    .hero__inner {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      width: min(calc(100% - clamp(28px, 5vw, 64px)), var(--container));
+      max-width: var(--container);
+      min-width: 0;
+      min-height: inherit;
+      align-items: center;
+      overflow: visible;
+      perspective: 1600px;
+    }
+
+    .hero__grid {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      grid-template-columns: minmax(0, 1fr);
+      align-items: center;
+      overflow: visible;
+    }
+
+    .hero__content {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      max-width: min(1050px, 100%);
+      min-width: 0;
+      overflow: visible;
+      transform-style: preserve-3d;
+    }
+
+    /*
+      A temporary glass lens crosses the hero during the initial build.
+      It uses backdrop-filter for an expensive, refractive transition
+      without remaining active after the entrance completes.
+    */
+    .hero__content::before {
+      position: absolute;
+      z-index: 4;
+      top: -18%;
+      bottom: -18%;
+      left: -34%;
+      width: 30%;
+      transform: translate3d(-120%, 0, 90px) rotate(10deg);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background:
+        linear-gradient(
+          90deg,
+          transparent,
+          rgba(230, 211, 165, 0.08) 42%,
+          rgba(255, 255, 255, 0.13) 50%,
+          rgba(230, 211, 165, 0.05) 58%,
+          transparent
+        );
+      opacity: 0;
+      filter: blur(1px);
+      backdrop-filter: blur(14px) saturate(1.25);
+      -webkit-backdrop-filter: blur(14px) saturate(1.25);
+      pointer-events: none;
+      content: "";
+    }
+
+    /*
+      This large halo now lives inside the geometry stage rather than the
+      text column. Every part of the right-side cluster therefore shares the
+      same responsive coordinate system and can never drift away from it.
+    */
+    .hero__geometry-stage::before {
+      position: absolute;
+      z-index: -1;
+      inset: 10%;
+      border: 1px solid rgba(201, 173, 114, 0.08);
+      border-radius: 50%;
+      box-shadow:
+        0 0 0 clamp(24px, 3vw, 42px) rgba(201, 173, 114, 0.025),
+        0 0 0 clamp(48px, 6vw, 84px) rgba(201, 173, 114, 0.015);
+      opacity: 0.72;
+      pointer-events: none;
+      content: "";
+    }
+
+    .hero__atmosphere {
+      position: absolute;
+      z-index: 0;
+      top: 50%;
+      right: clamp(-210px, -8vw, -80px);
+      width: clamp(390px, 52vw, 820px);
+      aspect-ratio: 1;
+      transform: translate3d(
+        0,
+        calc(-50% + var(--hero-scroll-y)),
+        0
+      );
+      perspective: 1200px;
+      transform-style: preserve-3d;
+      transform-origin: 50% 50%;
+      container-name: hero-geometry;
+      container-type: inline-size;
+      isolation: isolate;
+      pointer-events: none;
+      will-change: transform;
+    }
+
+    /* Entrance/idle movement lives here; individual shapes rotate below. */
+    .hero__geometry-stage {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      aspect-ratio: 1;
+      transform-origin: 50% 50%;
+      transform-style: preserve-3d;
+      isolation: isolate;
+      will-change: transform, opacity, filter;
+    }
+
+    .hero__halo,
+    .hero__ring-plane,
+    .hero__ring,
+    .hero__axis,
+    .hero__glow-core,
+    .hero__satellite,
+    .hero__spark {
+      position: absolute;
+      display: block;
+      pointer-events: none;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+
+    /* Broken circular bands make the independent rotation visible. */
+    .hero__halo {
+      border-radius: 50%;
+      background: conic-gradient(
+        from 18deg,
+        transparent 0 11%,
+        rgba(230, 211, 165, 0.04) 14% 29%,
+        transparent 33% 58%,
+        rgba(172, 188, 211, 0.035) 61% 77%,
+        transparent 81% 100%
+      );
+      -webkit-mask: radial-gradient(
+        farthest-side,
+        transparent calc(100% - var(--halo-width)),
+        #000 calc(100% - var(--halo-width) + 1px)
+      );
+      mask: radial-gradient(
+        farthest-side,
+        transparent calc(100% - var(--halo-width)),
+        #000 calc(100% - var(--halo-width) + 1px)
+      );
+      filter: drop-shadow(0 0 28px rgba(201, 173, 114, 0.035));
+      will-change: transform;
+    }
+
+    .hero__halo--outer {
+      --halo-width: clamp(34px, 5.2vw, 62px);
+      inset: 1%;
+      opacity: 0.7;
+      transform: rotate(-38deg);
+    }
+
+    .hero__halo--inner {
+      --halo-width: clamp(12px, 1.8vw, 23px);
+      inset: 17%;
+      opacity: 0.48;
+      transform: rotate(24deg);
+      background: conic-gradient(
+        from 116deg,
+        transparent 0 18%,
+        rgba(230, 211, 165, 0.06) 21% 42%,
+        transparent 46% 70%,
+        rgba(172, 188, 211, 0.045) 73% 84%,
+        transparent 87% 100%
+      );
+    }
+
+    /*
+      Every orbit uses two transform layers:
+      1. The plane wrapper establishes a unique 3D orientation and slowly
+         precesses through space.
+      2. The inner broken ring spins independently inside that plane.
+
+      Separating those transforms prevents the three rings from visually
+      locking together or having one animation overwrite another.
+    */
+    .hero__ring-plane {
+      top: 50%;
+      left: 50%;
+      aspect-ratio: 1;
+      transform-style: preserve-3d;
+      transform-origin: 50% 50%;
+      will-change: transform;
+    }
+
+    .hero__ring-plane--equator {
+      width: 82%;
+      transform: translate3d(-50%, -50%, 34px) rotateX(72deg) rotateZ(-18deg);
+    }
+
+    .hero__ring-plane--vertical {
+      width: 69%;
+      transform: translate3d(-50%, -50%, 10px) rotateY(78deg) rotateX(8deg) rotateZ(31deg);
+    }
+
+    .hero__ring-plane--diagonal {
+      width: 58%;
+      transform: translate3d(-50%, -50%, -18px) rotateX(55deg) rotateY(31deg) rotateZ(-42deg);
+    }
+
+    .hero__ring {
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        transparent 0 15%,
+        rgba(230, 211, 165, 0.42) 18% 25%,
+        transparent 29% 57%,
+        rgba(201, 173, 114, 0.15) 61% 71%,
+        transparent 75% 100%
+      );
+      -webkit-mask: radial-gradient(
+        farthest-side,
+        transparent calc(100% - 2px),
+        #000 calc(100% - 1px)
+      );
+      mask: radial-gradient(
+        farthest-side,
+        transparent calc(100% - 2px),
+        #000 calc(100% - 1px)
+      );
+      filter: drop-shadow(0 0 12px rgba(201, 173, 114, 0.13));
+      transform: rotateZ(0deg);
+      transform-origin: 50% 50%;
+      transform-style: preserve-3d;
+      will-change: transform, opacity;
+    }
+
+    /* A small asymmetrical highlight makes each ring's rotation readable. */
+    .hero__ring::after {
+      position: absolute;
+      top: -2px;
+      left: 50%;
+      width: clamp(5px, 0.72vw, 9px);
+      aspect-ratio: 1;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 14px currentColor;
+      opacity: 0.78;
+      content: "";
+    }
+
+    .hero__ring--equator {
+      color: rgba(230, 211, 165, 0.76);
+    }
+
+    .hero__ring--vertical {
+      color: rgba(172, 188, 211, 0.72);
+      background: conic-gradient(
+        from 84deg,
+        transparent 0 20%,
+        rgba(172, 188, 211, 0.36) 23% 34%,
+        transparent 38% 68%,
+        rgba(230, 211, 165, 0.12) 72% 79%,
+        transparent 83% 100%
+      );
+      filter: drop-shadow(0 0 10px rgba(172, 188, 211, 0.1));
+    }
+
+    .hero__ring--diagonal {
+      color: rgba(201, 173, 114, 0.58);
+      opacity: 0.72;
+      background: conic-gradient(
+        from 148deg,
+        transparent 0 26%,
+        rgba(201, 173, 114, 0.25) 29% 40%,
+        transparent 44% 77%,
+        rgba(172, 188, 211, 0.12) 80% 86%,
+        transparent 90% 100%
+      );
+    }
+
+    .hero__axis {
+      top: 50%;
+      left: 50%;
+      width: 84%;
+      height: 1px;
+      transform-origin: center;
+      will-change: transform, opacity;
+    }
+
+    .hero__axis--gold {
+      transform: translate3d(-50%, -50%, 48px) rotate(-17deg);
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(230, 211, 165, 0.06) 14%,
+        rgba(230, 211, 165, 0.7) 68%,
+        transparent
+      );
+      box-shadow: 0 0 28px rgba(201, 173, 114, 0.22);
+    }
+
+    .hero__axis--silver {
+      width: 62%;
+      transform: translate3d(-50%, -50%, -14px) rotate(82deg);
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(172, 188, 211, 0.05),
+        rgba(172, 188, 211, 0.26),
+        transparent
+      );
+      opacity: 0.72;
+    }
+
+    .hero__glow-core {
+      inset: 27%;
+      border-radius: 50%;
+      background:
+        radial-gradient(
+          circle at 38% 35%,
+          rgba(230, 211, 165, 0.16),
+          rgba(201, 173, 114, 0.055) 34%,
+          rgba(39, 51, 70, 0.04) 58%,
+          transparent 72%
+        );
+      filter: blur(10px);
+      will-change: transform, opacity;
+    }
+
+    /*
+      Satellites use percentage-sized orbit wrappers rather than viewport-based
+      pixel radii. Their dots are drawn with ::after, so resizing the cluster
+      scales every orbit as one cohesive object.
+    */
+    .hero__satellite {
+      top: 50%;
+      left: 50%;
+      width: var(--satellite-orbit-size);
+      aspect-ratio: 1;
+      transform-origin: 50% 50%;
+      transform-style: preserve-3d;
+      border-radius: 50%;
+      background: transparent;
+      box-shadow: none;
+      will-change: transform, opacity;
+    }
+
+    .hero__satellite::after {
+      position: absolute;
+      top: 50%;
+      right: calc(var(--satellite-dot-size) * -0.5);
+      width: var(--satellite-dot-size);
+      aspect-ratio: 1;
+      transform: translateY(-50%);
+      border-radius: 50%;
+      background: var(--satellite-color);
+      box-shadow: var(--satellite-shadow);
+      content: "";
+    }
+
+    .hero__satellite--one {
+      --satellite-orbit-size: 76%;
+      --satellite-dot-size: 5px;
+      --satellite-color: var(--color-accent-light);
+      --satellite-shadow:
+        0 0 8px rgba(230, 211, 165, 0.9),
+        0 0 24px rgba(201, 173, 114, 0.38);
+      transform:
+        translate3d(-50%, -50%, 70px)
+        rotateZ(0deg);
+      opacity: 0.84;
+    }
+
+    .hero__satellite--two {
+      --satellite-orbit-size: 52%;
+      --satellite-dot-size: 3px;
+      --satellite-color: #aebed4;
+      --satellite-shadow:
+        0 0 14px rgba(174, 190, 212, 0.62);
+      transform:
+        translate3d(-50%, -50%, -10px)
+        rotateX(66deg)
+        rotateZ(0deg);
+      opacity: 0.68;
+    }
+
+    .hero__satellite--three {
+      --satellite-orbit-size: 36%;
+      --satellite-dot-size: 4px;
+      --satellite-color: var(--color-accent-light);
+      --satellite-shadow:
+        0 0 8px rgba(230, 211, 165, 0.72),
+        0 0 18px rgba(201, 173, 114, 0.28);
+      transform:
+        translate3d(-50%, -50%, 24px)
+        rotateY(58deg)
+        rotateZ(0deg);
+      opacity: 0.6;
+    }
+
+    .hero__spark {
+      width: 2px;
+      height: 2px;
+      transform: scale(0.65) translate3d(0, 0, 0);
+      border-radius: 50%;
+      background: rgba(230, 211, 165, 0.8);
+      box-shadow: 0 0 12px rgba(230, 211, 165, 0.6);
+      opacity: 0.2;
+      will-change: opacity, transform;
+    }
+
+    .hero__spark--one {
+      top: 24%;
+      left: 35%;
+    }
+
+    .hero__spark--two {
+      right: 25%;
+      bottom: 28%;
+    }
+
+    .hero__spark--three {
+      top: 62%;
+      left: 24%;
+    }
+
+    /* Preserved idle float, activated only after the entrance settles. */
+    .smooth-float-wrapper {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow: visible;
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+
+    .intro-complete .smooth-float-wrapper {
+      animation: gentleFloat 6s ease-in-out infinite alternate;
+    }
+
+    @keyframes gentleFloat {
+      0% {
+        transform: translate3d(0, 0, 0);
+      }
+
+      100% {
+        transform: translate3d(0, -14px, 0);
+      }
+    }
+
+    .hero__availability {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 26px;
+      color: var(--color-text-soft);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transform-origin: left center;
+      will-change: transform, opacity, filter;
+    }
+
+    .hero__availability-dot {
+      position: relative;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #82c995;
+      box-shadow: 0 0 0 5px rgba(130, 201, 149, 0.08);
+    }
+
+    .hero__availability-dot::after {
+      position: absolute;
+      inset: -5px;
+      border: 1px solid rgba(130, 201, 149, 0.35);
+      border-radius: inherit;
+      animation: availabilityPulse 2.3s ease-out infinite;
+      content: "";
+    }
+
+    @keyframes availabilityPulse {
+      0% {
+        transform: scale(0.6);
+        opacity: 0.8;
+      }
+
+      80%,
+      100% {
+        transform: scale(1.9);
+        opacity: 0;
+      }
+    }
+
+    .hero__title {
+      width: 100%;
+      max-width: min(1020px, 100%);
+      min-width: 0;
+      margin-bottom: 26px;
+      font-family: var(--font-heading);
+      font-size: clamp(3.15rem, 7.2vw, 7.8rem);
+      font-weight: 600;
+      letter-spacing: -0.055em;
+      line-height: 0.92;
+      perspective: 1200px;
+    }
+
+    .hero__title-line {
+      display: flex;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      flex-wrap: wrap;
+      gap: 0 0.17em;
+      overflow: visible;
+      transform-style: preserve-3d;
+    }
+
+    .hero__title-accent {
+      color: var(--color-accent-light);
+      font-style: italic;
+    }
+
+    .hero-word {
+      display: inline-block;
+      transform-origin: 50% 100%;
+      transform-style: preserve-3d;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      will-change: transform, opacity, filter;
+    }
+
+    .hero__description {
+      max-width: 700px;
+      margin-bottom: 36px;
+      color: var(--color-text-soft);
+      font-size: clamp(1rem, 1.5vw, 1.22rem);
+      line-height: 1.75;
+      transform-origin: left top;
+      will-change: transform, opacity, filter, clip-path;
+    }
+
+    .hero__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      perspective: 900px;
+    }
+
+    .hero__actions .button {
+      will-change: transform, opacity, filter;
+    }
+
+    .hero__signature-line {
+      display: block;
+      width: min(420px, 58vw);
+      height: 1px;
+      margin-top: clamp(36px, 6vh, 64px);
+      transform-origin: left center;
+      background:
+        linear-gradient(
+          90deg,
+          var(--color-accent),
+          rgba(201, 173, 114, 0.16) 62%,
+          transparent
+        );
+      opacity: 0.7;
+    }
+
+    /*
+      Entrance order:
+      1. Navbar materializes.
+      2. Atmospheric geometry blooms.
+      3. Availability badge and headline words construct in 3D.
+      4. Description, CTAs, and signature line settle into place.
+    */
+    .intro-ready:not(.intro-complete) .site-header {
+      animation: navMaterialize 0.44s cubic-bezier(0.16, 1, 0.3, 1) 0.02s both;
+    }
+
+    .intro-ready:not(.intro-complete) .brand__mark {
+      animation: brandMarkAssemble 0.48s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
+    }
+
+    .intro-ready:not(.intro-complete) .hero__geometry-stage {
+      animation: atmosphereBloom 0.76s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
+    }
+
+    .intro-ready:not(.intro-complete) .hero__content::before {
+      animation: glassLensSweep 0.7s cubic-bezier(0.65, 0, 0.18, 1) 0.2s both;
+    }
+
+    .intro-ready:not(.intro-complete) .hero__geometry-stage::before {
+      animation: haloAssemble 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+    }
+
+    .intro-ready:not(.intro-complete) .hero__availability {
+      animation: availabilityMaterialize 0.44s cubic-bezier(0.16, 1, 0.3, 1) 0.21s both;
+    }
+
+    .intro-ready:not(.intro-complete) .hero-word {
+      animation:
+        wordConstruct 0.6s cubic-bezier(0.16, 1, 0.3, 1)
+        calc(0.28s + (var(--word-index) * 0.045s))
+        both;
+    }
+
+    .intro-ready:not(.intro-complete) .hero__description {
+      animation: copyUnveil 0.47s cubic-bezier(0.16, 1, 0.3, 1) 0.62s both;
+    }
+
+    .intro-ready:not(.intro-complete) .hero__actions .button {
+      animation: ctaMaterialize 0.44s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .intro-ready:not(.intro-complete) .hero__actions .button:nth-child(1) {
+      animation-delay: 0.72s;
+    }
+
+    .intro-ready:not(.intro-complete) .hero__actions .button:nth-child(2) {
+      animation-delay: 0.79s;
+    }
+
+    .intro-ready:not(.intro-complete) .hero__signature-line {
+      animation: signatureDraw 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.83s both;
+    }
+
+    .intro-complete .hero__geometry-stage {
+      animation: geometryFloat 11s ease-in-out infinite alternate;
+    }
+
+    .intro-complete .hero__halo--outer {
+      animation: haloOuterSpin 74s linear infinite;
+    }
+
+    .intro-complete .hero__halo--inner {
+      animation: haloInnerSpin 49s linear infinite reverse;
+    }
+
+    /* Independent plane precession: three different axes and rhythms. */
+    .intro-complete .hero__ring-plane--equator {
+      animation: equatorPlanePrecession 19s ease-in-out infinite alternate;
+    }
+
+    .intro-complete .hero__ring-plane--vertical {
+      animation: verticalPlanePrecession 27s ease-in-out infinite alternate;
+    }
+
+    .intro-complete .hero__ring-plane--diagonal {
+      animation: diagonalPlanePrecession 33s ease-in-out infinite alternate;
+    }
+
+    /* Independent in-plane spins: different speeds and directions. */
+    .intro-complete .hero__ring--equator {
+      animation: ringSpinClockwise 14s linear infinite;
+    }
+
+    .intro-complete .hero__ring--vertical {
+      animation: ringSpinCounterClockwise 21s linear infinite;
+    }
+
+    .intro-complete .hero__ring--diagonal {
+      animation: ringSpinClockwise 29s linear infinite;
+    }
+
+    .intro-complete .hero__axis--gold {
+      animation: goldAxisSweep 17s ease-in-out infinite alternate;
+    }
+
+    .intro-complete .hero__axis--silver {
+      animation: silverAxisSweep 23s ease-in-out infinite alternate;
+    }
+
+    .intro-complete .hero__glow-core {
+      animation: coreBreath 6.5s ease-in-out infinite alternate;
+    }
+
+    .intro-complete .hero__satellite--one {
+      animation: satelliteOrbitOne 19s linear infinite;
+    }
+
+    .intro-complete .hero__satellite--two {
+      animation: satelliteOrbitTwo 26s linear infinite reverse;
+    }
+
+    .intro-complete .hero__satellite--three {
+      animation: satelliteOrbitThree 14s linear infinite;
+    }
+
+    .intro-complete .hero__spark--one {
+      animation: sparkTwinkle 4.8s ease-in-out infinite;
+    }
+
+    .intro-complete .hero__spark--two {
+      animation: sparkTwinkle 6.1s ease-in-out 1.4s infinite;
+    }
+
+    .intro-complete .hero__spark--three {
+      animation: sparkTwinkle 5.4s ease-in-out 2.2s infinite;
+    }
+
+    @keyframes navMaterialize {
+      0% {
+        opacity: 0;
+        transform: translate3d(0, -30px, -80px) scale(0.96);
+        filter: blur(14px);
+        clip-path: inset(0 0 100% 0 round 0 0 22px 22px);
+      }
+
+      55% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+        filter: blur(0);
+        clip-path: inset(0 0 0 0 round 0);
+      }
+    }
+
+    @keyframes brandMarkAssemble {
+      0% {
+        opacity: 0;
+        transform: rotate3d(1, 1, 0, 130deg) scale(0.36);
+        filter: blur(12px);
+      }
+
+      70% {
+        transform: rotate3d(1, 1, 0, -8deg) scale(1.08);
+      }
+
+      100% {
+        opacity: 1;
+        transform: rotate3d(1, 1, 0, 0deg) scale(1);
+        filter: blur(0);
+      }
+    }
+
+    @keyframes atmosphereBloom {
+      0% {
+        opacity: 0;
+        transform: translate3d(90px, 0, -320px) rotate(-42deg) scale(0.48);
+        filter: blur(30px);
+      }
+
+      58% {
+        opacity: 0.86;
+      }
+
+      100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) rotate(0) scale(1);
+        filter: blur(0);
+      }
+    }
+
+    @keyframes haloAssemble {
+      0% {
+        opacity: 0;
+        transform: translate3d(110px, 35px, -250px) rotate(48deg) scale(0.36);
+        filter: blur(22px);
+      }
+
+      100% {
+        opacity: 0.72;
+        transform: translate3d(0, 0, 0) rotate(0) scale(1);
+        filter: blur(0);
+      }
+    }
+
+    @keyframes glassLensSweep {
+      0% {
+        opacity: 0;
+        transform: translate3d(-120%, 0, 90px) rotate(10deg);
+      }
+
+      20% {
+        opacity: 0.85;
+      }
+
+      78% {
+        opacity: 0.55;
+      }
+
+      100% {
+        opacity: 0;
+        transform: translate3d(610%, 0, 90px) rotate(10deg);
+      }
+    }
+
+    @keyframes availabilityMaterialize {
+      0% {
+        opacity: 0;
+        transform: translate3d(-42px, 24px, -130px) rotateX(72deg) rotateZ(-7deg) scale(0.82);
+        filter: blur(13px);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) rotateX(0) rotateZ(0) scale(1);
+        filter: blur(0);
+      }
+    }
+
+    @keyframes wordConstruct {
+      0% {
+        opacity: 0;
+        transform:
+          translate3d(var(--start-x), 1.08em, -300px)
+          rotateX(88deg)
+          rotateY(var(--start-y))
+          rotateZ(var(--start-r))
+          scale(0.56);
+        filter: blur(20px) brightness(1.65);
+        text-shadow: 0 0 45px rgba(230, 211, 165, 0.28);
+      }
+
+      58% {
+        opacity: 1;
+        transform:
+          translate3d(calc(var(--start-x) * -0.04), -0.035em, 24px)
+          rotateX(-5deg)
+          rotateY(0deg)
+          rotateZ(calc(var(--start-r) * -0.05))
+          scale(1.025);
+        filter: blur(0) brightness(1.08);
+      }
+
+      100% {
+        opacity: 1;
+        transform:
+          translate3d(0, 0, 0)
+          rotateX(0)
+          rotateY(0)
+          rotateZ(0)
+          scale(1);
+        filter: blur(0) brightness(1);
+        text-shadow: 0 0 0 rgba(230, 211, 165, 0);
+      }
+    }
+
+    @keyframes copyUnveil {
+      0% {
+        opacity: 0;
+        transform: translate3d(0, 34px, -110px) rotateX(19deg) scale(0.97);
+        filter: blur(14px);
+        clip-path: inset(0 100% 0 0);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) rotateX(0) scale(1);
+        filter: blur(0);
+        clip-path: inset(0 0 0 0);
+      }
+    }
+
+    @keyframes ctaMaterialize {
+      0% {
+        opacity: 0;
+        transform: translate3d(0, 38px, -130px) rotateX(62deg) rotateZ(-4deg) scale(0.86);
+        filter: blur(12px);
+      }
+
+      65% {
+        opacity: 1;
+        transform: translate3d(0, -3px, 12px) rotateX(-3deg) rotateZ(0) scale(1.015);
+        filter: blur(0);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) rotateX(0) rotateZ(0) scale(1);
+        filter: blur(0);
+      }
+    }
+
+    @keyframes signatureDraw {
+      0% {
+        opacity: 0;
+        transform: scaleX(0) translate3d(-24px, 0, 0);
+        filter: blur(6px);
+      }
+
+      100% {
+        opacity: 0.7;
+        transform: scaleX(1) translate3d(0, 0, 0);
+        filter: blur(0);
+      }
+    }
+
+    @keyframes geometryFloat {
+      0% {
+        transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg);
+      }
+
+      100% {
+        transform: translate3d(7px, 8px, 0) rotateX(1.5deg) rotateY(-1.3deg);
+      }
+    }
+
+    @keyframes haloOuterSpin {
+      from { transform: rotate(-38deg); }
+      to { transform: rotate(322deg); }
+    }
+
+    @keyframes haloInnerSpin {
+      from { transform: rotate(24deg); }
+      to { transform: rotate(384deg); }
+    }
+
+    @keyframes equatorPlanePrecession {
+      0% {
+        transform: translate3d(-50%, -50%, 34px) rotateX(72deg) rotateY(0deg) rotateZ(-18deg) scale(1);
+      }
+      48% {
+        transform: translate3d(-50%, -50%, 42px) rotateX(75deg) rotateY(5deg) rotateZ(-13deg) scale(1.018);
+      }
+      100% {
+        transform: translate3d(-50%, -50%, 30px) rotateX(71deg) rotateY(-7deg) rotateZ(-7deg) scale(0.994);
+      }
+    }
+
+    @keyframes verticalPlanePrecession {
+      0% {
+        transform: translate3d(-50%, -50%, 10px) rotateY(78deg) rotateX(8deg) rotateZ(31deg) scale(1);
+      }
+      52% {
+        transform: translate3d(-50%, -50%, 18px) rotateY(83deg) rotateX(13deg) rotateZ(37deg) scale(1.025);
+      }
+      100% {
+        transform: translate3d(-50%, -50%, 2px) rotateY(77deg) rotateX(16deg) rotateZ(43deg) scale(0.99);
+      }
+    }
+
+    @keyframes diagonalPlanePrecession {
+      0% {
+        transform: translate3d(-50%, -50%, -18px) rotateX(55deg) rotateY(31deg) rotateZ(-42deg) scale(1);
+      }
+      46% {
+        transform: translate3d(-50%, -50%, -10px) rotateX(61deg) rotateY(37deg) rotateZ(-35deg) scale(1.035);
+      }
+      100% {
+        transform: translate3d(-50%, -50%, -28px) rotateX(57deg) rotateY(42deg) rotateZ(-28deg) scale(0.992);
+      }
+    }
+
+    @keyframes ringSpinClockwise {
+      from { transform: rotateZ(0deg); }
+      to { transform: rotateZ(360deg); }
+    }
+
+    @keyframes ringSpinCounterClockwise {
+      from { transform: rotateZ(360deg); }
+      to { transform: rotateZ(0deg); }
+    }
+
+    @keyframes goldAxisSweep {
+      0% {
+        transform: translate3d(-50%, -50%, 48px) rotate(-17deg) scaleX(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translate3d(-50%, -50%, 48px) rotate(-13deg) scaleX(1.04);
+        opacity: 0.76;
+      }
+    }
+
+    @keyframes silverAxisSweep {
+      0% {
+        transform: translate3d(-50%, -50%, -14px) rotate(82deg) scaleX(1);
+        opacity: 0.72;
+      }
+      100% {
+        transform: translate3d(-50%, -50%, -14px) rotate(87deg) scaleX(1.08);
+        opacity: 0.46;
+      }
+    }
+
+    @keyframes coreBreath {
+      0% {
+        transform: scale(1) translate3d(0, 0, 0);
+        opacity: 1;
+      }
+
+      100% {
+        transform: scale(1.08) translate3d(3px, -3px, 0);
+        opacity: 0.7;
+      }
+    }
+
+    @keyframes satelliteOrbitOne {
+      from {
+        transform:
+          translate3d(-50%, -50%, 70px)
+          rotateZ(0deg);
+      }
+      to {
+        transform:
+          translate3d(-50%, -50%, 70px)
+          rotateZ(360deg);
+      }
+    }
+
+    @keyframes satelliteOrbitTwo {
+      from {
+        transform:
+          translate3d(-50%, -50%, -10px)
+          rotateX(66deg)
+          rotateZ(0deg);
+      }
+      to {
+        transform:
+          translate3d(-50%, -50%, -10px)
+          rotateX(66deg)
+          rotateZ(360deg);
+      }
+    }
+
+    @keyframes satelliteOrbitThree {
+      from {
+        transform:
+          translate3d(-50%, -50%, 24px)
+          rotateY(58deg)
+          rotateZ(0deg);
+      }
+      to {
+        transform:
+          translate3d(-50%, -50%, 24px)
+          rotateY(58deg)
+          rotateZ(360deg);
+      }
+    }
+
+    @keyframes sparkTwinkle {
+      0%, 100% {
+        opacity: 0.2;
+        transform: scale(0.65) translate3d(0, 0, 0);
+      }
+      48% {
+        opacity: 1;
+        transform: scale(1.55) translate3d(4px, -3px, 18px);
+      }
+    }
+
+    /* Release compositor layers after the one-time entrance settles. */
+    .intro-complete .hero__availability,
+    .intro-complete .hero-word,
+    .intro-complete .hero__description,
+    .intro-complete .hero__actions .button,
+    .intro-complete .hero__signature-line {
+      will-change: auto;
+    }
+
+    /* Pause expensive hero-only motion once the hero is outside the viewport. */
+    .hero.is-offscreen .hero__geometry-stage,
+    .hero.is-offscreen .hero__halo,
+    .hero.is-offscreen .hero__ring-plane,
+    .hero.is-offscreen .hero__ring,
+    .hero.is-offscreen .hero__axis,
+    .hero.is-offscreen .hero__glow-core,
+    .hero.is-offscreen .hero__satellite,
+    .hero.is-offscreen .hero__spark,
+    .hero.is-offscreen .smooth-float-wrapper,
+    .page-hidden .background-grid__plane,
+    .page-hidden .hero__geometry-stage,
+    .page-hidden .hero__halo,
+    .page-hidden .hero__ring-plane,
+    .page-hidden .hero__ring,
+    .page-hidden .hero__axis,
+    .page-hidden .hero__glow-core,
+    .page-hidden .hero__satellite,
+    .page-hidden .hero__spark,
+    .page-hidden .smooth-float-wrapper {
+      animation-play-state: paused !important;
+    }
+
+    /* =========================================================
+       PROCESS
+    ========================================================= */
+
+    .process-grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      overflow: hidden;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-medium);
+      background: var(--color-line);
+      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.13);
+    }
+
+    .process-step {
+      position: relative;
+      min-width: 0;
+      min-height: 330px;
+      padding: clamp(27px, 4vw, 42px);
+      overflow: hidden;
+      background: var(--color-bg-soft);
+      transition: background var(--transition-medium), transform var(--transition-medium);
+    }
+
+    .process-step:hover {
+      z-index: 1;
+      background: var(--color-surface-solid);
+    }
+
+    .process-step::after {
+      position: absolute;
+      right: -90px;
+      bottom: -100px;
+      width: 190px;
+      aspect-ratio: 1;
+      border: 1px solid rgba(201, 173, 114, 0.08);
+      border-radius: 50%;
+      transition: transform var(--transition-slow), border-color var(--transition-medium);
+      content: "";
+    }
+
+    .process-step:hover::after {
+      transform: scale(1.14);
+      border-color: rgba(201, 173, 114, 0.18);
+    }
+
+    .process-step__top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: clamp(54px, 7vw, 86px);
+    }
+
+    .process-step__number {
+      color: var(--color-accent-light);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .process-step__icon {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border: 1px solid var(--color-line-strong);
+      border-radius: 50%;
+      color: var(--color-accent-light);
+      font-size: 1rem;
+    }
+
+    .process-step__title {
+      margin-bottom: 13px;
+      font-family: var(--font-heading);
+      font-size: clamp(1.55rem, 2.2vw, 2rem);
+      font-weight: 600;
+      line-height: 1.15;
+    }
+
+    .process-step__description {
+      max-width: 34ch;
+      margin-bottom: 0;
+      color: var(--color-text-soft);
+      font-size: 0.93rem;
+    }
+
+    /* =========================================================
+       WORK / CONCEPT BUILDS
+    ========================================================= */
+
+    .work-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+      gap: clamp(20px, 2.4vw, 30px);
+    }
+
+    .work-card {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-medium);
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+      transition:
+        transform var(--transition-slow),
+        border-color var(--transition-medium),
+        box-shadow var(--transition-slow);
+    }
+
+    .work-card:hover,
+    .work-card:focus-within {
+      transform: translateY(-8px);
+      border-color: rgba(201, 173, 114, 0.38);
+      box-shadow: var(--shadow-card);
+    }
+
+    /* A browser chrome frame so the screenshot reads as a real site, not art. */
+    .work-card__frame {
+      position: relative;
+      border-bottom: 1px solid var(--color-line);
+      background: var(--color-surface-solid);
+    }
+
+    .work-card__chrome {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 13px;
+      border-bottom: 1px solid var(--color-line);
+    }
+
+    .work-card__dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    .work-card__url {
+      overflow: hidden;
+      margin-left: 8px;
+      color: var(--color-text-muted);
+      font-size: 0.68rem;
+      letter-spacing: 0.02em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .work-card__shot {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 16 / 10;
+      object-fit: cover;
+      object-position: top center;
+    }
+
+    /* Tucked-in phone shot: proof the responsive work is real, not claimed. */
+    .work-card__mobile {
+      position: absolute;
+      right: 16px;
+      bottom: -26px;
+      width: clamp(58px, 17%, 80px);
+      height: auto;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 8px;
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+      object-fit: cover;
+      object-position: top center;
+      aspect-ratio: 1 / 2;
+    }
+
+    .work-card__body {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      padding: clamp(22px, 2.6vw, 30px);
+      padding-top: 34px;
+    }
+
+    .work-card__kind {
+      margin-bottom: 9px;
+      color: var(--color-accent-light);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .work-card__name {
+      margin-bottom: 9px;
+      font-family: var(--font-heading);
+      font-size: clamp(1.4rem, 2vw, 1.75rem);
+      font-weight: 600;
+      line-height: 1.12;
+    }
+
+    .work-card__note {
+      margin-bottom: 18px;
+      color: var(--color-text-soft);
+      font-size: 0.89rem;
+      line-height: 1.6;
+    }
+
+    .work-card__tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-bottom: 22px;
+    }
+
+    .work-card__tag {
+      padding: 5px 10px;
+      border: 1px solid var(--color-line);
+      border-radius: 999px;
+      color: var(--color-text-muted);
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    .work-card__link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: auto;
+      color: var(--color-accent-light);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .work-card__link span {
+      transition: transform var(--transition-medium);
+    }
+
+    .work-card:hover .work-card__link span {
+      transform: translate(3px, -3px);
+    }
+
+    /* Says plainly that these are concept builds. Honesty is the whole point. */
+    .work-disclosure {
+      display: flex;
+      align-items: flex-start;
+      gap: 13px;
+      max-width: 760px;
+      margin-top: clamp(30px, 4vw, 44px);
+      padding: 18px 22px;
+      border: 1px solid var(--color-line);
+      border-left: 2px solid var(--color-accent);
+      border-radius: var(--radius-small);
+      background: rgba(201, 173, 114, 0.035);
+      color: var(--color-text-soft);
+      font-size: 0.86rem;
+      line-height: 1.65;
+    }
+
+    .work-disclosure strong {
+      color: var(--color-text);
+    }
+
+    /* =========================================================
+       PRICING
+    ========================================================= */
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: stretch;
+      gap: clamp(16px, 2vw, 22px);
+    }
+
+    .pricing-card {
+      position: relative;
+      display: flex;
+      min-width: 0;
+      min-height: 580px;
+      flex-direction: column;
+      padding: clamp(26px, 3vw, 38px);
+      overflow: hidden;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-medium);
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+      box-shadow: 0 12px 45px rgba(0, 0, 0, 0.12);
+      transition:
+        transform var(--transition-slow),
+        border-color var(--transition-medium),
+        box-shadow var(--transition-slow);
+    }
+
+    .pricing-card:hover {
+      transform: translateY(-9px);
+      border-color: rgba(201, 173, 114, 0.35);
+      box-shadow: var(--shadow-card);
+    }
+
+    .pricing-card--featured {
+      border-color: rgba(201, 173, 114, 0.42);
+      background:
+        linear-gradient(155deg, rgba(201, 173, 114, 0.11), rgba(255, 255, 255, 0.015) 46%);
+      box-shadow: var(--shadow-accent);
+    }
+
+    /*
+      Reserve the badge's footprint on the unbadged cards so all three tier
+      names sit on the same baseline. 52.64px = badge height + its margin.
+    */
+    .pricing-card:not(.pricing-card--featured)::before {
+      display: block;
+      height: 52.64px;
+      flex: 0 0 auto;
+      content: "";
+    }
+
+    @media (max-width: 1060px) {
+      .pricing-card:not(.pricing-card--featured)::before {
+        display: none;
+      }
+    }
+
+    .pricing-card__badge {
+      align-self: flex-start;
+      margin-bottom: 20px;
+      padding: 7px 11px;
+      border: 1px solid rgba(201, 173, 114, 0.35);
+      border-radius: 999px;
+      background: rgba(201, 173, 114, 0.08);
+      color: var(--color-accent-light);
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .pricing-card__name {
+      margin-bottom: 16px;
+      font-family: var(--font-heading);
+      font-size: clamp(2rem, 3vw, 2.6rem);
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    .pricing-card__price {
+      display: flex;
+      align-items: flex-start;
+      gap: 4px;
+      margin-bottom: 18px;
+    }
+
+    .pricing-card__currency {
+      margin-top: 10px;
+      color: var(--color-accent-light);
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .pricing-card__amount {
+      font-family: var(--font-heading);
+      font-size: clamp(3.2rem, 5vw, 4.25rem);
+      letter-spacing: -0.05em;
+      line-height: 1;
+    }
+
+    .pricing-card__for {
+      margin-bottom: 26px;
+      padding-bottom: 22px;
+      border-bottom: 1px solid var(--color-line);
+      color: var(--color-text-muted);
+      font-size: 0.85rem;
+      line-height: 1.55;
+    }
+
+    .pricing-card__features {
+      display: grid;
+      gap: 15px;
+      margin-bottom: 34px;
+    }
+
+    .pricing-card__feature {
+      display: grid;
+      grid-template-columns: 20px minmax(0, 1fr);
+      gap: 10px;
+      color: var(--color-text-soft);
+      font-size: 0.87rem;
+      line-height: 1.55;
+    }
+
+    .pricing-card__check {
+      display: grid;
+      width: 19px;
+      height: 19px;
+      margin-top: 2px;
+      place-items: center;
+      border: 1px solid rgba(201, 173, 114, 0.3);
+      border-radius: 50%;
+      color: var(--color-accent-light);
+      font-size: 0.65rem;
+    }
+
+    .pricing-card .button {
+      width: 100%;
+      margin-top: auto;
+    }
+
+    .pricing-note {
+      max-width: 720px;
+      margin: clamp(26px, 3vw, 38px) auto 0;
+      color: var(--color-text-muted);
+      font-size: 0.83rem;
+      line-height: 1.65;
+      text-align: center;
+    }
+
+    /* Recurring revenue lives here. Deliberately separated from the build tiers. */
+    .care-plan {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.72fr);
+      gap: clamp(26px, 4vw, 56px);
+      align-items: center;
+      margin-top: clamp(34px, 4vw, 52px);
+      padding: clamp(26px, 3.4vw, 44px);
+      border: 1px solid var(--color-line-strong);
+      border-radius: var(--radius-medium);
+      background:
+        radial-gradient(circle at 88% 12%, rgba(201, 173, 114, 0.1), transparent 22rem),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.008));
+    }
+
+    .care-plan__name {
+      margin-bottom: 10px;
+      font-family: var(--font-heading);
+      font-size: clamp(1.6rem, 2.6vw, 2.15rem);
+      font-weight: 600;
+      line-height: 1.08;
+    }
+
+    .care-plan__copy {
+      margin-bottom: 18px;
+      color: var(--color-text-soft);
+      font-size: 0.93rem;
+    }
+
+    .care-plan__list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 22px;
+    }
+
+    .care-plan__list li {
+      display: grid;
+      grid-template-columns: 16px minmax(0, 1fr);
+      gap: 9px;
+      color: var(--color-text-soft);
+      font-size: 0.86rem;
+    }
+
+    .care-plan__list li::before {
+      color: var(--color-accent);
+      content: "✓";
+      font-size: 0.72rem;
+    }
+
+    .care-plan__side {
+      padding: clamp(20px, 2.4vw, 28px);
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-small);
+      background: rgba(8, 11, 16, 0.5);
+      text-align: center;
+    }
+
+    .care-plan__price {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 3px;
+      margin-bottom: 4px;
+    }
+
+    .care-plan__price .pricing-card__amount {
+      font-size: clamp(2.6rem, 4vw, 3.4rem);
+    }
+
+    .care-plan__per {
+      margin-bottom: 18px;
+      color: var(--color-text-muted);
+      font-size: 0.78rem;
+    }
+
+    .care-plan__side .button {
+      width: 100%;
+    }
+
+    .care-plan__fine {
+      margin: 12px 0 0;
+      color: var(--color-text-muted);
+      font-size: 0.72rem;
+    }
+
+    @media (max-width: 860px) {
+      .care-plan {
+        grid-template-columns: 1fr;
+      }
+
+      .care-plan__list {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* =========================================================
+       FAQ / OBJECTION KILLER
+    ========================================================= */
+
+    .faq-layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
+      gap: clamp(34px, 7vw, 92px);
+      align-items: start;
+    }
+
+    .faq-intro {
+      position: sticky;
+      top: 120px;
+    }
+
+    .faq-intro__note {
+      max-width: 390px;
+      margin: 24px 0 0;
+      padding: 18px 20px;
+      border-left: 1px solid var(--color-accent);
+      background: rgba(201, 173, 114, 0.035);
+      color: var(--color-text-soft);
+      font-size: 0.88rem;
+    }
+
+    .faq-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .faq-item {
+      overflow: hidden;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-medium);
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01));
+      transition: border-color var(--transition-medium), background var(--transition-medium);
+    }
+
+    .faq-item[open] {
+      border-color: rgba(201, 173, 114, 0.34);
+      background: linear-gradient(145deg, rgba(201, 173, 114, 0.075), rgba(255, 255, 255, 0.012));
+    }
+
+    .faq-question {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 42px;
+      align-items: center;
+      gap: 18px;
+      min-height: 88px;
+      padding: 20px clamp(20px, 3vw, 28px);
+      color: var(--color-text);
+      font-size: clamp(1rem, 1.6vw, 1.18rem);
+      font-weight: 600;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .faq-question::-webkit-details-marker {
+      display: none;
+    }
+
+    .faq-question::after {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border: 1px solid var(--color-line-strong);
+      border-radius: 50%;
+      color: var(--color-accent-light);
+      font-size: 1.2rem;
+      font-weight: 400;
+      transition: transform var(--transition-medium), background var(--transition-medium);
+      content: "+";
+    }
+
+    .faq-item[open] .faq-question::after {
+      transform: rotate(45deg);
+      background: rgba(201, 173, 114, 0.08);
+    }
+
+    .faq-answer {
+      max-width: 760px;
+      margin: 0;
+      padding: 0 clamp(20px, 3vw, 28px) 26px;
+      color: var(--color-text-soft);
+      font-size: 0.94rem;
+      line-height: 1.75;
+    }
+
+    /* =========================================================
+       CONTACT
+    ========================================================= */
+
+    .contact__panel {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 0.88fr) minmax(340px, 0.62fr);
+      gap: clamp(44px, 8vw, 110px);
+      padding: clamp(28px, 7vw, 82px);
+      overflow: hidden;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-large);
+      background:
+        radial-gradient(circle at 10% 10%, rgba(201, 173, 114, 0.11), transparent 23rem),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.008));
+      box-shadow: var(--shadow-card);
+    }
+
+    .contact__panel::after {
+      position: absolute;
+      right: -120px;
+      bottom: -180px;
+      width: 350px;
+      aspect-ratio: 1;
+      border: 1px solid rgba(201, 173, 114, 0.08);
+      border-radius: 50%;
+      pointer-events: none;
+      content: "";
+    }
+
+    .contact__copy,
+    .contact-form {
+      min-width: 0;
+    }
+
+    .contact__title {
+      max-width: 630px;
+      margin-bottom: 22px;
+      font-family: var(--font-heading);
+      font-size: clamp(2.65rem, 5.6vw, 5.5rem);
+      font-weight: 600;
+      letter-spacing: -0.04em;
+      line-height: 0.98;
+    }
+
+    .contact__description {
+      max-width: 550px;
+      margin-bottom: 30px;
+      color: var(--color-text-soft);
+      font-size: 1rem;
+    }
+
+    .contact__email {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--color-accent-light);
+      font-size: 0.9rem;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+
+    .contact__details {
+      display: grid;
+      gap: 15px;
+      margin: 0 0 26px;
+    }
+
+    .contact__details li {
+      display: grid;
+      grid-template-columns: 74px minmax(0, 1fr);
+      gap: 14px;
+      align-items: baseline;
+    }
+
+    .contact__details-label {
+      color: var(--color-text-muted);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .contact__details-value {
+      color: var(--color-text-soft);
+      font-size: 0.9rem;
+    }
+
+    .contact__reassure {
+      max-width: 460px;
+      margin: 0;
+      color: var(--color-text-muted);
+      font-size: 0.82rem;
+      line-height: 1.6;
+    }
+
+    .contact-form {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      gap: 16px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .field__label {
+      color: var(--color-text-soft);
+      font-size: 0.73rem;
+      font-weight: 650;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .field__input {
+      width: 100%;
+      min-width: 0;
+      min-height: 52px;
+      padding: 13px 15px;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-small);
+      outline: none;
+      background: rgba(8, 11, 16, 0.55);
+      color: var(--color-text);
+      transition:
+        border-color var(--transition-fast),
+        background var(--transition-fast),
+        box-shadow var(--transition-fast);
+    }
+
+    textarea.field__input {
+      min-height: 130px;
+      resize: vertical;
+    }
+
+    .field__input::placeholder {
+      color: #626873;
+    }
+
+    .field__input:focus {
+      border-color: rgba(201, 173, 114, 0.55);
+      background: rgba(8, 11, 16, 0.8);
+      box-shadow: 0 0 0 4px rgba(201, 173, 114, 0.07);
+    }
+
+    .field[hidden] {
+      display: none !important;
+    }
+
+    .field--conditional:not([hidden]) {
+      animation: conditionalFieldReveal 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .form-fine {
+      margin: 2px 0 0;
+      color: var(--color-text-muted);
+      font-size: 0.75rem;
+      line-height: 1.6;
+    }
+
+    .form-fine a {
+      color: var(--color-text-soft);
+      border-bottom: 1px solid var(--color-line-strong);
+    }
+
+    .field__hint {
+      margin: 1px 0 0;
+      color: var(--color-text-muted);
+      font-size: 0.76rem;
+      line-height: 1.55;
+    }
+
+    @keyframes conditionalFieldReveal {
+      from {
+        opacity: 0;
+        transform: translate3d(0, -8px, 0);
+        filter: blur(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+        filter: blur(0);
+      }
+    }
+
+    .hp-field {
+      position: absolute;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      opacity: 0;
+    }
+
+    .form-message {
+      display: none;
+      margin: 0;
+      color: var(--color-accent-light);
+      font-size: 0.84rem;
+    }
+
+    .form-message.is-visible {
+      display: block;
+    }
+
+    /* =========================================================
+       FOOTER
+    ========================================================= */
+
+    .site-footer {
+      padding-block: 26px;
+      border-top: 1px solid var(--color-line);
+    }
+
+    .footer__inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 30px;
+    }
+
+    .footer__copyright {
+      margin: 0;
+      color: var(--color-text-muted);
+      font-size: 0.75rem;
+    }
+
+    /*
+      A real postal address is legally required in commercial email under
+      CAN-SPAM. Keeping it in the footer means every page carries it.
+    */
+    .footer__address {
+      color: #6a6f79;
+    }
+
+    .footer__links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px 22px;
+    }
+
+    .footer__link {
+      color: var(--color-text-muted);
+      font-size: 0.75rem;
+      transition: color var(--transition-fast);
+    }
+
+    .footer__link:hover {
+      color: var(--color-text);
+    }
+
+    .footer__link--disabled {
+      cursor: default;
+      opacity: 0.72;
+    }
+
+    .footer__link--disabled:hover {
+      color: var(--color-text-muted);
+    }
+
+    /* =========================================================
+       REVEAL ANIMATIONS
+    ========================================================= */
+
+    [data-reveal] {
+      opacity: 0;
+      transform: translate3d(0, 34px, 0);
+      transition: opacity var(--transition-slow), transform var(--transition-slow);
+      will-change: opacity, transform;
+    }
+
+    [data-reveal="left"] {
+      transform: translate3d(-34px, 0, 0);
+    }
+
+    [data-reveal="right"] {
+      transform: translate3d(34px, 0, 0);
+    }
+
+    [data-reveal].is-visible {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+
+    /* =========================================================
+       RESPONSIVE BREAKPOINTS
+    ========================================================= */
+
+    @media (max-width: 1060px) {
+      .pricing-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .pricing-card--featured {
+        grid-row: 1;
+      }
+
+      .pricing-card:last-child {
+        grid-column: 1 / -1;
+      }
+
+      .contact__panel {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .menu-toggle {
+        display: grid;
+      }
+
+      .nav-menu {
+        position: fixed;
+        top: calc(max(12px, env(safe-area-inset-top)) + 72px);
+        right: clamp(14px, 4vw, 28px);
+        left: clamp(14px, 4vw, 28px);
+        display: grid;
+        max-height: 0;
+        gap: 3px;
+        padding: 0 18px;
+        overflow: hidden;
+        border: 1px solid transparent;
+        border-radius: var(--radius-medium);
+        background: rgba(10, 13, 18, 0.97);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-12px);
+        pointer-events: none;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        transition:
+          max-height var(--transition-medium),
+          padding var(--transition-medium),
+          border-color var(--transition-medium),
+          opacity var(--transition-medium),
+          transform var(--transition-medium),
+          visibility 0s linear var(--transition-medium);
+      }
+
+      .nav-menu.is-open {
+        max-height: min(520px, calc(100svh - 110px));
+        padding: 18px;
+        border-color: var(--color-line);
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+        pointer-events: auto;
+        transition-delay: 0s;
+        overflow-y: auto;
+      }
+
+      .nav-link,
+      .nav-menu .button {
+        width: 100%;
+      }
+
+      .nav-link {
+        padding: 12px 5px;
+      }
+
+      .nav-link::after {
+        right: auto;
+        bottom: 7px;
+        left: 5px;
+        width: 36px;
+      }
+
+      .nav-menu .button {
+        margin-top: 5px;
+      }
+
+      .section-header {
+        display: block;
+      }
+
+      .process-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .process-step {
+        min-height: 285px;
+      }
+
+      .faq-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .faq-intro {
+        position: static;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .section {
+        padding-block: clamp(70px, 17vw, 96px);
+      }
+
+      .hero {
+        min-height: auto;
+        padding-top: 145px;
+        padding-bottom: 90px;
+      }
+
+      .hero__atmosphere {
+        top: 44%;
+        right: -62vw;
+        width: 126vw;
+        opacity: 0.76;
+      }
+
+      .hero__content::before {
+        left: -48%;
+        width: 38%;
+      }
+
+      .hero__title {
+        font-size: clamp(3rem, 13.6vw, 5.4rem);
+        line-height: 0.94;
+      }
+
+      .hero__signature-line {
+        width: min(430px, 78vw);
+      }
+
+      @keyframes wordConstruct {
+        0% {
+          opacity: 0;
+          transform:
+            translate3d(clamp(-68px, var(--start-x), 68px), 0.86em, -180px)
+            rotateX(82deg)
+            rotateY(var(--start-y))
+            rotateZ(var(--start-r))
+            scale(0.7);
+          filter: blur(14px) brightness(1.45);
+          text-shadow: 0 0 30px rgba(230, 211, 165, 0.22);
+        }
+
+        62% {
+          opacity: 1;
+          transform:
+            translate3d(0, -0.02em, 12px)
+            rotateX(-3deg)
+            rotateY(0)
+            rotateZ(0)
+            scale(1.015);
+          filter: blur(0) brightness(1.04);
+        }
+
+        100% {
+          opacity: 1;
+          transform: translate3d(0, 0, 0) rotateX(0) rotateY(0) rotateZ(0) scale(1);
+          filter: blur(0) brightness(1);
+          text-shadow: 0 0 0 rgba(230, 211, 165, 0);
+        }
+      }
+
+      .pricing-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .pricing-card,
+      .pricing-card:last-child {
+        grid-column: auto;
+        min-height: auto;
+      }
+
+      .pricing-card--featured {
+        grid-row: auto;
+      }
+
+      .faq-question {
+        grid-template-columns: minmax(0, 1fr) 38px;
+        min-height: 78px;
+      }
+
+      .footer__inner {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .container {
+        width: min(calc(100% - 28px), var(--container));
+      }
+
+      .brand__name {
+        max-width: 165px;
+      }
+
+      .hero__title-line {
+        gap: 0 0.13em;
+      }
+
+      .hero__actions {
+        display: grid;
+      }
+
+      .hero__actions .button {
+        width: 100%;
+      }
+
+      .hero__atmosphere {
+        right: -78vw;
+        width: 148vw;
+      }
+
+      .process-step__top {
+        margin-bottom: 46px;
+      }
+
+      .contact__panel {
+        padding: 28px 20px;
+        border-radius: 22px;
+      }
+
+      .contact__title {
+        font-size: clamp(2.5rem, 12vw, 3.8rem);
+      }
+
+      .faq-question {
+        padding-inline: 18px;
+      }
+
+      .faq-answer {
+        padding-right: 18px;
+        padding-left: 18px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .brand__name {
+        max-width: 155px;
+        font-size: 0.74rem;
+      }
+
+      .hero__title {
+        font-size: 2.85rem;
+      }
+
+    }
+
+    @media (hover: none) {
+      .pricing-card:hover,
+      .button:hover {
+        transform: none;
+      }
+    }
+
+    /*
+      Mobile guard: constrain layout widths, but keep animation layers visible.
+      The full-width .hero and .viewport-clip are the only clipping boundaries.
+    */
+    @media (max-width: 900px) {
+      .hero__inner,
+      .hero__grid,
+      .hero__content,
+      .smooth-float-wrapper,
+      .hero__title,
+      .hero__title-line,
+      .hero__actions {
+        max-width: 100%;
+        min-width: 0;
+      }
+
+      .hero__inner,
+      .hero__grid,
+      .hero__content,
+      .smooth-float-wrapper,
+      .hero__title-line {
+        overflow: visible;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+
+      [data-reveal],
+      .site-header,
+      .hero__availability,
+      .hero-word,
+      .hero__description,
+      .hero__actions .button,
+      .hero__geometry-stage,
+      .hero__ring-plane,
+      .hero__ring,
+      .hero__content::before,
+      .hero__geometry-stage::before,
+      .hero__signature-line,
+      .smooth-float-wrapper {
+        opacity: 1 !important;
+        filter: none !important;
+        transform: none !important;
+        clip-path: none !important;
+        animation: none !important;
+      }
+
+      .hero__content::before {
+        display: none;
+      }
+
+      .hero__atmosphere {
+        transform: translate3d(0, -50%, 0) !important;
+      }
+
+      .background-grid {
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="viewport-clip">
+    <div class="site-shell">
+      <div class="background-grid" aria-hidden="true">
+        <div class="background-grid__plane"></div>
+      </div>
+
+      <header class="site-header" id="header">
+        <div class="container">
+          <nav class="navbar" aria-label="Primary navigation">
+            <a href="#home" class="brand" aria-label="MBOnyx Studio home">
+              <span class="brand__mark" aria-hidden="true">MB</span>
+              <span class="brand__name">MBOnyx Studio</span>
+            </a>
+
+            <button
+              class="menu-toggle"
+              id="menuToggle"
+              type="button"
+              aria-label="Open navigation menu"
+              aria-controls="navMenu"
+              aria-expanded="false"
+            >
+              <span class="menu-toggle__icon" aria-hidden="true"></span>
+            </button>
+
+            <div class="nav-menu" id="navMenu">
+              <a href="#work" class="nav-link">Work</a>
+              <a href="#process" class="nav-link">Process</a>
+              <a href="#pricing" class="nav-link">Pricing</a>
+              <a href="#faq" class="nav-link">FAQ</a>
+              <a href="#contact" class="button button--secondary">Let's Talk</a>
+            </div>
+          </nav>
+        </div>
+      </header>
+
+      <main>
+        <section id="home" class="hero">
+          <div class="hero__atmosphere" aria-hidden="true">
+            <div class="hero__geometry-stage">
+              <span class="hero__halo hero__halo--outer"></span>
+              <span class="hero__halo hero__halo--inner"></span>
+
+              <span class="hero__ring-plane hero__ring-plane--equator">
+                <span class="hero__ring hero__ring--equator"></span>
+              </span>
+              <span class="hero__ring-plane hero__ring-plane--vertical">
+                <span class="hero__ring hero__ring--vertical"></span>
+              </span>
+              <span class="hero__ring-plane hero__ring-plane--diagonal">
+                <span class="hero__ring hero__ring--diagonal"></span>
+              </span>
+
+              <span class="hero__axis hero__axis--gold"></span>
+              <span class="hero__axis hero__axis--silver"></span>
+              <span class="hero__glow-core"></span>
+
+              <span class="hero__satellite hero__satellite--one"></span>
+              <span class="hero__satellite hero__satellite--two"></span>
+              <span class="hero__satellite hero__satellite--three"></span>
+
+              <span class="hero__spark hero__spark--one"></span>
+              <span class="hero__spark hero__spark--two"></span>
+              <span class="hero__spark hero__spark--three"></span>
+            </div>
+          </div>
+
+          <div class="hero__inner container">
+            <div class="hero__grid">
+              <div class="hero__content">
+                <div class="smooth-float-wrapper">
+                  <div class="hero__availability">
+                    <span class="hero__availability-dot" aria-hidden="true"></span>
+                    Accepting New Clients
+                  </div>
+
+                  <h1 class="hero__title">
+                    <span class="hero__title-line">
+                      <span
+                        class="hero-word"
+                        style="--word-index: 0; --start-x: -90px; --start-y: -24deg; --start-r: -13deg;"
+                      >Premium</span>
+                      <span
+                        class="hero-word"
+                        style="--word-index: 1; --start-x: 34px; --start-y: 26deg; --start-r: 9deg;"
+                      >Web</span>
+                      <span
+                        class="hero-word"
+                        style="--word-index: 2; --start-x: 108px; --start-y: -30deg; --start-r: 14deg;"
+                      >Design</span>
+                    </span>
+
+                    <span class="hero__title-line hero__title-accent">
+                      <span
+                        class="hero-word"
+                        style="--word-index: 3; --start-x: -115px; --start-y: 32deg; --start-r: -12deg;"
+                      >Engineered</span>
+                      <span
+                        class="hero-word"
+                        style="--word-index: 4; --start-x: 20px; --start-y: -22deg; --start-r: 8deg;"
+                      >to</span>
+                      <span
+                        class="hero-word"
+                        style="--word-index: 5; --start-x: 125px; --start-y: 34deg; --start-r: 15deg;"
+                      >Convert.</span>
+                    </span>
+                  </h1>
+
+                  <p class="hero__description">
+                    We build lightning-fast, highly aesthetic digital experiences for ambitious businesses. Custom design, sub-3-second load times, and luxury aesthetics that keep your customers engaged.
+                  </p>
+                </div>
+
+                <div class="hero__actions">
+                  <a href="#contact" class="button button--primary">
+                    Start a Project <span aria-hidden="true">↗</span>
+                  </a>
+                  <a href="#pricing" class="button button--secondary">View Packages</a>
+                </div>
+
+                <span class="hero__signature-line" aria-hidden="true"></span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      <section id="work" class="section container">
+        <div class="section-header" data-reveal>
+          <div class="section-header__copy">
+            <span class="section-kicker">Selected work</span>
+            <h2 class="section-heading">Five industries, five voices</h2>
+            <p class="section-description">
+              A dental office and a gym should not feel like the same website. Each build
+              below was designed from scratch for how that industry's customers actually
+              decide. Open any one — they are all live and fully responsive.
+            </p>
+          </div>
+        </div>
+
+        <div class="work-grid">
+            <article class="work-card" data-reveal>
+              <div class="work-card__frame">
+                <div class="work-card__chrome" aria-hidden="true">
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__url">lumen.example.com</span>
+                </div>
+                <img
+                  class="work-card__shot"
+                  src="/assets/work/lumen-dental.webp"
+                  alt="Desktop homepage of the Lumen Dental Studio concept build"
+                  width="1000"
+                  height="625"
+                  loading="lazy"
+                  decoding="async"
+                >
+                <img
+                  class="work-card__mobile"
+                  src="/assets/work/lumen-dental-mobile.webp"
+                  alt="The same page on a phone"
+                  width="480"
+                  height="960"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </div>
+
+              <div class="work-card__body">
+                <span class="work-card__kind">Dental Practice</span>
+                <h3 class="work-card__name">Lumen Dental Studio</h3>
+                <p class="work-card__note">Appointment-first layout with a booking panel above the fold. Built for a visitor who is in pain and wants a time slot, not a brochure.</p>
+                <div class="work-card__tags">
+                <span class="work-card__tag">Light UI</span>
+                <span class="work-card__tag">Booking flow</span>
+                <span class="work-card__tag">Trust signals</span>
+                </div>
+                <a
+                  class="work-card__link"
+                  href="/work/lumen-dental.html"
+                  target="_blank"
+                  rel="noopener"
+                >View live build <span aria-hidden="true">↗</span></a>
+              </div>
+            </article>
+
+            <article class="work-card" data-reveal>
+              <div class="work-card__frame">
+                <div class="work-card__chrome" aria-hidden="true">
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__url">northpointhvac.example.com</span>
+                </div>
+                <img
+                  class="work-card__shot"
+                  src="/assets/work/northpoint-hvac.webp"
+                  alt="Desktop homepage of the Northpoint Heating &amp; Air concept build"
+                  width="1000"
+                  height="625"
+                  loading="lazy"
+                  decoding="async"
+                >
+                <img
+                  class="work-card__mobile"
+                  src="/assets/work/northpoint-hvac-mobile.webp"
+                  alt="The same page on a phone"
+                  width="480"
+                  height="960"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </div>
+
+              <div class="work-card__body">
+                <span class="work-card__kind">Home Services</span>
+                <h3 class="work-card__name">Northpoint Heating &amp; Air</h3>
+                <p class="work-card__note">Emergency-service design. The phone number is the hero, the quote form never scrolls away, and the licence number sits where a skeptic looks first.</p>
+                <div class="work-card__tags">
+                <span class="work-card__tag">High contrast</span>
+                <span class="work-card__tag">Call-first CTA</span>
+                <span class="work-card__tag">Lead capture</span>
+                </div>
+                <a
+                  class="work-card__link"
+                  href="/work/northpoint-hvac.html"
+                  target="_blank"
+                  rel="noopener"
+                >View live build <span aria-hidden="true">↗</span></a>
+              </div>
+            </article>
+
+            <article class="work-card" data-reveal>
+              <div class="work-card__frame">
+                <div class="work-card__chrome" aria-hidden="true">
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__url">emberandoak.example.com</span>
+                </div>
+                <img
+                  class="work-card__shot"
+                  src="/assets/work/ember-oak.webp"
+                  alt="Desktop homepage of the Ember &amp; Oak concept build"
+                  width="1000"
+                  height="625"
+                  loading="lazy"
+                  decoding="async"
+                >
+                <img
+                  class="work-card__mobile"
+                  src="/assets/work/ember-oak-mobile.webp"
+                  alt="The same page on a phone"
+                  width="480"
+                  height="960"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </div>
+
+              <div class="work-card__body">
+                <span class="work-card__kind">Hospitality</span>
+                <h3 class="work-card__name">Ember &amp; Oak</h3>
+                <p class="work-card__note">Editorial typography and a full-bleed menu built for browsing on a phone at a bus stop. Warm, unhurried, and still under 40KB of CSS.</p>
+                <div class="work-card__tags">
+                <span class="work-card__tag">Editorial type</span>
+                <span class="work-card__tag">Menu layout</span>
+                <span class="work-card__tag">Warm palette</span>
+                </div>
+                <a
+                  class="work-card__link"
+                  href="/work/ember-oak.html"
+                  target="_blank"
+                  rel="noopener"
+                >View live build <span aria-hidden="true">↗</span></a>
+              </div>
+            </article>
+
+            <article class="work-card" data-reveal>
+              <div class="work-card__frame">
+                <div class="work-card__chrome" aria-hidden="true">
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__url">meridianlaw.example.com</span>
+                </div>
+                <img
+                  class="work-card__shot"
+                  src="/assets/work/meridian-law.webp"
+                  alt="Desktop homepage of the Meridian Law Group concept build"
+                  width="1000"
+                  height="625"
+                  loading="lazy"
+                  decoding="async"
+                >
+                <img
+                  class="work-card__mobile"
+                  src="/assets/work/meridian-law-mobile.webp"
+                  alt="The same page on a phone"
+                  width="480"
+                  height="960"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </div>
+
+              <div class="work-card__body">
+                <span class="work-card__kind">Professional Services</span>
+                <h3 class="work-card__name">Meridian Law Group</h3>
+                <p class="work-card__note">Conservative, authority-led layout for a field where restraint sells. Case results and credentials carry the page instead of stock photography.</p>
+                <div class="work-card__tags">
+                <span class="work-card__tag">Authority design</span>
+                <span class="work-card__tag">Intake form</span>
+                <span class="work-card__tag">Compliance copy</span>
+                </div>
+                <a
+                  class="work-card__link"
+                  href="/work/meridian-law.html"
+                  target="_blank"
+                  rel="noopener"
+                >View live build <span aria-hidden="true">↗</span></a>
+              </div>
+            </article>
+
+            <article class="work-card" data-reveal>
+              <div class="work-card__frame">
+                <div class="work-card__chrome" aria-hidden="true">
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__url">forgeathletics.example.com</span>
+                </div>
+                <img
+                  class="work-card__shot"
+                  src="/assets/work/forge-athletics.webp"
+                  alt="Desktop homepage of the Forge Athletics concept build"
+                  width="1000"
+                  height="625"
+                  loading="lazy"
+                  decoding="async"
+                >
+                <img
+                  class="work-card__mobile"
+                  src="/assets/work/forge-athletics-mobile.webp"
+                  alt="The same page on a phone"
+                  width="480"
+                  height="960"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </div>
+
+              <div class="work-card__body">
+                <span class="work-card__kind">Fitness</span>
+                <h3 class="work-card__name">Forge Athletics</h3>
+                <p class="work-card__note">High-energy dark build with a scannable class timetable and membership tiers that compare at a glance on a 390px screen.</p>
+                <div class="work-card__tags">
+                <span class="work-card__tag">Dark UI</span>
+                <span class="work-card__tag">Schedule table</span>
+                <span class="work-card__tag">Pricing tiers</span>
+                </div>
+                <a
+                  class="work-card__link"
+                  href="/work/forge-athletics.html"
+                  target="_blank"
+                  rel="noopener"
+                >View live build <span aria-hidden="true">↗</span></a>
+              </div>
+            </article>
+        </div>
+
+        <p class="work-disclosure">
+          <span aria-hidden="true">◆</span>
+          <span><strong>These are concept builds.</strong> They are demonstration sites created
+          to show range across industries — the businesses are not real. Every one is
+          hand-coded, mobile-tested and loads in under a second. Client work is shown on
+          request, with permission.</span>
+        </p>
+      </section>
+
+      <section id="process" class="section section--soft">
+        <div class="container">
+          <div class="section-header" data-reveal>
+            <div class="section-header__copy">
+              <span class="section-kicker">Clear from day one</span>
+              <h2 class="section-heading">My Process</h2>
+              <p class="section-description">
+                A focused three-step system that keeps your project strategic, efficient, and easy to understand.
+              </p>
+            </div>
+          </div>
+
+          <div class="process-grid">
+            <article class="process-step" data-reveal>
+              <div class="process-step__top">
+                <span class="process-step__number">Step 01</span>
+                <span class="process-step__icon" aria-hidden="true">◇</span>
+              </div>
+              <h3 class="process-step__title">Discovery Strategy</h3>
+              <p class="process-step__description">
+                We map out your business goals and target audience.
+              </p>
+            </article>
+
+            <article class="process-step" data-reveal>
+              <div class="process-step__top">
+                <span class="process-step__number">Step 02</span>
+                <span class="process-step__icon" aria-hidden="true">✦</span>
+              </div>
+              <h3 class="process-step__title">Premium Build</h3>
+              <p class="process-step__description">
+                I design and custom-code your high-converting layout.
+              </p>
+            </article>
+
+            <article class="process-step" data-reveal>
+              <div class="process-step__top">
+                <span class="process-step__number">Step 03</span>
+                <span class="process-step__icon" aria-hidden="true">↗</span>
+              </div>
+              <h3 class="process-step__title">Launch &amp; Handoff</h3>
+              <p class="process-step__description">
+                Your lightning-fast, flawless site goes live.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="pricing" class="section container">
+        <div class="section-header" data-reveal>
+          <div class="section-header__copy">
+            <span class="section-kicker">Straightforward investment</span>
+            <h2 class="section-heading">Investment</h2>
+            <p class="section-description">
+              One fixed price, agreed before I start. No hourly billing, no change-order
+              games, and every tier ships fast — speed is not an upsell.
+            </p>
+          </div>
+        </div>
+
+        <div class="pricing-grid">
+          <article class="pricing-card" data-reveal>
+            <h3 class="pricing-card__name">Starter</h3>
+            <div class="pricing-card__price">
+              <span class="pricing-card__currency">$</span>
+              <span class="pricing-card__amount">900</span>
+            </div>
+            <p class="pricing-card__for">Best for a business that just needs to look real and take calls.</p>
+
+            <div class="pricing-card__features">
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>One-page site, up to 6 sections</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Contact form that emails you directly</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Click-to-call and click-for-directions</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Google Business &amp; map embed</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Mobile-first build, tested on real phones</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Sub-2-second load time</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Live in 7 days</span>
+              </div>
+            </div>
+
+            <a href="#contact" class="button button--secondary package-button" data-package="Starter ($900)">
+              Select Starter
+            </a>
+          </article>
+
+          <article class="pricing-card pricing-card--featured" data-reveal>
+            <div class="pricing-card__badge">Most Popular</div>
+            <h3 class="pricing-card__name">Business</h3>
+            <div class="pricing-card__price">
+              <span class="pricing-card__currency">$</span>
+              <span class="pricing-card__amount">1,800</span>
+            </div>
+            <p class="pricing-card__for">Best for a business that needs to rank, explain services, and convert.</p>
+
+            <div class="pricing-card__features">
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Everything in Starter</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Up to 5 pages (services, about, contact…)</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>On-page SEO: titles, schema, sitemap</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Photo optimisation and gallery</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Reviews section wired to your Google profile</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Social share previews configured</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Two rounds of revisions</span>
+              </div>
+            </div>
+
+            <a href="#contact" class="button button--primary package-button" data-package="Business ($1,800)">
+              Select Business
+            </a>
+          </article>
+
+          <article class="pricing-card" data-reveal>
+            <h3 class="pricing-card__name">Signature</h3>
+            <div class="pricing-card__price">
+              <span class="pricing-card__currency">$</span>
+              <span class="pricing-card__amount">3,200</span>
+            </div>
+            <p class="pricing-card__for">Best for a business that books, sells, or takes payment online.</p>
+
+            <div class="pricing-card__features">
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Everything in Business</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Up to 10 pages</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Online booking or store integration</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Custom animation and brand-matched design</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Blog or news section you can update</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>Analytics dashboard set up for you</span>
+              </div>
+              <div class="pricing-card__feature">
+                <span class="pricing-card__check" aria-hidden="true">✓</span>
+                <span>30 days of post-launch support</span>
+              </div>
+            </div>
+
+            <a href="#contact" class="button button--secondary package-button" data-package="Signature ($3,200)">
+              Select Signature
+            </a>
+          </article>
+        </div>
+
+        <div class="care-plan" data-reveal>
+          <div>
+            <span class="section-kicker">Optional, never required</span>
+            <h3 class="care-plan__name">The Care Plan</h3>
+            <p class="care-plan__copy">
+              You own your site outright the day it launches — that never changes. If you would
+              rather not think about it again, I will keep it running.
+            </p>
+            <ul class="care-plan__list">
+              <li>Hosting, domain and SSL handled</li>
+              <li>Weekly off-site backups</li>
+              <li>Security patches and uptime monitoring</li>
+              <li>Up to 1 hour of content edits monthly</li>
+              <li>Quarterly speed audit</li>
+              <li>Priority response, same business day</li>
+            </ul>
+          </div>
+
+          <div class="care-plan__side">
+            <div class="care-plan__price">
+              <span class="pricing-card__currency">$</span>
+              <span class="pricing-card__amount">99</span>
+            </div>
+            <p class="care-plan__per">per month · cancel any time</p>
+            <a href="#contact" class="button button--secondary package-button" data-package="Care Plan ($99/mo)">
+              Add the Care Plan
+            </a>
+            <p class="care-plan__fine">Month to month. No contract, no cancellation fee.</p>
+          </div>
+        </div>
+
+        <p class="pricing-note">
+          Prices are for the full build, paid 50% up front and 50% at launch. Need something
+          outside these tiers? Say so in your inquiry and I will quote it properly.
+        </p>
+      </section>
+
+      <section id="faq" class="section section--soft">
+        <div class="container faq-layout">
+          <div class="faq-intro" data-reveal="left">
+            <span class="section-kicker">Before we begin</span>
+            <h2 class="section-heading">Frequently Asked Questions</h2>
+            <p class="section-description">
+              Clear answers to the questions clients usually ask before starting a project.
+            </p>
+            <p class="faq-intro__note">
+              Still unsure about something? Include it in your inquiry and I’ll answer it directly.
+            </p>
+          </div>
+
+          <div class="faq-list" data-reveal="right">
+            <details class="faq-item" open>
+              <summary class="faq-question">Do you use templates?</summary>
+              <p class="faq-answer">
+                No. Every site is written by hand, which is why they load in under two seconds
+                instead of the eight-plus that page builders average. It also means nothing
+                breaks when a plugin updates itself at 3am.
+              </p>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-question">Are there monthly fees?</summary>
+              <p class="faq-answer">
+                Not unless you want them. You own your site outright the day it launches — the
+                code, the domain, all of it. The $99/month Care Plan is there if you would
+                rather I handle hosting, backups and edits, and you can cancel it any time
+                without losing your site.
+              </p>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-question">How long does it take?</summary>
+              <p class="faq-answer">
+                Starter goes live in about a week. Business is typically two weeks, and
+                Signature two to three depending on booking or store setup. The clock starts
+                once I have your content — that is usually the part that decides the timeline.
+              </p>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-question">What do you need from me?</summary>
+              <p class="faq-answer">
+                Your logo if you have one, any photos you want used, and a rough idea of what
+                you want each page to say. If you do not have copy written, I will draft it and
+                you edit — most people find that far easier than starting from a blank page.
+              </p>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-question">What if I already have a website?</summary>
+              <p class="faq-answer">
+                Then we rebuild it without losing what already works. Your domain stays yours,
+                your Google ranking carries over through proper redirects, and your existing
+                site stays live right up until the new one is ready to switch on.
+              </p>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-question">Can I update it myself afterwards?</summary>
+              <p class="faq-answer">
+                Yes. On Business and Signature I hand over a short walkthrough video showing
+                exactly how to change your hours, prices and photos. If you would rather not,
+                that is what the Care Plan is for.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section id="contact" class="section container">
+        <div class="contact__panel" data-reveal>
+          <div class="contact__copy">
+            <span class="section-kicker">Start your project</span>
+            <h2 class="contact__title">Ready to elevate your brand?</h2>
+            <p class="contact__description">
+              Tell me about your business and what the site needs to do. I read every inquiry
+              myself and reply within one business day — usually the same day.
+            </p>
+
+            <ul class="contact__details">
+              <li>
+                <span class="contact__details-label">Email</span>
+                <a class="contact__email" href="mailto:hello@mbonyx.com">hello@mbonyx.com</a>
+              </li>
+              <li>
+                <span class="contact__details-label">Phone</span>
+                <a class="contact__email" href="tel:+15550000000">(555) 000-0000</a>
+              </li>
+              <li>
+                <span class="contact__details-label">Hours</span>
+                <span class="contact__details-value">Mon–Fri, 9am – 6pm</span>
+              </li>
+            </ul>
+
+            <p class="contact__reassure">
+              Prefer to just ask a question first? Email is fine — there is no sales sequence
+              waiting on the other end of this form.
+            </p>
+          </div>
+
+          <form class="contact-form" name="contact" method="POST" data-netlify="true" action="/success.html" id="contactForm">
+            <input type="hidden" name="form-name" value="contact" />
+
+            <!--
+              Netlify honeypot. Bots fill hidden fields; humans never see this one,
+              so anything that arrives with it filled gets dropped silently.
+            -->
+            <p class="hp-field" aria-hidden="true">
+              <label>Leave this field empty <input name="bot-field" tabindex="-1" autocomplete="off"></label>
+            </p>
+            <div class="field">
+              <label class="field__label" for="name">Name</label>
+              <input
+                class="field__input"
+                type="text"
+                id="name"
+                name="name"
+                autocomplete="name"
+                placeholder="Your Name"
+                required
+              >
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="email">Email</label>
+              <input
+                class="field__input"
+                type="email"
+                id="email"
+                name="email"
+                autocomplete="email"
+                placeholder="you@example.com"
+                required
+              >
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="package">Select Package</label>
+              <select class="field__input" id="package" name="package">
+                <option value="Not specified">Not sure yet — help me choose</option>
+                <option value="Starter ($900)">Starter ($900)</option>
+                <option value="Business ($1,800)">Business ($1,800)</option>
+                <option value="Signature ($3,200)">Signature ($3,200)</option>
+                <option value="Care Plan ($99/mo)">Care Plan ($99/mo)</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="referralSource">Where Did You Hear About Us?</label>
+              <select
+                class="field__input"
+                id="referralSource"
+                name="referralSource"
+                required
+              >
+                <option value="">Select an option...</option>
+                <option value="Email from MBOnyx">You emailed me</option>
+                <option value="Google Search">Google Search</option>
+                <option value="A Friend">A friend</option>
+                <option value="A Fellow Business Owner">Another business owner</option>
+                <option value="Social Media">Social media</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div
+              class="field field--conditional"
+              id="referralBusinessField"
+              aria-hidden="true"
+              hidden
+            >
+              <label class="field__label" for="referralBusiness">
+                What Business Referred You?
+              </label>
+              <input
+                class="field__input"
+                type="text"
+                id="referralBusiness"
+                name="referralBusiness"
+                autocomplete="organization"
+                placeholder="Business name"
+              >
+              <p class="field__hint">
+                If another business sent you here, tell me who — they get $100 when your
+                project starts.
+              </p>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="message">Project Details</label>
+              <textarea
+                class="field__input"
+                id="message"
+                name="message"
+                placeholder="Tell me about your business and goals..."
+                required
+              ></textarea>
+            </div>
+
+            <button type="submit" class="button button--primary">
+              Send Inquiry
+            </button>
+
+            <p class="form-fine">
+              I reply within one business day. Your details are never sold or shared —
+              see the <a href="/privacy.html">privacy policy</a>.
+            </p>
+          </form>
+        </div>
+      </section>
+      </main>
+
+      <footer class="site-footer">
+        <div class="container footer__inner">
+          <p class="footer__copyright">
+            &copy; <span id="currentYear">2026</span> MBOnyx Studio ·
+            <span class="footer__address">123 Example Street, Your City, ST 00000</span>
+          </p>
+          <div class="footer__links">
+            <a href="mailto:hello@mbonyx.com" class="footer__link">hello@mbonyx.com</a>
+            <a href="/privacy.html" class="footer__link">Privacy Policy</a>
+            <a href="/terms.html" class="footer__link">Terms of Service</a>
+            <a href="#home" class="footer__link">Back to top ↑</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const root = document.documentElement;
+      const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+      const mobileMenuQuery = window.matchMedia("(max-width: 900px)");
+      const reduceMotion = motionQuery.matches;
+
+      const header = document.getElementById("header");
+      const hero = document.getElementById("home");
+      const menuToggle = document.getElementById("menuToggle");
+      const navMenu = document.getElementById("navMenu");
+      const navigationLinks = navMenu
+        ? Array.from(navMenu.querySelectorAll('a[href^="#"]'))
+        : [];
+      const revealElements = document.querySelectorAll("[data-reveal]");
+      const packageButtons = document.querySelectorAll(".package-button");
+      const packageSelect = document.getElementById("package");
+      const referralSourceSelect = document.getElementById("referralSource");
+      const referralBusinessField = document.getElementById("referralBusinessField");
+      const referralBusinessInput = document.getElementById("referralBusiness");
+      const currentYear = document.getElementById("currentYear");
+      const faqItems = document.querySelectorAll(".faq-item");
+
+      if (currentYear) {
+        currentYear.textContent = String(new Date().getFullYear());
+      }
+
+      const navigationTargets = navigationLinks
+        .map(link => {
+          const id = decodeURIComponent(link.hash.slice(1));
+          const section = document.getElementById(id);
+          return section ? { id, link, section } : null;
+        })
+        .filter(Boolean);
+
+      const setActiveNavigation = sectionId => {
+        navigationTargets.forEach(({ id, link }) => {
+          const isActive = id === sectionId;
+          link.classList.toggle("active", isActive);
+          link.classList.toggle("is-active", isActive);
+
+          if (isActive) {
+            link.setAttribute("aria-current", "location");
+          } else {
+            link.removeAttribute("aria-current");
+          }
+        });
+      };
+
+      /*
+        Navigation is controlled explicitly instead of relying on the browser's
+        native hash-scroll timing. The clicked destination stays active for the
+        entire smooth-scroll journey, and the normal scroll spy resumes only
+        after the destination has actually settled at its final position.
+      */
+      let activeNavigationJourney = null;
+      let navigationJourneySequence = 0;
+
+      const getNavigationOffset = () => {
+        const computedOffset = Number.parseFloat(
+          window.getComputedStyle(root).scrollPaddingTop
+        );
+
+        if (Number.isFinite(computedOffset) && computedOffset > 0) {
+          return computedOffset;
+        }
+
+        return (header?.getBoundingClientRect().height || 0) + 32;
+      };
+
+      const getTargetScrollY = section => {
+        const documentHeight = document.documentElement.scrollHeight;
+        const maximumScrollY = Math.max(0, documentHeight - window.innerHeight);
+        const requestedScrollY =
+          window.scrollY +
+          section.getBoundingClientRect().top -
+          getNavigationOffset();
+
+        return Math.min(maximumScrollY, Math.max(0, requestedScrollY));
+      };
+
+      const cancelNavigationJourney = ({ syncNavigation = false } = {}) => {
+        if (!activeNavigationJourney) return;
+
+        window.cancelAnimationFrame(activeNavigationJourney.frameId);
+        window.clearTimeout(activeNavigationJourney.timeoutId);
+        activeNavigationJourney = null;
+
+        if (syncNavigation) {
+          updateActiveNavigation();
+        }
+      };
+
+      const finishNavigationJourney = journey => {
+        if (activeNavigationJourney?.token !== journey.token) return;
+
+        window.cancelAnimationFrame(journey.frameId);
+        window.clearTimeout(journey.timeoutId);
+        activeNavigationJourney = null;
+
+        /* Keep the destination selected at the exact handoff frame. */
+        setActiveNavigation(journey.id);
+
+        window.requestAnimationFrame(() => {
+          updateActiveNavigation();
+        });
+      };
+
+      const trackNavigationJourney = journey => {
+        if (activeNavigationJourney?.token !== journey.token) return;
+
+        const currentScrollY = window.scrollY;
+        const remainingDistance = Math.abs(currentScrollY - journey.targetY);
+        const frameMovement = Math.abs(currentScrollY - journey.lastScrollY);
+
+        journey.lastScrollY = currentScrollY;
+        journey.stableFrames =
+          remainingDistance <= 2 && frameMovement <= 0.5
+            ? journey.stableFrames + 1
+            : 0;
+
+        /* Never let the scroll spy overwrite the clicked destination mid-scroll. */
+        setActiveNavigation(journey.id);
+
+        if (journey.stableFrames >= 3) {
+          finishNavigationJourney(journey);
+          return;
+        }
+
+        journey.frameId = window.requestAnimationFrame(() => {
+          trackNavigationJourney(journey);
+        });
+      };
+
+      const beginNavigationJourney = (id, section) => {
+        cancelNavigationJourney();
+
+        const targetY = getTargetScrollY(section);
+        const token = ++navigationJourneySequence;
+        const journey = {
+          id,
+          targetY,
+          token,
+          frameId: 0,
+          timeoutId: 0,
+          lastScrollY: window.scrollY,
+          stableFrames: 0
+        };
+
+        activeNavigationJourney = journey;
+        setActiveNavigation(id);
+
+        journey.timeoutId = window.setTimeout(() => {
+          finishNavigationJourney(journey);
+        }, 4200);
+
+        window.scrollTo({
+          top: targetY,
+          behavior: reduceMotion ? "auto" : "smooth"
+        });
+
+        journey.frameId = window.requestAnimationFrame(() => {
+          trackNavigationJourney(journey);
+        });
+      };
+
+      const updateActiveNavigation = () => {
+        if (!navigationTargets.length || !header) return;
+
+        if (activeNavigationJourney) {
+          setActiveNavigation(activeNavigationJourney.id);
+          return;
+        }
+
+        const activationLine = getNavigationOffset();
+        const atPageBottom =
+          window.innerHeight + window.scrollY >=
+          document.documentElement.scrollHeight - 4;
+
+        if (atPageBottom) {
+          setActiveNavigation(navigationTargets.at(-1).id);
+          return;
+        }
+
+        /*
+          Use the last section whose top has crossed the activation line.
+          The small tolerance avoids a sub-pixel boundary where the previous
+          section can remain active even though the destination is correctly
+          aligned beneath the fixed header.
+        */
+        const activationThreshold = activationLine + 8;
+        let activeId = "";
+
+        navigationTargets.forEach(({ id, section }) => {
+          if (section.getBoundingClientRect().top <= activationThreshold) {
+            activeId = id;
+          }
+        });
+
+        setActiveNavigation(activeId);
+      };
+
+      navigationLinks.forEach(link => {
+        link.addEventListener("click", event => {
+          const id = decodeURIComponent(link.hash.slice(1));
+          const target = navigationTargets.find(item => item.id === id);
+
+          if (!id || !target) return;
+
+          event.preventDefault();
+
+          const nextHash = `#${id}`;
+          if (window.location.hash !== nextHash) {
+            window.history.pushState(null, "", nextHash);
+          }
+
+          beginNavigationJourney(id, target.section);
+        });
+      });
+
+      /*
+        One passive scroll listener feeds one requestAnimationFrame renderer.
+        It updates parallax, the fixed-header state, and the navigation spy.
+      */
+      let latestScrollY = window.scrollY;
+      let renderedScrollY = latestScrollY;
+      let scrollFrame = 0;
+
+      const renderScrollMotion = () => {
+        renderedScrollY += (latestScrollY - renderedScrollY) * 0.11;
+
+        header?.classList.toggle("is-scrolled", latestScrollY > 50);
+        updateActiveNavigation();
+
+        if (reduceMotion) {
+          root.style.setProperty("--grid-scroll-y", "0px");
+          root.style.setProperty("--hero-scroll-y", "0px");
+        } else {
+          const gridDrift = Math.min(renderedScrollY * 0.045, 140);
+          const heroDrift = Math.min(renderedScrollY * 0.07, 96);
+
+          root.style.setProperty("--grid-scroll-y", `${gridDrift.toFixed(2)}px`);
+          root.style.setProperty("--hero-scroll-y", `${heroDrift.toFixed(2)}px`);
+        }
+
+        if (Math.abs(latestScrollY - renderedScrollY) > 0.1) {
+          scrollFrame = window.requestAnimationFrame(renderScrollMotion);
+        } else {
+          renderedScrollY = latestScrollY;
+          scrollFrame = 0;
+        }
+      };
+
+      const queueScrollMotion = () => {
+        latestScrollY = window.scrollY;
+        if (!scrollFrame) {
+          scrollFrame = window.requestAnimationFrame(renderScrollMotion);
+        }
+      };
+
+      window.addEventListener("scroll", queueScrollMotion, { passive: true });
+
+      const cancelNavigationOnManualInput = () => {
+        if (!activeNavigationJourney) return;
+        cancelNavigationJourney({ syncNavigation: true });
+      };
+
+      window.addEventListener("wheel", cancelNavigationOnManualInput, {
+        passive: true
+      });
+      window.addEventListener("touchstart", cancelNavigationOnManualInput, {
+        passive: true
+      });
+      window.addEventListener("keydown", event => {
+        if (
+          activeNavigationJourney &&
+          ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(event.key)
+        ) {
+          cancelNavigationOnManualInput();
+        }
+      });
+
+      queueScrollMotion();
+
+      /* Mobile navigation: hidden links are removed from focus navigation. */
+      const syncMenuAccessibility = isOpen => {
+        if (!navMenu || !menuToggle) return;
+
+        const isMobile = mobileMenuQuery.matches;
+        const shouldHide = isMobile && !isOpen;
+
+        navMenu.inert = shouldHide;
+        navMenu.setAttribute("aria-hidden", String(shouldHide));
+        menuToggle.setAttribute("aria-expanded", String(isMobile && isOpen));
+        menuToggle.setAttribute(
+          "aria-label",
+          isMobile && isOpen ? "Close navigation menu" : "Open navigation menu"
+        );
+      };
+
+      const closeMenu = () => {
+        if (!navMenu || !menuToggle) return;
+        navMenu.classList.remove("is-open");
+        header?.classList.remove("menu-open");
+        syncMenuAccessibility(false);
+      };
+
+      const openMenu = () => {
+        if (!navMenu || !menuToggle) return;
+        navMenu.inert = false;
+        navMenu.setAttribute("aria-hidden", "false");
+        navMenu.classList.add("is-open");
+        header?.classList.add("menu-open");
+        syncMenuAccessibility(true);
+      };
+
+      if (menuToggle && navMenu) {
+        syncMenuAccessibility(navMenu.classList.contains("is-open"));
+
+        menuToggle.addEventListener("click", () => {
+          navMenu.classList.contains("is-open") ? closeMenu() : openMenu();
+        });
+
+        navMenu.querySelectorAll("a").forEach(link => {
+          link.addEventListener("click", closeMenu);
+        });
+
+        document.addEventListener("click", event => {
+          if (
+            navMenu.classList.contains("is-open") &&
+            !navMenu.contains(event.target) &&
+            !menuToggle.contains(event.target)
+          ) {
+            closeMenu();
+          }
+        });
+
+        document.addEventListener("keydown", event => {
+          if (event.key === "Escape") closeMenu();
+        });
+
+        const handleMenuBreakpoint = () => {
+          if (mobileMenuQuery.matches) {
+            closeMenu();
+          } else {
+            navMenu.classList.remove("is-open");
+            header?.classList.remove("menu-open");
+            navMenu.inert = false;
+            navMenu.setAttribute("aria-hidden", "false");
+            menuToggle.setAttribute("aria-expanded", "false");
+          }
+          updateActiveNavigation();
+        };
+
+        if (typeof mobileMenuQuery.addEventListener === "function") {
+          mobileMenuQuery.addEventListener("change", handleMenuBreakpoint);
+        } else {
+          mobileMenuQuery.addListener(handleMenuBreakpoint);
+        }
+      }
+
+      /* Scroll reveal animations with a no-observer fallback. */
+      if (reduceMotion || !("IntersectionObserver" in window)) {
+        revealElements.forEach(element => element.classList.add("is-visible"));
+      } else {
+        const revealObserver = new IntersectionObserver((entries, observer) => {
+          entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          });
+        }, {
+          threshold: 0.12,
+          rootMargin: "0px 0px -8% 0px"
+        });
+
+        revealElements.forEach(element => revealObserver.observe(element));
+      }
+
+      /*
+        IntersectionObserver handles layout-driven section changes, while the
+        deterministic position check above prevents stale or incorrect states.
+      */
+      if ("IntersectionObserver" in window && navigationTargets.length) {
+        const sectionObserver = new IntersectionObserver(updateActiveNavigation, {
+          threshold: [0, 0.01, 0.25, 0.5, 0.75, 1],
+          rootMargin: "-96px 0px -45% 0px"
+        });
+
+        navigationTargets.forEach(({ section }) => sectionObserver.observe(section));
+      }
+
+      /* Pause hero-only ambient animation while it is offscreen. */
+      if (hero && "IntersectionObserver" in window && !reduceMotion) {
+        const heroMotionObserver = new IntersectionObserver(entries => {
+          entries.forEach(entry => {
+            hero.classList.toggle("is-offscreen", !entry.isIntersecting);
+          });
+        }, { threshold: 0.01 });
+
+        heroMotionObserver.observe(hero);
+      }
+
+      /* Pause all ambient animation when the tab is not visible. */
+      document.addEventListener("visibilitychange", () => {
+        root.classList.toggle("page-hidden", document.hidden);
+      });
+
+      /* Selecting a pricing card pre-fills the contact package field. */
+      if (packageSelect) {
+        packageButtons.forEach(button => {
+          button.addEventListener("click", () => {
+            const selectedPackage = button.dataset.package;
+            if (!selectedPackage) return;
+            packageSelect.value = selectedPackage;
+            packageSelect.dispatchEvent(new Event("change", { bubbles: true }));
+          });
+        });
+      }
+
+      /* Reveal the referring-business field only when relevant. */
+      const syncReferralBusinessField = () => {
+        if (!referralSourceSelect || !referralBusinessField || !referralBusinessInput) {
+          return;
+        }
+
+        const shouldShow =
+          referralSourceSelect.value === "A Fellow Business Owner";
+
+        referralBusinessField.hidden = !shouldShow;
+        referralBusinessField.setAttribute("aria-hidden", String(!shouldShow));
+        referralBusinessInput.required = shouldShow;
+
+        if (!shouldShow) {
+          referralBusinessInput.value = "";
+        }
+      };
+
+      referralSourceSelect?.addEventListener("change", syncReferralBusinessField);
+      syncReferralBusinessField();
+
+      /* Keep the FAQ accordion clean by opening one item at a time. */
+      faqItems.forEach(item => {
+        item.addEventListener("toggle", () => {
+          if (!item.open) return;
+          faqItems.forEach(otherItem => {
+            if (otherItem !== item) otherItem.open = false;
+          });
+        });
+      });
+
+      window.addEventListener("resize", updateActiveNavigation, { passive: true });
+      window.addEventListener("hashchange", updateActiveNavigation);
+      window.addEventListener("popstate", () => {
+        cancelNavigationJourney();
+        updateActiveNavigation();
+      });
+      updateActiveNavigation();
+
+      /*
+        No submit listener is intentionally attached. Netlify receives the
+        contact form through its native POST and redirects to /success.html.
+      */
+    });
+  </script>
+</body>
+</html>

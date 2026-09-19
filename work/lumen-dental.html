@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="description" content="Concept website build for a modern dental practice — by MBOnyx Studio.">
+<title>Lumen Dental Studio — Concept Build by MBOnyx</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  @font-face{font-family:"Inter";font-style:normal;font-weight:100 900;font-display:swap;src:url("/assets/fonts/inter-var.woff2") format("woff2")}
+
+  :root{
+    --ink:#0f2c3f; --ink-soft:#4a6b7d; --line:#dbe7ee;
+    --bg:#f4f9fb; --card:#ffffff; --brand:#0e8f8f; --brand-dark:#0a6f6f; --accent:#ffd166;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Inter",system-ui,sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased}
+  img,svg{display:block;max-width:100%}
+  a{color:inherit;text-decoration:none}
+  h1,h2,h3,p{margin:0 0 .6em}
+  ul{margin:0;padding:0;list-style:none}
+  :focus-visible{outline:3px solid var(--brand);outline-offset:3px}
+  .wrap{width:min(100% - 40px,1120px);margin-inline:auto}
+
+  .concept-bar{background:#0b1016;color:#cfd6e0;font-size:.78rem;padding:9px 0}
+  .concept-bar .wrap{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;text-align:center}
+  .concept-bar b{color:#e6d3a5;font-weight:600}
+  .concept-bar a{color:#fff;border-bottom:1px solid rgba(255,255,255,.45)}
+
+  header.nav{position:sticky;top:0;z-index:50;background:rgba(244,249,251,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .nav__inner{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:74px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.05rem;letter-spacing:-.02em}
+  .logo__mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--brand),#43c6c6);display:grid;place-items:center;color:#fff;font-size:.85rem;font-weight:800}
+  .nav__links{display:flex;gap:28px;font-size:.92rem;font-weight:500;color:var(--ink-soft)}
+  .nav__links a:hover{color:var(--brand)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:12px 24px;border-radius:999px;font-weight:600;font-size:.94rem;border:1px solid transparent;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s}
+  .btn:hover{transform:translateY(-2px)}
+  .btn--primary{background:var(--brand);color:#fff;box-shadow:0 8px 20px rgba(14,143,143,.25)}
+  .btn--primary:hover{background:var(--brand-dark)}
+  .btn--ghost{border-color:var(--line);background:var(--card);color:var(--ink)}
+  @media(max-width:820px){.nav__links{display:none}}
+
+  .hero{padding:clamp(52px,8vw,96px) 0}
+  .hero__grid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(32px,5vw,64px);align-items:center}
+  .pill{display:inline-flex;align-items:center;gap:8px;background:#e2f4f4;color:var(--brand-dark);font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:7px 14px;border-radius:999px;margin-bottom:20px}
+  .hero h1{font-size:clamp(2.5rem,5.2vw,4rem);line-height:1.04;letter-spacing:-.035em;font-weight:800}
+  .hero h1 em{font-style:normal;color:var(--brand)}
+  .hero p.lead{font-size:clamp(1rem,1.4vw,1.15rem);color:var(--ink-soft);max-width:44ch;margin-bottom:28px}
+  .hero__actions{display:flex;gap:12px;flex-wrap:wrap}
+  .trust{display:flex;gap:26px;flex-wrap:wrap;margin-top:34px;padding-top:26px;border-top:1px solid var(--line)}
+  .trust div strong{display:block;font-size:1.5rem;font-weight:800;letter-spacing:-.02em}
+  .trust div span{font-size:.8rem;color:var(--ink-soft)}
+
+  .booking{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:clamp(22px,3vw,32px);box-shadow:0 24px 60px rgba(15,44,63,.08)}
+  .booking h3{font-size:1.15rem;font-weight:700;margin-bottom:4px}
+  .booking p.sub{font-size:.86rem;color:var(--ink-soft);margin-bottom:20px}
+  .fld{display:grid;gap:6px;margin-bottom:14px}
+  .fld label{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft)}
+  .fld input,.fld select{width:100%;min-height:46px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fbfdfe;color:var(--ink)}
+  .fld input:focus,.fld select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(14,143,143,.12)}
+  .slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
+  .slot{border:1px solid var(--line);border-radius:10px;padding:10px 4px;text-align:center;font-size:.85rem;font-weight:600;background:#fbfdfe;cursor:pointer}
+  .slot.is-on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .booking .btn{width:100%}
+
+  section{padding:clamp(52px,7vw,88px) 0}
+  .band{background:var(--card);border-block:1px solid var(--line)}
+  .shead{max-width:620px;margin-bottom:44px}
+  .shead span{color:var(--brand);font-size:.78rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+  .shead h2{font-size:clamp(1.9rem,3.6vw,2.9rem);letter-spacing:-.03em;line-height:1.1;font-weight:800;margin-top:10px}
+  .shead p{color:var(--ink-soft)}
+
+  .svcs{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .svc{background:var(--bg);border:1px solid var(--line);border-radius:18px;padding:28px;transition:transform .25s,box-shadow .25s}
+  .svc:hover{transform:translateY(-5px);box-shadow:0 18px 40px rgba(15,44,63,.09)}
+  .svc__ico{width:46px;height:46px;border-radius:13px;background:#e2f4f4;display:grid;place-items:center;margin-bottom:16px}
+  .svc h3{font-size:1.1rem;font-weight:700;margin-bottom:6px}
+  .svc p{font-size:.9rem;color:var(--ink-soft);margin:0}
+
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:clamp(28px,5vw,64px);align-items:center}
+  .photo{aspect-ratio:4/3;border-radius:22px;background:linear-gradient(135deg,#0e8f8f,#43c6c6 55%,#9fe3e3);position:relative;overflow:hidden}
+  .photo::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.4),transparent 55%)}
+  .checks li{display:grid;grid-template-columns:24px 1fr;gap:12px;margin-bottom:14px;font-size:.95rem}
+  .checks .c{width:22px;height:22px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:.7rem;font-weight:800}
+
+  .revs{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .rev{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px}
+  .stars{color:var(--accent);letter-spacing:2px;margin-bottom:12px}
+  .rev p{font-size:.93rem;color:var(--ink-soft)}
+  .rev cite{display:block;margin-top:14px;font-style:normal;font-weight:700;font-size:.88rem}
+
+  .cta{background:linear-gradient(135deg,#0a4a5c,#0e8f8f);color:#fff;text-align:center;border-radius:26px;padding:clamp(40px,6vw,72px) 28px}
+  .cta h2{font-size:clamp(1.9rem,4vw,3rem);letter-spacing:-.03em;font-weight:800}
+  .cta p{color:#c9e8e8;max-width:48ch;margin-inline:auto;margin-bottom:26px}
+  .cta .btn--primary{background:#fff;color:var(--brand-dark)}
+
+  footer.ft{background:#0b2230;color:#9fb6c2;padding:48px 0 34px;font-size:.88rem}
+  .ft__grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:34px;margin-bottom:32px}
+  .ft h4{color:#fff;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px}
+  .ft a:hover{color:#fff}
+  .ft li{margin-bottom:8px}
+  .ft__bot{border-top:1px solid rgba(255,255,255,.12);padding-top:20px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:.8rem}
+
+  @media(max-width:900px){.hero__grid,.split,.ft__grid{grid-template-columns:1fr}.svcs,.revs{grid-template-columns:1fr}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="concept-bar">
+  <div class="wrap">
+    <span><b>Concept build</b> — a demonstration site, not a real practice.</span>
+    <a href="/#work">← Back to MBOnyx Studio</a>
+  </div>
+</div>
+
+<header class="nav">
+  <div class="wrap nav__inner">
+    <a href="#" class="logo"><span class="logo__mark">L</span> Lumen Dental Studio</a>
+    <nav class="nav__links">
+      <a href="#services">Services</a><a href="#about">About</a><a href="#reviews">Reviews</a><a href="#contact">Contact</a>
+    </nav>
+    <a href="#book" class="btn btn--primary">Book Online</a>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap hero__grid">
+    <div>
+      <span class="pill">◆ Accepting new patients</span>
+      <h1>Dentistry that feels <em>calm</em>, not clinical.</h1>
+      <p class="lead">Same-week appointments, transparent pricing, and a team that explains every step before it happens.</p>
+      <div class="hero__actions">
+        <a href="#book" class="btn btn--primary">Book an appointment</a>
+        <a href="tel:5551234567" class="btn btn--ghost">(555) 123-4567</a>
+      </div>
+      <div class="trust">
+        <div><strong>4.9★</strong><span>412 Google reviews</span></div>
+        <div><strong>Same week</strong><span>Average wait time</span></div>
+        <div><strong>18 yrs</strong><span>Serving the neighborhood</span></div>
+      </div>
+    </div>
+
+    <div class="booking" id="book">
+      <h3>Request an appointment</h3>
+      <p class="sub">We confirm by text within one business hour.</p>
+      <div class="fld"><label for="n">Full name</label><input id="n" placeholder="Jordan Ellis"></div>
+      <div class="fld"><label for="r">Reason for visit</label>
+        <select id="r"><option>Routine cleaning &amp; exam</option><option>Tooth pain</option><option>Cosmetic consult</option><option>New patient visit</option></select>
+      </div>
+      <div class="fld"><label>Preferred time</label></div>
+      <div class="slots">
+        <button class="slot" type="button">Tue 9:00</button>
+        <button class="slot is-on" type="button">Tue 2:30</button>
+        <button class="slot" type="button">Wed 11:00</button>
+      </div>
+      <a href="#book" class="btn btn--primary">Request this time</a>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="services">
+  <div class="wrap">
+    <div class="shead"><span>What we do</span><h2>Complete care under one roof</h2>
+      <p>No referrals across town. Cleanings, cosmetics and urgent care all happen here.</p></div>
+    <div class="svcs">
+      <article class="svc"><div class="svc__ico">🦷</div><h3>Preventive care</h3><p>Cleanings, exams and digital X-rays with results explained on screen, chairside.</p></article>
+      <article class="svc"><div class="svc__ico">✨</div><h3>Cosmetic dentistry</h3><p>Whitening, veneers and bonding, previewed digitally before anything is permanent.</p></article>
+      <article class="svc"><div class="svc__ico">⚡</div><h3>Same-day emergencies</h3><p>Chipped or aching? Call before noon and we will see you the same afternoon.</p></article>
+    </div>
+  </div>
+</section>
+
+<section id="about">
+  <div class="wrap split">
+    <div class="photo" role="img" aria-label="Treatment room interior"></div>
+    <div>
+      <div class="shead" style="margin-bottom:24px"><span>Why patients stay</span><h2>Straight answers, no surprise bills.</h2></div>
+      <ul class="checks">
+        <li><span class="c">✓</span><span>Written treatment estimates before we start — every time.</span></li>
+        <li><span class="c">✓</span><span>In-house membership plan for patients without insurance.</span></li>
+        <li><span class="c">✓</span><span>Evening hours Tuesday and Thursday until 7pm.</span></li>
+        <li><span class="c">✓</span><span>Free parking and street-level access.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="reviews">
+  <div class="wrap">
+    <div class="shead"><span>Reviews</span><h2>What the neighborhood says</h2></div>
+    <div class="revs">
+      <article class="rev"><div class="stars">★★★★★</div><p>"First dentist I haven't dreaded. They walked me through the X-ray on the screen and told me what could wait."</p><cite>— Priya M.</cite></article>
+      <article class="rev"><div class="stars">★★★★★</div><p>"Cracked a molar on a Sunday. Called Monday at 8, was in the chair by 1."</p><cite>— Dan R.</cite></article>
+      <article class="rev"><div class="stars">★★★★★</div><p>"The estimate they gave me was the number I actually paid. That alone earned my family's business."</p><cite>— Lauren K.</cite></article>
+    </div>
+  </div>
+</section>
+
+<section id="contact"><div class="wrap"><div class="cta">
+  <h2>Ready when you are.</h2>
+  <p>Book online in under a minute, or call and talk to someone at the front desk — not a menu.</p>
+  <a href="#book" class="btn btn--primary">Book an appointment</a>
+</div></div></section>
+</main>
+
+<footer class="ft">
+  <div class="wrap">
+    <div class="ft__grid">
+      <div><div class="logo" style="color:#fff;margin-bottom:12px"><span class="logo__mark">L</span> Lumen Dental Studio</div>
+        <p>1420 Maple Avenue, Suite 200<br>Open Mon–Fri, 8am–5pm</p></div>
+      <div><h4>Practice</h4><ul><li><a href="#services">Services</a></li><li><a href="#about">About</a></li><li><a href="#reviews">Reviews</a></li></ul></div>
+      <div><h4>Contact</h4><ul><li><a href="tel:5551234567">(555) 123-4567</a></li><li><a href="#book">Book online</a></li></ul></div>
+    </div>
+    <div class="ft__bot">
+      <span>© <span id="y">2026</span> Lumen Dental Studio — concept build.</span>
+      <a href="/#work">Built by MBOnyx Studio ↗</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('y').textContent = new Date().getFullYear();
+  document.querySelectorAll('.slot').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.slot').forEach(x => x.classList.remove('is-on'));
+    b.classList.add('is-on');
+  }));
+</script>
+</body>
+</html>

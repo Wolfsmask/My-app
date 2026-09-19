@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="description" content="Concept website build for a neighborhood coffee house and kitchen — by MBOnyx Studio.">
+<title>Ember &amp; Oak — Concept Build by MBOnyx</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  @font-face{font-family:"Inter";font-style:normal;font-weight:100 900;font-display:swap;src:url("/assets/fonts/inter-var.woff2") format("woff2")}
+  @font-face{font-family:"Playfair Display";font-style:normal;font-weight:600;font-display:swap;src:url("/assets/fonts/playfair-600.woff2") format("woff2")}
+  @font-face{font-family:"Playfair Display";font-style:italic;font-weight:600;font-display:swap;src:url("/assets/fonts/playfair-600-italic.woff2") format("woff2")}
+
+  :root{--cream:#faf5ec;--paper:#fffdf8;--ink:#2a1f18;--ink-soft:#6d5c4f;--clay:#b4552d;--clay-d:#8e3f1e;--olive:#5f6b4a;--line:#e5d9c7}
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);font-family:"Inter",system-ui,sans-serif;line-height:1.7;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none} img,svg{display:block;max-width:100%}
+  h1,h2,h3,p{margin:0 0 .6em} ul{margin:0;padding:0;list-style:none}
+  :focus-visible{outline:2px solid var(--clay);outline-offset:4px}
+  .wrap{width:min(100% - 40px,1080px);margin-inline:auto}
+  .serif{font-family:"Playfair Display",Georgia,serif;font-weight:600}
+
+  .concept-bar{background:#0b1016;color:#cfd6e0;font-size:.78rem;padding:9px 0;font-family:"Inter",sans-serif}
+  .concept-bar .wrap{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;text-align:center}
+  .concept-bar b{color:#e6d3a5;font-weight:600}
+  .concept-bar a{color:#fff;border-bottom:1px solid rgba(255,255,255,.45)}
+
+  header.nav{position:sticky;top:0;z-index:50;background:rgba(250,245,236,.93);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .nav__inner{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:76px}
+  .logo{font-family:"Playfair Display",Georgia,serif;font-weight:600;font-size:1.35rem;letter-spacing:-.01em}
+  .logo em{font-style:italic;color:var(--clay)}
+  .nav__links{display:flex;gap:30px;font-size:.86rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft)}
+  .nav__links a:hover{color:var(--clay)}
+  @media(max-width:860px){.nav__links{display:none}}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:13px 28px;border-radius:2px;font-weight:600;font-size:.86rem;letter-spacing:.09em;text-transform:uppercase;border:1px solid transparent;cursor:pointer;transition:background .25s,color .25s,transform .25s}
+  .btn:hover{transform:translateY(-2px)}
+  .btn--clay{background:var(--clay);color:#fff}.btn--clay:hover{background:var(--clay-d)}
+  .btn--line{border-color:var(--ink);color:var(--ink)}.btn--line:hover{background:var(--ink);color:var(--cream)}
+
+  .hero{padding:clamp(48px,7vw,90px) 0 0}
+  .hero__top{text-align:center;max-width:780px;margin:0 auto clamp(36px,5vw,56px)}
+  .kick{font-size:.74rem;letter-spacing:.24em;text-transform:uppercase;color:var(--clay);font-weight:600;margin-bottom:18px;display:block}
+  .hero h1{font-family:"Playfair Display",Georgia,serif;font-weight:600;font-size:clamp(2.7rem,7vw,5.4rem);line-height:.98;letter-spacing:-.03em;margin-bottom:20px}
+  .hero h1 em{font-style:italic;color:var(--clay)}
+  .hero p{color:var(--ink-soft);font-size:clamp(1rem,1.4vw,1.16rem);max-width:52ch;margin-inline:auto;margin-bottom:28px}
+  .hero__actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .plate{height:clamp(240px,40vw,430px);background:linear-gradient(160deg,#c8672f,#8e3f1e 45%,#3d2a1d);position:relative;overflow:hidden}
+  .plate::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 28% 22%,rgba(255,226,180,.4),transparent 58%),radial-gradient(ellipse at 78% 78%,rgba(95,107,74,.45),transparent 52%)}
+  .plate::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(58%,330px);aspect-ratio:1;border:1px solid rgba(255,253,248,.35);border-radius:50%}
+
+  .hours{background:var(--ink);color:var(--cream);padding:22px 0;font-size:.86rem}
+  .hours .wrap{display:flex;justify-content:center;gap:clamp(20px,5vw,60px);flex-wrap:wrap;text-align:center}
+  .hours b{color:#e8b48d;font-weight:600;letter-spacing:.05em}
+
+  section{padding:clamp(52px,7vw,92px) 0}
+  .band{background:var(--paper);border-block:1px solid var(--line)}
+  .shead{text-align:center;max-width:620px;margin:0 auto clamp(38px,5vw,58px)}
+  .shead h2{font-family:"Playfair Display",Georgia,serif;font-weight:600;font-size:clamp(2rem,4.4vw,3.2rem);letter-spacing:-.025em;line-height:1.08;margin-bottom:12px}
+  .shead p{color:var(--ink-soft);margin:0}
+
+  .menu{display:grid;grid-template-columns:1fr 1fr;gap:clamp(30px,6vw,72px)}
+  .menu h3{font-family:"Playfair Display",Georgia,serif;font-size:1.5rem;font-weight:600;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:20px}
+  .item{display:grid;grid-template-columns:1fr auto;gap:8px 16px;margin-bottom:20px;align-items:baseline}
+  .item b{font-weight:600;font-size:1rem}
+  .item .price{font-family:"Playfair Display",Georgia,serif;color:var(--clay);font-size:1.05rem}
+  .item p{grid-column:1/-1;margin:0;font-size:.87rem;color:var(--ink-soft);line-height:1.55}
+
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:clamp(30px,6vw,70px);align-items:center}
+  .split .plate{height:100%;min-height:340px;border-radius:2px}
+  .split h2{font-family:"Playfair Display",Georgia,serif;font-size:clamp(1.9rem,3.8vw,2.8rem);font-weight:600;letter-spacing:-.025em;line-height:1.1;margin-bottom:16px}
+  .split p{color:var(--ink-soft)}
+  .sig{font-family:"Playfair Display",Georgia,serif;font-style:italic;font-size:1.18rem;color:var(--clay);margin-top:20px}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .card{background:var(--cream);border:1px solid var(--line);padding:30px;text-align:center}
+  .card .ico{font-size:1.7rem;margin-bottom:12px}
+  .card h3{font-family:"Playfair Display",Georgia,serif;font-size:1.25rem;font-weight:600;margin-bottom:7px}
+  .card p{font-size:.89rem;color:var(--ink-soft);margin:0}
+
+  .visit{background:var(--olive);color:var(--paper);text-align:center}
+  .visit h2{font-family:"Playfair Display",Georgia,serif;font-size:clamp(2rem,4.4vw,3.2rem);font-weight:600;letter-spacing:-.025em}
+  .visit p{color:#dbe2cf;max-width:46ch;margin-inline:auto;margin-bottom:26px}
+  .visit .btn--clay{background:var(--paper);color:var(--olive)}
+  .visit .btn--clay:hover{background:#fff}
+
+  footer.ft{background:var(--ink);color:#b3a293;padding:48px 0 30px;font-size:.87rem}
+  .ft__grid{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:34px;margin-bottom:30px}
+  .ft h4{color:var(--paper);font-family:"Playfair Display",Georgia,serif;font-size:1.05rem;margin-bottom:12px}
+  .ft li{margin-bottom:7px}.ft a:hover{color:var(--paper)}
+  .ft__bot{border-top:1px solid rgba(255,255,255,.12);padding-top:18px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:.79rem}
+
+  @media(max-width:880px){.menu,.split,.cards,.ft__grid{grid-template-columns:1fr}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="concept-bar">
+  <div class="wrap">
+    <span><b>Concept build</b> — a demonstration site, not a real business.</span>
+    <a href="/#work">← Back to MBOnyx Studio</a>
+  </div>
+</div>
+
+<header class="nav">
+  <div class="wrap nav__inner">
+    <a href="#" class="logo">Ember <em>&amp;</em> Oak</a>
+    <nav class="nav__links"><a href="#menu">Menu</a><a href="#story">Our Story</a><a href="#visit">Visit</a></nav>
+    <a href="#visit" class="btn btn--clay">Reserve</a>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap hero__top">
+    <span class="kick">Coffee House &amp; Kitchen · Est. 2014</span>
+    <h1>Slow mornings,<br>served <em>properly.</em></h1>
+    <p>Single-origin coffee roasted eight blocks away, bread pulled from the oven at 6am, and a corner table that's yours for as long as you want it.</p>
+    <div class="hero__actions">
+      <a href="#menu" class="btn btn--clay">View the menu</a>
+      <a href="#visit" class="btn btn--line">Find us</a>
+    </div>
+  </div>
+  <div class="plate" role="img" aria-label="Pour-over coffee and fresh bread"></div>
+</section>
+
+<div class="hours">
+  <div class="wrap">
+    <span><b>MON–FRI</b> 6:30am – 4pm</span>
+    <span><b>SAT–SUN</b> 7am – 3pm</span>
+    <span><b>KITCHEN CLOSES</b> 2:30pm daily</span>
+  </div>
+</div>
+
+<section class="band" id="menu">
+  <div class="wrap">
+    <div class="shead"><span class="kick">The Menu</span><h2>Small, and done well</h2>
+      <p>It changes with what the farms send us. These are the constants.</p></div>
+    <div class="menu">
+      <div>
+        <h3>Coffee &amp; Tea</h3>
+        <div class="item"><b>Pour-over, single origin</b><span class="price">5.00</span><p>Rotating. Ask what's on — we'll tell you what it tastes like, honestly.</p></div>
+        <div class="item"><b>Cortado</b><span class="price">4.25</span><p>Two ounces, whole milk, no ceremony.</p></div>
+        <div class="item"><b>Oat cold brew</b><span class="price">5.50</span><p>Steeped 18 hours. Smooth enough to skip the sugar.</p></div>
+        <div class="item"><b>Sencha, pot for one</b><span class="price">4.75</span><p>Refills on the house.</p></div>
+      </div>
+      <div>
+        <h3>Kitchen</h3>
+        <div class="item"><b>Sourdough &amp; cultured butter</b><span class="price">7.00</span><p>Baked at six, gone by noon most days.</p></div>
+        <div class="item"><b>Soft eggs, herbs, chili oil</b><span class="price">13.00</span><p>On thick toast, with a lemon-dressed side.</p></div>
+        <div class="item"><b>Roasted squash bowl</b><span class="price">15.00</span><p>Farro, pepitas, whipped feta. Vegetarian.</p></div>
+        <div class="item"><b>The Oak sandwich</b><span class="price">14.50</span><p>Smoked turkey, apple, sharp cheddar, pressed.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="story">
+  <div class="wrap split">
+    <div class="plate" role="img" aria-label="The dining room"></div>
+    <div>
+      <span class="kick">Our Story</span>
+      <h2>A corner shop that refused to scale.</h2>
+      <p>We opened in 2014 with six tables and one espresso machine. People kept telling us to open a second location. We kept saying no.</p>
+      <p>What we did instead was get better at the twelve things we actually make — and learn every regular's order by heart.</p>
+      <p class="sig">— Tess &amp; Marco, owners</p>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="shead"><span class="kick">Good to know</span><h2>Come as you are</h2></div>
+    <div class="cards">
+      <article class="card"><div class="ico">☕</div><h3>Roasted nearby</h3><p>Beans from Wheelhouse Roasters, eight blocks east. Delivered twice a week.</p></article>
+      <article class="card"><div class="ico">🌿</div><h3>Always vegetarian options</h3><p>At least four on the menu at any time, plus vegan milks at no charge.</p></article>
+      <article class="card"><div class="ico">📚</div><h3>Stay a while</h3><p>Free wifi, plenty of outlets, and nobody will ask you to leave.</p></article>
+    </div>
+  </div>
+</section>
+
+<section class="visit" id="visit">
+  <div class="wrap">
+    <span class="kick" style="color:#dbe2cf">Visit</span>
+    <h2>218 Calder Street</h2>
+    <p>Corner of Calder and Vine. Street parking after 9am, and the bus stops right out front.</p>
+    <a href="#visit" class="btn btn--clay">Reserve a table</a>
+  </div>
+</section>
+</main>
+
+<footer class="ft">
+  <div class="wrap">
+    <div class="ft__grid">
+      <div><div class="logo" style="color:var(--paper);margin-bottom:10px">Ember <em>&amp;</em> Oak</div>
+        <p>218 Calder Street<br>(555) 204-7781</p></div>
+      <div><h4>Hours</h4><ul><li>Mon–Fri 6:30am–4pm</li><li>Sat–Sun 7am–3pm</li></ul></div>
+      <div><h4>More</h4><ul><li><a href="#menu">Menu</a></li><li><a href="#story">Our story</a></li><li><a href="#visit">Private events</a></li></ul></div>
+    </div>
+    <div class="ft__bot">
+      <span>© <span id="y">2026</span> Ember &amp; Oak — concept build.</span>
+      <a href="/#work">Built by MBOnyx Studio ↗</a>
+    </div>
+  </div>
+</footer>
+
+<script>document.getElementById('y').textContent = new Date().getFullYear();</script>
+</body>
+</html>
