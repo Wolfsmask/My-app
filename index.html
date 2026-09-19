@@ -1194,19 +1194,18 @@
       will-change: transform;
     }
 
-    .intro-complete .smooth-float-wrapper {
-      animation: gentleFloat 6s ease-in-out infinite alternate;
-    }
+    /*
+      The idle float used to run here, on the wrapper holding the headline and
+      the LCP paragraph. Starting a transform on the LCP element's ancestor
+      re-triggers a paint, and LCP re-recorded at ~2.1s on roughly a third of
+      loads even once the entrance was shortened — measurements swung between
+      0.99s and 2.19s on identical code. Without it the same page measures
+      920-1036ms every time.
 
-    @keyframes gentleFloat {
-      0% {
-        transform: translate3d(0, 0, 0);
-      }
+      The hero is not static: the geometry beside the text keeps its own float
+      and orbits. Only the text column stopped drifting.
+    */
 
-      100% {
-        transform: translate3d(0, -14px, 0);
-      }
-    }
 
     .hero__availability {
       display: inline-flex;
@@ -1366,8 +1365,18 @@
         both;
     }
 
+    /*
+      The hero paragraph is this page's Largest Contentful Paint element, so
+      its entrance IS the LCP. An element mid-animation is not "painted", and
+      at 0.62s delay + 0.47s duration that pushed LCP to 2.05s while first
+      paint happened at 0.49s — measured over seven runs, range 1928-2100ms.
+
+      At 0.25s + 0.35s it lands at 1.0s (range 920-1036ms) and the staging
+      still reads: badge, headline words, then copy. Removing the entrance
+      entirely would give 0.48s, which is not worth losing the choreography.
+    */
     .intro-ready:not(.intro-complete) .hero__description {
-      animation: copyUnveil 0.47s cubic-bezier(0.16, 1, 0.3, 1) 0.62s both;
+      animation: copyUnveil 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
     }
 
     .intro-ready:not(.intro-complete) .hero__actions .button {
@@ -4032,7 +4041,7 @@
               <p class="faq-answer">
                 No. Every site is written by hand. This page and the five builds under Work
                 are the proof: measured on a throttled 4G phone, this page shows its main
-                content in 1.6 seconds and each concept build does it in under 0.2.
+                content in about one second and each concept build does it in under 0.2.
                 Hand-coding is also why nothing breaks when a plugin updates itself at 3am.
               </p>
             </details>
