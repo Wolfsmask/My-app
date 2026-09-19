@@ -7,6 +7,20 @@ import { TIER_MEANING } from "./score.js";
 
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+/**
+ * Escaping is not enough for an href. A website of `javascript:alert(...)`
+ * escapes to itself and stays clickable, and these URLs come from Google
+ * Places and OpenStreetMap, which anyone can edit. Only http(s) survives.
+ */
+const safeHref = url => {
+  try {
+    const u = new URL(String(url ?? ""), "https://invalid.example");
+    return u.protocol === "http:" || u.protocol === "https:" ? esc(u.href) : "";
+  } catch {
+    return "";
+  }
+};
+
 export function toCsv(leads) {
   const cols = [
     "tier", "score", "name", "website", "phone", "rating", "reviewCount",
@@ -120,7 +134,9 @@ ${live.map(l => `
     <span class="pill">Tier ${l.tier}</span>
   </div>
   <p class="lead__meta">
-    <a href="${esc(l.business.website)}" target="_blank" rel="noopener">${esc(l.business.website)}</a>
+    ${safeHref(l.business.website)
+      ? `<a href="${safeHref(l.business.website)}" target="_blank" rel="noopener noreferrer">${esc(l.business.website)}</a>`
+      : `<span title="not a usable web address">${esc(l.business.website)}</span>`}
     ${l.business.phone ? " &middot; " + esc(l.business.phone) : ""}
     ${l.business.reviewCount != null ? ` &middot; ${l.business.reviewCount} reviews (${l.business.rating}★)` : ""}
     ${l.audit?.platform ? " &middot; " + esc(l.audit.platform) : ""}

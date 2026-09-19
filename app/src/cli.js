@@ -127,9 +127,27 @@ const run = async () => {
   const browser = await launchBrowser();
   let done = 0;
 
+  /*
+    Each business is isolated. One exception used to reject the whole
+    Promise.all, which discarded every lead gathered so far and skipped
+    browser.close() — on a run with --vision or --draft that is real money
+    thrown away over a single bad record.
+  */
   const worker = async queue => {
     while (queue.length) {
       const business = queue.shift();
+      try {
+        await auditOne(business);
+      } catch (e) {
+        leads.push({ business, dropReason: `error: ${e.message.slice(0, 120)}`, tier: "-", score: null });
+        console.log(`  ✗ ${pad(business.name)} ${short(e.message)}`);
+      }
+      done++;
+    }
+  };
+
+  const auditOne = async business => {
+    {
       const slug = uniqueSlug(business.name, business.website);
       const shotPath = wantShots ? path.join(outDir, "shots", `${slug}.jpg`) : null;
       const audit = await auditSite(business.website, {
@@ -188,13 +206,16 @@ const run = async () => {
           console.log(`  ${s.tier === "A" ? "★" : "·"} ${pad(business.name)} ${String(s.score).padStart(3)}  Tier ${s.tier}  ${s.hits.slice(0, 2).map(h => h.label).join(", ")}`);
         }
       }
-      done++;
     }
   };
 
   const queue = [...toAudit];
-  await Promise.all(Array.from({ length: concurrency }, () => worker(queue)));
-  await browser.close();
+  try {
+    await Promise.all(Array.from({ length: concurrency }, () => worker(queue)));
+  } finally {
+    // Must run even if something above threw, or Chromium is left running.
+    await browser.close().catch(() => {});
+  }
 
   // ----------------------------------------------------------------- Report
   leads.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
@@ -225,7 +246,22 @@ const run = async () => {
   console.log("");
 };
 
-run().catch(e => { console.error(`\n  Error: ${e.message}\n`); process.exit(1); });
+
+/*
+  run() is started at the very bottom, after every helper below has been
+  declared.
+
+  It used to be invoked here, above them. For --source places and --source osm
+  that was harmless: the network call yields, module evaluation finishes, and
+  the const helpers are initialised before anything needs them. For
+  --source file there is no await before the first drop is printed, so run()
+  reached `pad()` while it was still in its temporal dead zone and the whole
+  tool died with "Cannot access 'pad' before initialization".
+
+  A business with no website is completely ordinary — Google Places returns
+  them constantly — so any file-source list containing one crashed outright,
+  which is the exact path the docs tell a new user to start with.
+*/
 
 /* --------------------------------------------------------------- helpers */
 
@@ -296,3 +332,10 @@ function short(err = "") {
   if (/Timeout|timeout/.test(e)) return "timed out";
   return e.slice(0, 60);
 }
+
+/* ------------------------------------------------------------------- go */
+
+run().catch(e => {
+  console.error(`\n  Error: ${e.message}\n`);
+  process.exit(1);
+});

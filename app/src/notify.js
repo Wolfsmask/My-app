@@ -27,7 +27,17 @@ export function toInbox(lead, outDir) {
     emailSubject: lead.email?.subject ?? null,
     emailSendable: lead.email?.sendable ?? null,
   };
-  fs.appendFileSync(file, JSON.stringify(row) + "\n");
+  /*
+    Never let a disk error take down a run. The caller is inside the audit
+    worker, and an exception here used to reject the whole Promise.all —
+    abandoning every lead gathered so far and leaving the browser open.
+  */
+  try {
+    fs.appendFileSync(file, JSON.stringify(row) + "\n");
+  } catch (e) {
+    console.error(`  (could not write ${file}: ${e.message})`);
+    return null;
+  }
   return file;
 }
 

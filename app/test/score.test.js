@@ -197,3 +197,68 @@ test("a public hostname is allowed", async () => {
   await assertPublicTarget("93.184.216.34");   // public IP, no DNS needed
   await assertPublicTarget("8.8.8.8");
 });
+
+/* ------------------------------------------------------ report link safety */
+
+test("only http(s) links survive into the report", async () => {
+  /*
+    Escaping is not enough for an href: `javascript:alert(1)` escapes to
+    itself and stays clickable. Website URLs come from Google Places and
+    OpenStreetMap, which anyone can edit, and the report is opened locally.
+  */
+  const { toHtml } = await import("../src/report.js");
+  const render = website => toHtml(
+    [{ tier: "A", score: 1, slug: "x", hits: [], business: { name: "n", website }, audit: {}, qualified: true, qualifyReasons: [] }],
+    { category: "c", city: "y", source: "f" });
+
+  for (const bad of ["javascript:alert(1)", "data:text/html,<script>x</script>", "vbscript:msgbox", "ftp://x.com"]) {
+    const html = render(bad);
+    assert.ok(!/href="javascript:|href="data:|href="vbscript:|href="ftp:/i.test(html), `${bad} must not become an href`);
+  }
+  assert.match(render("https://ok.example.com"), /<a href="https:\/\/ok\.example\.com/);
+});
+
+test("the report escapes names that came from an editable source", async () => {
+  const { toHtml } = await import("../src/report.js");
+  const html = toHtml(
+    [{ tier: "A", score: 1, slug: "x", hits: [], business: { name: '<img src=x onerror=alert(1)>', website: "https://a.com" }, audit: {}, qualified: true, qualifyReasons: [] }],
+    { category: "c", city: "y", source: "f" });
+  assert.ok(!/<img src=x/.test(html), "raw markup must not reach the document");
+  assert.match(html, /&lt;img src=x/);
+});
+
+test("a failed inbox write returns null instead of throwing", async () => {
+  const { toInbox } = await import("../src/notify.js");
+  const lead = { tier: "A", score: 80, business: { name: "n", website: "https://a.com" }, hits: [] };
+  // A directory that does not exist and cannot be created implicitly.
+  const r = toInbox(lead, "/proc/definitely/not/writable");
+  assert.equal(r, null, "a disk error must not propagate into the audit worker");
+});
+
+test("a business with no website does not crash the run", async () => {
+  /*
+    Regression: run() was invoked above the const helpers. With --source file
+    there is no await before the first drop is printed, so it reached pad()
+    inside its temporal dead zone and the process died with
+    "Cannot access 'pad' before initialization". A business with no website is
+    completely ordinary, so any hand-made list containing one crashed outright.
+  */
+  const { execFile } = await import("node:child_process");
+  const { promisify } = await import("node:util");
+  const fs = await import("node:fs");
+  const os = await import("node:os");
+  const path = await import("node:path");
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mbonyx-"));
+  const list = path.join(dir, "list.txt");
+  fs.writeFileSync(list, "A Business With No Website\n");
+
+  const { stdout } = await promisify(execFile)(process.execPath,
+    [path.join(import.meta.dirname, "..", "src", "cli.js"),
+     "--source", "file", "--input", list, "--out", path.join(dir, "out")],
+    { timeout: 60000 });
+
+  assert.match(stdout, /no_website/);
+  assert.match(stdout, /dropped:1/);
+  assert.doesNotMatch(stdout, /before initialization/);
+});
