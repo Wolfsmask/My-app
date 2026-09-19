@@ -203,6 +203,19 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
     out.httpStatus = resp?.status() ?? null;
     out.finalUrl = page.url();
 
+    /*
+      An error page is not a website that needs rebuilding.
+      The status was recorded here but never acted on, so a 404 scored 52 and
+      landed in tier B — an error page has no viewport meta and no semantic
+      markup, which reads to the scorer exactly like a neglected site. Emailing
+      someone about a page that does not exist proves you never looked.
+    */
+    if (out.httpStatus >= 400) {
+      out.fetchFailed = true;
+      out.error = `server returned ${out.httpStatus}`;
+      return out;
+    }
+
     // Give lazy content a moment, but never hang the run on a slow site.
     await page.waitForTimeout(1200);
 
@@ -256,6 +269,8 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
         hasContactAboveFold: contactable,
         brokenImages: [...document.images].filter(i => i.complete && i.naturalWidth === 0).length,
         imageCount: document.images.length,
+        linkCount: document.querySelectorAll("a[href]").length,
+        headings: document.querySelectorAll("h1,h2,h3").length,
         text: (document.body ? document.body.innerText : "").slice(0, 20000),
         links: [...document.querySelectorAll("a[href]")]
           .map(a => a.href)
@@ -274,6 +289,26 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
     out.hasContactAboveFold = measured.hasContactAboveFold;
     out.brokenImages = measured.brokenImages;
     out.title = measured.title;
+
+    /*
+      A parked domain, a holding page or an empty shell is not a lead either.
+      An empty <body> has no viewport tag and no semantic markup, so it scored
+      56 — higher than a real business whose site is merely dated.
+
+      The threshold is set from measurement, not instinct. Across the fixtures,
+      a parked page has 0 characters and 0 headings/links/images; the smallest
+      genuinely real page has 90 characters and 2. The line sits between them
+      with room to spare, and deliberately errs towards keeping a lead: a small
+      real business wrongly discarded is invisible, whereas a parked domain
+      reaching the report is something a human notices and skips.
+    */
+    out.visibleTextLength = (measured.text || "").trim().length;
+    out.contentElements = (measured.headings ?? 0) + measured.imageCount + (measured.linkCount ?? 0);
+    if (out.visibleTextLength < 60 && out.contentElements < 2) {
+      out.fetchFailed = true;
+      out.error = "page is empty or parked — nothing to rebuild";
+      return out;
+    }
 
     out.copyrightYear = findCopyrightYear(measured.text + " " + html);
 

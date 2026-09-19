@@ -1,0 +1,18 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Big Catalogue</title>
+<style>body{margin:0;font:16px/1.6 system-ui}.i{padding:4px 8px;border-bottom:1px solid #eee}</style>
+</head><body><h1>Catalogue</h1><a href="tel:5551112222">Call</a>
+<div id="list"></div>
+<script>
+  // 6,000 nodes — a real product catalogue, and enough to make a careless
+  // per-element getComputedStyle loop crawl.
+  const f = document.createDocumentFragment();
+  for (let i = 0; i < 6000; i++) {
+    const d = document.createElement('div');
+    d.className = 'i';
+    d.textContent = 'Part number ' + i + ' — replacement component, in stock, ships same day.';
+    f.appendChild(d);
+  }
+  document.getElementById('list').appendChild(f);
+</script>
+<footer>&copy; 2026 Big Catalogue</footer></body></html>

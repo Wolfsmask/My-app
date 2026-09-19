@@ -84,3 +84,47 @@ test("the five concept builds all pass their own audit", { skip: !up && "no serv
     assert.ok(score(a).score < 25, `${slug} must not be a rebuild candidate`);
   }
 });
+
+/* ------------------------------------------------- pages that are not leads */
+
+test("an error page is not a lead", { skip: !up && "no server on :8899" }, async () => {
+  /*
+    Regression: httpStatus was recorded and never acted on, so a 404 scored 52
+    and landed in tier B — an error page has no viewport meta and no semantic
+    markup, which to the scorer looks exactly like a neglected site.
+  */
+  const a = await auditSite(`${BASE}/app/test/fixtures/definitely-not-here.html`, { browser, allowLocal: true });
+  assert.equal(a.fetchFailed, true);
+  assert.match(a.error, /404/);
+  assert.equal(a.httpStatus, 404);
+});
+
+test("a parked or empty page is not a lead", { skip: !up && "no server on :8899" }, async () => {
+  const a = await audit("edge-empty");
+  assert.equal(a.fetchFailed, true);
+  assert.match(a.error, /empty or parked/);
+});
+
+test("small but real pages survive the empty-page guard", { skip: !up && "no server on :8899" }, async () => {
+  // Both are close to the threshold and both are real businesses.
+  for (const f of ["edge-noviewport-narrow", "edge-noscript-shell"]) {
+    const a = await audit(f);
+    assert.equal(a.fetchFailed, false, `${f} must not be discarded`);
+    assert.ok(a.visibleTextLength >= 60 || a.contentElements >= 2, `${f} has real content`);
+  }
+});
+
+test("content rendered by JavaScript is seen", { skip: !up && "no server on :8899" }, async () => {
+  // The page is an empty shell until a script fills it 700ms in.
+  const a = await audit("edge-noscript-shell");
+  assert.equal(a.hasContactAboveFold, true, "the phone link is added by script");
+  assert.equal(a.copyrightYear, new Date().getFullYear());
+});
+
+test("a large catalogue page does not stall the audit", { skip: !up && "no server on :8899" }, async () => {
+  const t0 = Date.now();
+  const a = await audit("edge-huge-dom");
+  const took = Date.now() - t0;
+  assert.equal(a.fetchFailed, false);
+  assert.ok(took < 25000, `6,000 nodes took ${took}ms — the per-element style loop is too slow`);
+});

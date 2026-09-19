@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<!-- Everything rendered by JS after a delay, the way an SPA behaves. -->
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Appsy</title>
+<style>body{margin:0;font:16px/1.6 system-ui}.wrap{padding:24px}</style></head>
+<body><div id="root"></div>
+<script>
+  setTimeout(() => {
+    document.getElementById('root').innerHTML =
+      '<div class="wrap"><h1>Appsy Plumbing</h1>' +
+      '<p>Emergency call-outs across the county, day or night.</p>' +
+      '<p><a href="tel:5559998888">Call (555) 999-8888</a></p>' +
+      '<footer>&copy; 2026 Appsy Plumbing</footer></div>';
+  }, 700);
+</script></body></html>
