@@ -9,8 +9,15 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
   @font-face{font-family:"Inter";font-style:normal;font-weight:100 900;font-display:swap;src:url("/assets/fonts/inter-var.woff2") format("woff2")}
+  /* Oswald: condensed, and the closest web font to the lettering on a service
+     van or a job-site sign. Nothing else in the portfolio uses it. */
+  @font-face{font-family:"Oswald";font-style:normal;font-weight:400 700;font-display:swap;src:url("/assets/fonts/oswald-var.woff2") format("woff2")}
 
-  :root{--navy:#10233d;--navy-d:#0a1830;--steel:#33506f;--ice:#eef3f8;--fire:#f4612a;--fire-d:#d64a15;--line:#d3dde8;--ok:#1f9d55}
+  :root{--navy:#10233d;--navy-d:#0a1830;--steel:#33506f;--ice:#eef3f8;
+    /* --fire passes 4.5:1 against white text. --fire-ink is the darker
+       variant for small orange text on the light --ice band. */
+    --fire:#c95023;--fire-d:#a63d16;--fire-ink:#b8491f;--line:#d3dde8;--ok:#1f9d55;
+    --head:"Oswald","Arial Narrow",system-ui,sans-serif}
   *,*::before,*::after{box-sizing:border-box}
   body{margin:0;background:#fff;color:var(--navy);font-family:"Inter",system-ui,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
   a{color:inherit;text-decoration:none} img,svg{display:block;max-width:100%}
@@ -24,21 +31,21 @@
   .concept-bar b{color:#e6d3a5;font-weight:600}
   .concept-bar a{color:#fff;border-bottom:1px solid rgba(255,255,255,.45)}
 
-  .alert{background:var(--fire);color:#fff;font-weight:700;font-size:.86rem;padding:10px 0;text-align:center}
+  .alert{background:var(--fire);color:#fff;font-family:var(--head);font-weight:500;font-size:1rem;letter-spacing:.03em;padding:10px 0;text-align:center}
   .alert a{border-bottom:2px solid rgba(255,255,255,.6)}
 
   header.nav{background:var(--navy);color:#fff;position:sticky;top:0;z-index:50}
   .nav__inner{display:flex;align-items:center;justify-content:space-between;gap:18px;min-height:78px}
-  .logo{display:flex;align-items:center;gap:11px;font-weight:900;font-size:1.02rem;letter-spacing:-.01em}
+  .logo{display:flex;align-items:center;gap:11px;font-family:var(--head);font-weight:700;font-size:1.22rem;letter-spacing:.01em;line-height:1.05}
   .logo__mark{width:38px;height:38px;background:var(--fire);display:grid;place-items:center;font-size:1.05rem;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
   .nav__links{display:flex;gap:26px;font-size:.88rem;font-weight:600}
   .nav__links a{color:#b9c9dc}.nav__links a:hover{color:#fff}
   .phone{display:flex;flex-direction:column;align-items:flex-end;line-height:1.15}
   .phone small{font-size:.66rem;color:#8fa6c0;font-weight:700}
-  .phone b{font-size:1.28rem;font-weight:900;color:#fff}
+  .phone b{font-family:var(--head);font-size:1.5rem;font-weight:700;color:#fff;letter-spacing:.01em}
   @media(max-width:960px){.nav__links{display:none}}
 
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:54px;padding:15px 30px;font-weight:800;font-size:.95rem;border:2px solid transparent;cursor:pointer;transition:transform .18s,background .18s;text-transform:uppercase;letter-spacing:.04em}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:54px;padding:15px 30px;font-family:var(--head);font-weight:700;font-size:1.05rem;border:2px solid transparent;cursor:pointer;transition:transform .18s,background .18s;text-transform:uppercase;letter-spacing:.04em}
   .btn:hover{transform:translateY(-2px)}
   .btn--fire{background:var(--fire);color:#fff}.btn--fire:hover{background:var(--fire-d)}
   .btn--out{border-color:#fff;color:#fff}.btn--out:hover{background:#fff;color:var(--navy)}
@@ -48,7 +55,7 @@
   .hero::after{content:"";position:absolute;right:-12%;top:-20%;width:58%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(244,97,42,.28),transparent 62%)}
   .hero__grid{position:relative;z-index:2;display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(30px,5vw,60px);align-items:center}
   .tag{display:inline-block;background:rgba(244,97,42,.18);border:1px solid rgba(244,97,42,.5);color:#ffb593;font-size:.74rem;font-weight:800;padding:7px 14px;margin-bottom:20px}
-  .hero h1{font-size:clamp(2.6rem,6vw,4.6rem);font-weight:900;line-height:.98;letter-spacing:-.04em}
+  .hero h1{font-family:var(--head);font-size:clamp(3rem,7.4vw,5.8rem);font-weight:700;line-height:.96;letter-spacing:.005em;text-transform:uppercase}
   .hero h1 span{color:var(--fire)}
   .hero p{color:#c3d3e5;font-size:clamp(1rem,1.5vw,1.2rem);max-width:46ch;margin-bottom:28px}
   .hero__actions{display:flex;gap:12px;flex-wrap:wrap}
@@ -56,7 +63,7 @@
   .badge{border:1px solid rgba(255,255,255,.2);padding:9px 14px;font-size:.76rem;font-weight:700;color:#c3d3e5}
 
   .quote{background:#fff;color:var(--navy);padding:28px;border-top:6px solid var(--fire);box-shadow:0 28px 60px rgba(0,0,0,.3)}
-  .quote h3{font-weight:900;font-size:1.22rem;margin-bottom:3px}
+  .quote h3{font-family:var(--head);font-weight:700;font-size:1.5rem;margin-bottom:3px;text-transform:uppercase}
   .quote .sub{font-size:.85rem;color:var(--steel);margin-bottom:20px}
   .fld{display:grid;gap:5px;margin-bottom:13px}
   .fld label{font-size:.71rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--steel)}
@@ -68,42 +75,42 @@
   section{padding:clamp(52px,7vw,92px) 0}
   .band{background:var(--ice)}
   .shead{max-width:640px;margin-bottom:44px}
-  .shead .kick{color:var(--fire);font-size:.76rem;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
-  .shead h2{font-size:clamp(1.9rem,4vw,3rem);font-weight:900;letter-spacing:-.03em;line-height:1.06;margin-top:8px}
+  .shead .kick{color:var(--fire-ink);font-size:.76rem;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
+  .shead h2{font-family:var(--head);font-size:clamp(2.2rem,4.8vw,3.6rem);font-weight:700;letter-spacing:.005em;line-height:1.04;margin-top:8px;text-transform:uppercase}
   .shead p{color:var(--steel)}
 
   .svcs{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;background:var(--line);border:2px solid var(--line)}
   .svc{background:#fff;padding:30px 26px;transition:background .2s}
   .svc:hover{background:var(--navy);color:#fff}
   .svc:hover p{color:#b9c9dc}
-  .svc .n{font-size:.72rem;font-weight:900;color:var(--fire);letter-spacing:.1em;margin-bottom:26px;display:block}
-  .svc h3{font-size:1.15rem;font-weight:800;margin-bottom:6px}
+  .svc .n{font-size:.72rem;font-weight:900;color:var(--fire-ink);letter-spacing:.1em;margin-bottom:26px;display:block}
+  .svc h3{font-family:var(--head);font-size:1.35rem;font-weight:700;margin-bottom:6px;text-transform:uppercase}
   .svc p{font-size:.88rem;color:var(--steel);margin:0}
 
   .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
   .step{border-left:4px solid var(--fire);padding-left:22px}
-  .step b{display:block;font-size:2.4rem;font-weight:900;line-height:1;color:var(--line);margin-bottom:8px}
-  .step h3{font-size:1.1rem;font-weight:800;margin-bottom:5px}
+  .step b{display:block;font-family:var(--head);font-size:3.2rem;font-weight:700;line-height:1;color:var(--line);margin-bottom:8px}
+  .step h3{font-family:var(--head);font-size:1.3rem;font-weight:700;margin-bottom:5px;text-transform:uppercase}
   .step p{font-size:.9rem;color:var(--steel);margin:0}
 
   .strip{background:var(--navy);color:#fff;padding:clamp(38px,5vw,60px) 0}
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;text-align:center}
-  .stat b{display:block;font-size:clamp(2rem,4vw,3rem);font-weight:900;color:var(--fire);letter-spacing:-.03em;line-height:1}
+  .stat b{display:block;font-family:var(--head);font-size:clamp(2.4rem,4.6vw,3.6rem);font-weight:700;color:#ff8a5c;letter-spacing:.005em;line-height:1}
   .stat span{font-size:.82rem;color:#b9c9dc;font-weight:600}
 
   .revs{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
   .rev{background:#fff;border:2px solid var(--line);padding:26px}
-  .stars{color:var(--fire);letter-spacing:2px;font-size:1.05rem;margin-bottom:10px}
+  .stars{color:var(--fire-ink);letter-spacing:2px;font-size:1.05rem;margin-bottom:10px}
   .rev p{font-size:.92rem;color:var(--steel)}
   .rev cite{font-style:normal;font-weight:800;font-size:.86rem;display:block;margin-top:12px}
 
   .final{background:var(--fire);color:#fff;text-align:center;padding:clamp(46px,6vw,80px) 0}
-  .final h2{font-size:clamp(2rem,4.4vw,3.2rem);font-weight:900;letter-spacing:-.03em}
-  .final p{max-width:44ch;margin-inline:auto;margin-bottom:26px;color:#ffe2d6}
+  .final h2{font-family:var(--head);font-size:clamp(2.4rem,5.2vw,3.9rem);font-weight:700;letter-spacing:.005em;text-transform:uppercase}
+  .final p{max-width:44ch;margin-inline:auto;margin-bottom:26px;color:#fff}
 
   footer.ft{background:var(--navy-d);color:#8fa6c0;padding:46px 0 30px;font-size:.87rem}
   .ft__grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:32px;margin-bottom:30px}
-  .ft h4{color:#fff;font-size:.76rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase;margin-bottom:13px}
+  .ft h4{color:#fff;font-family:var(--head);font-size:.95rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:13px}
   .ft li{margin-bottom:7px}.ft a:hover{color:#fff}
   .ft__bot{border-top:1px solid rgba(255,255,255,.12);padding-top:18px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:.78rem}
 
@@ -127,7 +134,7 @@
 
 <header class="nav">
   <div class="wrap nav__inner">
-    <a href="#" class="logo"><span class="logo__mark">▲</span> NORTHPOINT<br>HEATING &amp; AIR</a>
+    <a href="#" class="logo"><span class="logo__mark">▲</span> <span>Northpoint<br>Heating &amp; Air</span></a>
     <nav class="nav__links">
       <a href="#services">Services</a><a href="#how">How It Works</a><a href="#reviews">Reviews</a><a href="#quote">Free Quote</a>
     </nav>

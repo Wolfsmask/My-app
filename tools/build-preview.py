@@ -16,10 +16,21 @@ def b64(path, mime):
 html = (root / "index.html").read_text()
 
 # ---- 1. Inline the fonts ---------------------------------------------------
+# Every font any page references. A family missing from this map is stripped
+# from the sub-pages by FONT_MARKER and never re-injected, so the preview
+# silently falls back to a system face — which is exactly the difference the
+# concept builds are meant to demonstrate.
+FONT_FACES = [
+    # family,             style,    weight,     file
+    ("Inter",             "normal", "100 900",  "inter-var.woff2"),
+    ("Playfair Display",  "normal", "600",      "playfair-600.woff2"),
+    ("Playfair Display",  "italic", "600",      "playfair-600-italic.woff2"),
+    ("Fraunces",          "normal", "400 700",  "fraunces-var.woff2"),
+    ("Oswald",            "normal", "400 700",  "oswald-var.woff2"),
+]
 fonts = {
-    "/assets/fonts/inter-var.woff2":        b64("assets/fonts/inter-var.woff2", "font/woff2"),
-    "/assets/fonts/playfair-600.woff2":     b64("assets/fonts/playfair-600.woff2", "font/woff2"),
-    "/assets/fonts/playfair-600-italic.woff2": b64("assets/fonts/playfair-600-italic.woff2", "font/woff2"),
+    f"/assets/fonts/{f}": b64(f"assets/fonts/{f}", "font/woff2")
+    for *_, f in FONT_FACES
 }
 for path, data in fonts.items():
     html = html.replace(f'url("{path}")', f'url("{data}")')
@@ -73,12 +84,9 @@ titles = {
 }
 
 font_css = "".join(
-    f'@font-face{{font-family:"{fam}";font-style:{style};font-weight:{wt};font-display:swap;src:url("{fonts[p]}") format("woff2")}}'
-    for fam, style, wt, p in [
-        ("Inter", "normal", "100 900", "/assets/fonts/inter-var.woff2"),
-        ("Playfair Display", "normal", "600", "/assets/fonts/playfair-600.woff2"),
-        ("Playfair Display", "italic", "600", "/assets/fonts/playfair-600-italic.woff2"),
-    ]
+    f'@font-face{{font-family:"{fam}";font-style:{style};font-weight:{wt};'
+    f'font-display:swap;src:url("{fonts["/assets/fonts/" + f]}") format("woff2")}}'
+    for fam, style, wt, f in FONT_FACES
 )
 
 # ---- 5. Turn portfolio links into preview triggers -------------------------
@@ -197,6 +205,13 @@ banner = '''<div style="position:relative;z-index:1000;background:#c9ad72;color:
 </div>'''
 html = html.replace('<body>', '<body>\n' + banner, 1)
 html = html.replace("<title>", "<title>PREVIEW · ", 1)
+
+leaked = re.findall(r'/assets/fonts/[\w.-]+\.woff2', html)
+if leaked:
+    raise SystemExit(
+        f"{len(set(leaked))} font file(s) referenced but not inlined: {sorted(set(leaked))}\n"
+        "Add them to FONT_FACES."
+    )
 
 out = root / "mbonyx-preview.html"
 out.write_text(html)

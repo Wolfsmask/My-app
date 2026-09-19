@@ -11,7 +11,11 @@
   @font-face{font-family:"Inter";font-style:normal;font-weight:100 900;font-display:swap;src:url("/assets/fonts/inter-var.woff2") format("woff2")}
   @font-face{font-family:"Playfair Display";font-style:normal;font-weight:600;font-display:swap;src:url("/assets/fonts/playfair-600.woff2") format("woff2")}
 
-  :root{--forest:#12332b;--forest-d:#0b2119;--sage:#7d9b8c;--gold:#b08d47;--paper:#f7f6f1;--white:#fff;--ink:#1c2420;--ink-soft:#586560;--line:#ddd9cd}
+  :root{--forest:#12332b;--forest-d:#0b2119;--sage:#7d9b8c;
+    /* Gold needs to move in opposite directions by backdrop: lighter on
+       the dark forest, darker on paper and white. Hence two tokens. */
+    --gold:#b8965a;--gold-ink:#886d37;
+    --paper:#f7f6f1;--white:#fff;--ink:#1c2420;--ink-soft:#586560;--line:#ddd9cd}
   *,*::before,*::after{box-sizing:border-box}
   body{margin:0;background:var(--paper);color:var(--ink);font-family:"Inter",system-ui,sans-serif;line-height:1.7;-webkit-font-smoothing:antialiased}
   a{color:inherit;text-decoration:none} img,svg{display:block;max-width:100%}
@@ -20,6 +24,8 @@
   .wrap{width:min(100% - 40px,1140px);margin-inline:auto}
   .serif{font-family:"Playfair Display",Georgia,serif;font-weight:600}
   .kick{font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);font-weight:700;display:block;margin-bottom:14px}
+  /* Same component, lighter backdrop: step the gold down to keep 4.5:1. */
+  .band .kick,section:not(.hero):not(.consult) .kick{color:var(--gold-ink)}
 
   .concept-bar{background:#0b1016;color:#cfd6e0;font-size:.78rem;padding:9px 0}
   .concept-bar .wrap{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;text-align:center}
@@ -58,14 +64,15 @@
   .practice{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
   .pr{background:var(--white);padding:34px 30px;transition:background .25s}
   .pr:hover{background:var(--paper)}
-  .pr .n{font-family:"Playfair Display",Georgia,serif;color:var(--gold);font-size:1.1rem;display:block;margin-bottom:24px}
+  .pr .n{font-family:"Playfair Display",Georgia,serif;color:var(--gold-ink);font-size:1.1rem;display:block;margin-bottom:24px}
   .pr h3{font-family:"Playfair Display",Georgia,serif;font-size:1.35rem;font-weight:600;margin-bottom:8px}
   .pr p{font-size:.9rem;color:var(--ink-soft);margin:0 0 16px}
   .pr a{font-size:.78rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--forest);border-bottom:1px solid var(--gold);padding-bottom:2px}
 
   .split{display:grid;grid-template-columns:.85fr 1.15fr;gap:clamp(32px,6vw,76px);align-items:center}
-  .portrait{aspect-ratio:3/4;background:linear-gradient(160deg,#1c4a3e,#12332b 55%,#0b2119);position:relative;overflow:hidden}
-  .portrait::after{content:"";position:absolute;inset:14px;border:1px solid rgba(176,141,71,.3)}
+  .portrait{aspect-ratio:3/4;position:relative;overflow:hidden;background:var(--forest-d)}
+  .portrait svg{width:100%;height:100%;display:block}
+  .portrait::after{content:"";position:absolute;inset:14px;border:1px solid rgba(184,150,90,.32);pointer-events:none}
   .split h2{font-family:"Playfair Display",Georgia,serif;font-size:clamp(1.85rem,3.6vw,2.7rem);font-weight:600;letter-spacing:-.025em;line-height:1.12;margin-bottom:16px}
   .split p{color:var(--ink-soft)}
   .bars li{display:grid;grid-template-columns:auto 1fr;gap:14px;padding:14px 0;border-bottom:1px solid var(--line);font-size:.92rem}
@@ -95,7 +102,7 @@
   .ft h4{color:var(--paper);font-size:.74rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px}
   .ft li{margin-bottom:8px}.ft a:hover{color:var(--gold)}
   .ft__bot{border-top:1px solid rgba(255,255,255,.12);padding-top:18px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:.78rem}
-  .disclaimer{font-size:.76rem;color:#6b8078;max-width:70ch;margin-top:14px}
+  .disclaimer{font-size:.76rem;color:#879891;max-width:70ch;margin-top:14px}
 
   @media(max-width:920px){.hero__grid,.practice,.split,.results,.consult__grid,.ft__grid{grid-template-columns:1fr}.creds{border-left:0;padding-left:0;display:flex;gap:30px;flex-wrap:wrap}}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -152,7 +159,45 @@
 
 <section id="about">
   <div class="wrap split">
-    <div class="portrait" role="img" aria-label="Attorney portrait"></div>
+    <div class="portrait">
+      <svg viewBox="0 0 300 400" role="img" aria-label="Illustration of a classical courthouse facade" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="mSky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#1c4a3e"/><stop offset="1" stop-color="#0b2119"/>
+          </linearGradient>
+          <linearGradient id="mStone" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#b8965a" stop-opacity=".30"/>
+            <stop offset=".5" stop-color="#b8965a" stop-opacity=".16"/>
+            <stop offset="1" stop-color="#b8965a" stop-opacity=".30"/>
+          </linearGradient>
+        </defs>
+        <rect width="300" height="400" fill="url(#mSky)"/>
+        <circle cx="228" cy="86" r="52" fill="#b8965a" opacity=".07"/>
+        <!-- pediment -->
+        <path d="M150 96 L268 166 H32 Z" fill="url(#mStone)"/>
+        <path d="M150 96 L268 166 H32 Z" fill="none" stroke="#b8965a" stroke-opacity=".45" stroke-width="1.5"/>
+        <!-- entablature -->
+        <rect x="26" y="168" width="248" height="16" fill="#b8965a" opacity=".22"/>
+        <rect x="26" y="168" width="248" height="16" fill="none" stroke="#b8965a" stroke-opacity=".4"/>
+        <!-- columns -->
+        <g fill="url(#mStone)" stroke="#b8965a" stroke-opacity=".34">
+          <rect x="44"  y="190" width="30" height="150" rx="2"/>
+          <rect x="94"  y="190" width="30" height="150" rx="2"/>
+          <rect x="144" y="190" width="30" height="150" rx="2"/>
+          <rect x="194" y="190" width="30" height="150" rx="2"/>
+        </g>
+        <!-- flutes -->
+        <g stroke="#b8965a" stroke-opacity=".22" stroke-width="1">
+          <path d="M54 196v138M64 196v138M104 196v138M114 196v138M154 196v138M164 196v138M204 196v138M214 196v138"/>
+        </g>
+        <!-- steps -->
+        <g fill="#b8965a">
+          <rect x="18" y="344" width="264" height="10" opacity=".26"/>
+          <rect x="8"  y="356" width="284" height="10" opacity=".2"/>
+          <rect x="0"  y="368" width="300" height="32" opacity=".14"/>
+        </g>
+      </svg>
+    </div>
     <div>
       <span class="kick">The Firm</span>
       <h2>Two attorneys. No case handed to a junior you've never met.</h2>
