@@ -478,6 +478,29 @@
       font-size: clamp(0.98rem, 1.35vw, 1.15rem);
     }
 
+    /*
+      Skip link. Without it a keyboard or screen-reader user tabs through the
+      whole navigation on every page before reaching the content.
+    */
+    .skip-link {
+      position: absolute;
+      z-index: 1000;
+      top: 0;
+      left: 12px;
+      padding: 12px 20px;
+      transform: translateY(-120%);
+      border-radius: 0 0 10px 10px;
+      background: var(--color-accent-light);
+      color: #090b0f;
+      font-size: 0.88rem;
+      font-weight: 700;
+      transition: transform var(--transition-fast);
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
     /* =========================================================
        NAVIGATION
     ========================================================= */
@@ -3285,6 +3308,8 @@
 </head>
 
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
   <div class="viewport-clip">
     <div class="site-shell">
       <div class="background-grid" aria-hidden="true">
@@ -3322,7 +3347,7 @@
         </div>
       </header>
 
-      <main>
+      <main id="main">
         <section id="home" class="hero">
           <div class="hero__atmosphere" aria-hidden="true">
             <div class="hero__geometry-stage">

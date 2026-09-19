@@ -10,6 +10,7 @@ const CHECKS = [
   ['sweep',       'tools/audit/sweep.mjs',      'console errors, links, overflow, a11y, SEO'],
   ['contrast',    'tools/audit/contrast.mjs',   'WCAG AA text contrast, alpha and gradients resolved'],
   ['mobile text', 'tools/audit/mobiletext.mjs', 'phone reading sizes'],
+  ['a11y',        'tools/audit/a11y.mjs',       'skip links, focus, labels, landmarks, reduced motion'],
   ['similarity',  'tools/audit/similarity.mjs', 'are the concept builds actually different'],
   ['performance', 'tools/audit/perf.mjs',       'FCP / LCP on a throttled 4G phone'],
 ];
@@ -26,7 +27,7 @@ let failed = 0;
 for (const [name, file, what] of CHECKS) {
   process.stdout.write(`\n\x1b[1m▸ ${name}\x1b[0m — ${what}\n`);
   const { code, text } = await run(file);
-  const clean = /CLEAN|all passing|All pages readable/.test(text);
+  const clean = /CLEAN|all passing|All pages readable|nothing found/.test(text);
   if (code !== 0 && !clean) failed++;
   process.stdout.write(text.split('\n').filter(Boolean).slice(-14).map(l => '  ' + l).join('\n') + '\n');
 }

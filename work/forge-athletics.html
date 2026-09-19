@@ -19,6 +19,11 @@
   .wrap{width:min(100% - 36px,1180px);margin-inline:auto}
   .kick{font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--volt);font-weight:800;display:block;margin-bottom:14px}
 
+  /* Skip link: keyboard users should not have to tab the whole header. */
+  .skip-link{position:absolute;z-index:1000;top:0;left:12px;padding:12px 20px;transform:translateY(-120%);border-radius:0 0 10px 10px;font-size:.88rem;font-weight:700;transition:transform 180ms ease}
+  .skip-link:focus{transform:translateY(0)}
+  .skip-link{background:var(--volt);color:var(--black)}
+
   .concept-bar{background:#0b1016;color:#cfd6e0;font-size:.78rem;padding:9px 0;border-bottom:1px solid var(--line)}
   .concept-bar .wrap{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;text-align:center}
   .concept-bar b{color:#e6d3a5;font-weight:600}
@@ -111,6 +116,8 @@
 </head>
 <body>
 
+<a class="skip-link" href="#main">Skip to content</a>
+
 <div class="concept-bar">
   <div class="wrap">
     <span><b>Concept build</b> — a demonstration site, not a real gym.</span>
@@ -126,7 +133,7 @@
   </div>
 </header>
 
-<main>
+<main id="main">
 <section class="hero">
   <div class="wrap hero__inner">
     <span class="kick">Strength &amp; Conditioning · Since 2016</span>

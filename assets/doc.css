@@ -24,6 +24,12 @@ a.plain{text-decoration:none}
 :focus-visible{outline:2px solid var(--color-accent-light);outline-offset:4px}
 .wrap{width:min(100% - 40px,780px);margin-inline:auto}
 
+/* Skip link: keyboard users should not tab the header on every page. */
+.skip-link{position:absolute;z-index:1000;top:0;left:12px;padding:12px 20px;transform:translateY(-120%);
+  border-radius:0 0 10px 10px;background:var(--color-accent-light);color:#090b0f;font-size:.88rem;
+  font-weight:700;text-decoration:none;transition:transform 180ms ease}
+.skip-link:focus{transform:translateY(0)}
+
 .doc-header{border-bottom:1px solid var(--color-line);padding-block:20px}
 .doc-header .wrap{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
 .brand{display:inline-flex;align-items:center;gap:12px;font-size:.82rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;text-decoration:none}
