@@ -201,6 +201,13 @@ quality, prices, or reputation — you are looking at a picture of a web page.`;
  *
  * Returns null (rather than throwing) when there is no API key or the call
  * fails, because a missing visual score must never take down a whole run.
+ *
+ * On image size: the screenshots are 780x1688 (390x844 at deviceScaleFactor 2)
+ * and are sent as captured. Opus 5 accepts up to 2576px on the long edge, so
+ * nothing is resampled server-side, and at roughly 1,750 image tokens each
+ * they sit well under the per-image ceiling. Do not add downsampling to "save
+ * tokens" — this is a judgement about how a page looks, which is exactly the
+ * workload that wants the fidelity.
  */
 export async function vision(screenshotPath, { client, model = "claude-opus-5" } = {}) {
   if (!client || !screenshotPath || !fs.existsSync(screenshotPath)) return null;

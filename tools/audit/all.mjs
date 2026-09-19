@@ -14,6 +14,7 @@ const CHECKS = [
   ['similarity',  'tools/audit/similarity.mjs', 'are the concept builds actually different'],
   ['performance', 'tools/audit/perf.mjs',       'FCP / LCP on a throttled 4G phone'],
   ['netlify form','tools/audit/form.mjs',       'form wiring that only takes effect once deployed'],
+  ['no-js',       'tools/audit/nojs.mjs',       'does the content still render with scripts blocked'],
 ];
 
 const run = (file) => new Promise(res => {
@@ -28,7 +29,7 @@ let failed = 0;
 for (const [name, file, what] of CHECKS) {
   process.stdout.write(`\n\x1b[1m▸ ${name}\x1b[0m — ${what}\n`);
   const { code, text } = await run(file);
-  const clean = /CLEAN|all passing|All pages readable|nothing found|correctly wired/.test(text);
+  const clean = /CLEAN|all passing|All pages readable|nothing found|correctly wired|still shows its content/.test(text);
   if (code !== 0 && !clean) failed++;
   process.stdout.write(text.split('\n').filter(Boolean).slice(-14).map(l => '  ' + l).join('\n') + '\n');
 }

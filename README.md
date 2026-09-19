@@ -59,10 +59,16 @@ npm run serve &
 npm run audit       # every check, one command
 ```
 
-Covers console errors, broken links, mobile overflow, WCAG AA contrast, phone
-reading sizes, keyboard accessibility, how different the concept builds
-actually are, load performance, and the Netlify form wiring. Each check also
-runs on its own from `tools/audit/`.
+Eight checks: console errors and broken links, WCAG AA contrast (with alpha
+and gradients resolved by sampling), phone reading sizes, keyboard
+accessibility, how different the concept builds actually are, load performance
+on a throttled 4G phone, the Netlify form wiring that only takes effect once
+deployed, and whether the pages still render with scripts blocked. Each runs on
+its own from `tools/audit/`.
+
+The server it measures against compresses text the way Netlify does. Without
+that, `index.html` looks like 139KB instead of the 27KB a visitor receives, and
+every performance number comes out pessimistic.
 
 ## Local preview
 
