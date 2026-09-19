@@ -16,8 +16,17 @@ double-click:
 | `Start MBOnyx.bat` | `Start MBOnyx.command` |
 
 The first run installs what's missing and downloads the browser it audits with — about 150 MB,
-a few minutes, once. After that it opens straight to a window in your browser: paste in a list
-of businesses, click **Check these websites**, and watch the results arrive.
+a few minutes, once. After that it opens straight to a window in your browser.
+
+In that window you can either **paste a list in yourself**, or pick a type of business and a
+town and click **Find them for me** — that searches OpenStreetMap (free, no account, no key)
+and fills the box, so you can look at what it found before checking any of it. Then click
+**Check these websites**.
+
+OpenStreetMap coverage of small trade businesses in the US is patchy and it holds no ratings
+at all, so the "can they afford you" filter can't run on those leads. It's a starting point,
+not the whole town. Google Places has far better data and review counts — see
+[`docs/SETUP-CHECKLIST.md`](../docs/SETUP-CHECKLIST.md); it needs a billing account.
 
 > On a Mac the first double-click may say the file is from an unidentified developer.
 > Right-click it → **Open** → **Open**. That only happens once.

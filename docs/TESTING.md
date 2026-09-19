@@ -17,6 +17,11 @@ with (~150 MB, a few minutes). Every one after that opens straight to a window
 in your browser. Leave the black window open while you use it — closing it
 stops the checker.
 
+In the window, either paste a list of businesses in yourself, or pick a type of
+business and a town and click **Find them for me** — it searches OpenStreetMap
+(free, nothing to sign up for) and fills the box so you can see what it found
+first. Then **Check these websites**.
+
 > **Mac:** the first double-click may refuse and say the file is from an
 > unidentified developer. Right-click it → **Open** → **Open**. Once only.
 

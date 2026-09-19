@@ -26,13 +26,20 @@
   .panel{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:22px;margin-bottom:18px}
   label{display:block;font-size:.76rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
     color:var(--muted);margin-bottom:9px}
-  textarea,input{width:100%;background:#0b0f15;color:var(--text);border:1px solid var(--line);
+  textarea,input,select{width:100%;background:#0b0f15;color:var(--text);border:1px solid var(--line);
     border-radius:10px;padding:13px 15px;font:inherit;font-size:.93rem}
+  select{appearance:none;cursor:pointer;
+    background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+    background-position:calc(100% - 19px) center,calc(100% - 14px) center;background-size:5px 5px,5px 5px;
+    background-repeat:no-repeat;padding-right:38px}
   textarea{min-height:190px;resize:vertical;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:.86rem;line-height:1.65}
-  textarea:focus,input:focus{outline:none;border-color:rgba(201,173,114,.55);box-shadow:0 0 0 3px rgba(201,173,114,.1)}
+  textarea:focus,input:focus,select:focus{outline:none;border-color:rgba(201,173,114,.55);box-shadow:0 0 0 3px rgba(201,173,114,.1)}
   .hint{color:var(--muted);font-size:.8rem;margin:9px 0 0}
+  .hint + label{margin-top:22px}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
-  @media(max-width:620px){.row{grid-template-columns:1fr}}
+  .row.find{grid-template-columns:1fr 1fr auto;align-items:start;margin-top:0}
+  .row.find button{white-space:nowrap}
+  @media(max-width:620px){.row,.row.find{grid-template-columns:1fr}}
 
   .actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:18px}
   button{font:inherit;cursor:pointer;border:1px solid transparent;border-radius:999px;
@@ -89,17 +96,22 @@
   <p class="sub">Finds businesses whose websites need rebuilding. Audits only — it never emails anyone.</p>
 
   <div class="panel">
+    <label for="cat">Find businesses</label>
+    <div class="row find">
+      <div><select id="cat"><option value="">Type of business…</option></select></div>
+      <div><input id="city" placeholder="Liberty, MO"></div>
+      <button class="ghost" id="find">Find them for me</button>
+    </div>
+    <p class="hint">Searches OpenStreetMap — free, no account, nothing to sign up for. It fills the box below so you
+      can look at what it found before checking any of it. Coverage of small trade businesses is patchy, so treat it as a
+      starting point, not the whole town.</p>
+
     <label for="list">Businesses to check</label>
     <textarea id="list" spellcheck="false" placeholder="Bob's Heating and Air, bobsheatingkc.com, (816) 555-0100, 4.5, 87
 Metro Comfort Systems, metrocomfort.net
 someothercompany.com"></textarea>
     <p class="hint">One per line. Format: <strong>name, website, phone, rating, review count</strong> — only the website is
       required. The rating and review count come off the Google listing and tell the checker who can afford you.</p>
-
-    <div class="row">
-      <div><label for="cat">Type of business</label><input id="cat" placeholder="HVAC contractor"></div>
-      <div><label for="city">Area</label><input id="city" placeholder="Kansas City, MO"></div>
-    </div>
 
     <div class="actions">
       <button class="go" id="run">Check these websites</button>
@@ -141,14 +153,61 @@ Tier D  under 25 — the site is fine, drop it</pre>
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
+  // The dropdown is built from what the search actually supports, so it cannot
+  // offer a category the search would then reject.
+  (async () => {
+    try {
+      for (const c of await (await fetch('/api/categories')).json()) {
+        const o = document.createElement('option');
+        o.value = c.key; o.textContent = c.label;
+        $('cat').append(o);
+      }
+    } catch { $('find').disabled = true; }
+  })();
+
   $('sample').onclick = () => {
     $('list').value = [
       "Bob's Heating and Air, bobsheatingkc.com, (816) 555-0100, 4.5, 87",
       'Metro Comfort Systems, metrocomfort.net, (816) 555-0200, 4.2, 34',
       'example.com',
     ].join('\n');
-    $('cat').value = 'HVAC contractor';
+    $('cat').value = 'hvac';
     $('city').value = 'Kansas City, MO';
+  };
+
+  $('find').onclick = async () => {
+    const label = $('cat').selectedOptions[0]?.textContent ?? '';
+    $('find').disabled = true;
+    $('status').textContent = `Searching for ${label.toLowerCase() || 'businesses'} near ${$('city').value || '\u2026'}\u2026`;
+    try {
+      const res = await fetch('/api/find', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: $('cat').value, city: $('city').value }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      // Businesses with no website listed are still leads, just a different
+      // conversation - so they go in as #comments, which the checker skips
+      // but he can still read.
+      const lines = data.withSite.map(b => [b.name, b.website, b.phone].filter(Boolean).join(', '));
+      const notes = data.noSite.map(b => `# no website listed: ${[b.name, b.phone].filter(Boolean).join(' - ')}`);
+      const body = [...lines, ...(notes.length ? ['', '# These have no website at all. Different pitch: building one from', '# scratch, not replacing one. The checker skips them.', ...notes] : [])].join('\n');
+
+      if (!lines.length && !notes.length) {
+        $('status').textContent = `Found nothing for ${label.toLowerCase()} near there. OpenStreetMap's coverage is patchy \u2014 try a bigger nearby city, or paste a list in yourself.`;
+      } else {
+        $('list').value = body;
+        $('status').textContent = `Found ${lines.length} with a website to check`
+          + (notes.length ? `, and ${notes.length} with no website listed (noted at the bottom).` : '.')
+          + ' Look it over, then check them.';
+      }
+    } catch (err) {
+      $('status').innerHTML = `<span style="color:var(--bad)">${esc(err.message)}</span>`;
+    } finally {
+      $('find').disabled = false;
+    }
   };
 
   $('run').onclick = async () => {
@@ -170,7 +229,9 @@ Tier D  under 25 — the site is fine, drop it</pre>
       const res = await fetch('/api/audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ list, category: $('cat').value, city: $('city').value }),
+        // The report is for reading, so it gets the friendly label rather than
+        // the internal key the search uses.
+        body: JSON.stringify({ list, category: $('cat').selectedOptions[0]?.value ? $('cat').selectedOptions[0].textContent : '', city: $('city').value }),
       });
       if (res.status === 409) throw new Error('A check is already running in another tab.');
 

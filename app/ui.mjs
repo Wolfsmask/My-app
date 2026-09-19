@@ -15,7 +15,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
-import { discoverFile } from './src/discover.js';
+import { discoverFile, discoverOsm, OSM_CATEGORIES } from './src/discover.js';
 import { auditSite, launchBrowser } from './src/audit.js';
 import { score, disqualify, qualifies } from './src/score.js';
 import { toCsv, toHtml } from './src/report.js';
@@ -132,6 +132,38 @@ const server = http.createServer(async (req, res) => {
     const type = { '.html': 'text/html; charset=utf-8', '.csv': 'text/csv', '.jpg': 'image/jpeg' }[path.extname(file)] ?? 'application/octet-stream';
     res.writeHead(200, { 'Content-Type': type });
     fs.createReadStream(file).pipe(res);
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/categories') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(OSM_CATEGORIES));
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/find') {
+    let body = '';
+    req.on('data', c => { body += c; if (body.length > 1e5) req.destroy(); });
+    await new Promise(r => req.on('end', r));
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    try {
+      const { category, city } = JSON.parse(body || '{}');
+      if (!category) throw new Error('Pick a type of business first.');
+      if (!String(city ?? '').trim()) throw new Error('Type a town or city first, like "Liberty, MO".');
+
+      const found = await discoverOsm({ category, city: String(city).trim() });
+
+      // A business with no website is still a real lead, just a different
+      // pitch - building one rather than replacing one. Dropping those here
+      // would hide them, so they come back separately and the page lists them.
+      res.end(JSON.stringify({
+        withSite: found.filter(b => b.website),
+        noSite: found.filter(b => !b.website),
+      }));
+    } catch (e) {
+      res.end(JSON.stringify({ error: e.message }));
+    }
     return;
   }
 

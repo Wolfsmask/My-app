@@ -12,6 +12,19 @@
 
 const UA = "MBOnyxAudit/1.0 (+https://mbonyx.netlify.app/)";
 
+/**
+ * The two OpenStreetMap endpoints, overridable so the search can be driven
+ * against a local stand-in in tests. Nothing but tests should set these — the
+ * defaults are the real public services.
+ *
+ * Read when they are used rather than when this file loads: a test that starts
+ * its stand-in server has no port to point at until it is listening, which is
+ * after the import. Reading at load time made the override silently miss and
+ * sent the tests at the real service instead.
+ */
+const overpassUrl = () => process.env.MBONYX_OVERPASS_URL || "https://overpass-api.de/api/interpreter";
+const nominatimUrl = () => process.env.MBONYX_NOMINATIM_URL || "https://nominatim.openstreetmap.org/search";
+
 /* ------------------------------------------------------------------ Places */
 
 const PLACES_FIELDS = [
@@ -88,6 +101,26 @@ const OSM_TAGS = {
   gym:        ['["leisure"="fitness_centre"]'],
 };
 
+/**
+ * The same list in a form the app's window can build a dropdown from, so the
+ * choices offered can never drift from the tags the search actually knows.
+ * A key with no friendly label here still appears, under its own name.
+ */
+const OSM_LABELS = {
+  hvac: "HVAC / heating & cooling",
+  plumber: "Plumber",
+  roofer: "Roofer",
+  electrician: "Electrician",
+  dentist: "Dentist",
+  lawyer: "Lawyer",
+  restaurant: "Restaurant",
+  gym: "Gym",
+};
+
+export const OSM_CATEGORIES = Object.keys(OSM_TAGS)
+  .map(key => ({ key, label: OSM_LABELS[key] ?? key }))
+  .sort((a, b) => a.label.localeCompare(b.label));
+
 export async function discoverOsm({ category, city, limit = 60, radiusKm = 25 }) {
   const tags = OSM_TAGS[category];
   if (!tags) {
@@ -104,7 +137,7 @@ export async function discoverOsm({ category, city, limit = 60, radiusKm = 25 })
 
   const query = `[out:json][timeout:60];\n(\n  ${parts}\n);\nout center tags ${limit * 3};`;
 
-  const res = await fetch("https://overpass-api.de/api/interpreter", {
+  const res = await fetch(overpassUrl(), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA },
     body: "data=" + encodeURIComponent(query),
@@ -145,7 +178,7 @@ export async function discoverOsm({ category, city, limit = 60, radiusKm = 25 })
 }
 
 async function geocode(place) {
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(place)}&format=json&limit=1`;
+  const url = `${nominatimUrl()}?q=${encodeURIComponent(place)}&format=json&limit=1`;
   const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20000) });
   if (!res.ok) return null;
   const [hit] = await res.json();
