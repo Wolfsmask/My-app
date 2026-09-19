@@ -7,6 +7,7 @@
 import { spawn } from 'node:child_process';
 
 const CHECKS = [
+  ['paths',       'tools/audit/paths.mjs',      'relative paths, so the folder works when opened directly'],
   ['sweep',       'tools/audit/sweep.mjs',      'console errors, links, overflow, a11y, SEO'],
   ['contrast',    'tools/audit/contrast.mjs',   'WCAG AA text contrast, alpha and gradients resolved'],
   ['mobile text', 'tools/audit/mobiletext.mjs', 'phone reading sizes'],
@@ -29,7 +30,7 @@ let failed = 0;
 for (const [name, file, what] of CHECKS) {
   process.stdout.write(`\n\x1b[1m▸ ${name}\x1b[0m — ${what}\n`);
   const { code, text } = await run(file);
-  const clean = /CLEAN|all passing|All pages readable|nothing found|correctly wired|still shows its content/.test(text);
+  const clean = /CLEAN|all passing|All pages readable|nothing found|correctly wired|still shows its content|all relative/.test(text);
   if (code !== 0 && !clean) failed++;
   process.stdout.write(text.split('\n').filter(Boolean).slice(-14).map(l => '  ' + l).join('\n') + '\n');
 }

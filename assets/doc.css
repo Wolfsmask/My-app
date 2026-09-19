@@ -1,7 +1,7 @@
 /* Shared shell for the small text pages: success, privacy, terms, 404. */
-@font-face{font-family:"Inter";font-style:normal;font-weight:100 900;font-display:swap;src:url("/assets/fonts/inter-var.woff2") format("woff2")}
-@font-face{font-family:"Playfair Display";font-style:normal;font-weight:600;font-display:swap;src:url("/assets/fonts/playfair-600.woff2") format("woff2")}
-@font-face{font-family:"Playfair Display";font-style:italic;font-weight:600;font-display:swap;src:url("/assets/fonts/playfair-600-italic.woff2") format("woff2")}
+@font-face{font-family:"Inter";font-style:normal;font-weight:100 900;font-display:swap;src:url("fonts/inter-var.woff2") format("woff2")}
+@font-face{font-family:"Playfair Display";font-style:normal;font-weight:600;font-display:swap;src:url("fonts/playfair-600.woff2") format("woff2")}
+@font-face{font-family:"Playfair Display";font-style:italic;font-weight:600;font-display:swap;src:url("fonts/playfair-600-italic.woff2") format("woff2")}
 
 :root{
   --color-bg:#080b10;--color-surface:#12171f;--color-text:#f5f3ed;--color-text-soft:#b3b6bd;

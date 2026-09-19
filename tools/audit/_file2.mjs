@@ -1,0 +1,30 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const p = await b.newPage({ viewport: { width: 1280, height: 900 } });
+const failed = [];
+p.on('requestfailed', r => failed.push(r.url().split('/').pop()));
+await p.goto('file:///tmp/claude-0/unzipped/index.html', { waitUntil: 'load' });
+await p.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 500) { window.scrollTo(0, y); await new Promise(r => setTimeout(r, 70)); } window.scrollTo(0, 0); });
+await p.waitForTimeout(2000);
+console.log('  after scrolling —');
+console.log('   broken images:', await p.evaluate(() => [...document.images].filter(i => !i.complete || i.naturalWidth === 0).length + '/' + document.images.length));
+console.log('   fonts:', await p.evaluate(() => ({ inter: document.fonts.check('600 16px Inter'), playfair: document.fonts.check('600 24px "Playfair Display"') })));
+console.log('   failed requests:', [...new Set(failed)]);
+
+// Click through to a demo, the way a person would.
+await p.evaluate(() => document.querySelector('#work').scrollIntoView());
+await p.waitForTimeout(600);
+await p.screenshot({ path: '/tmp/claude-0/file-work.jpg', type: 'jpeg', quality: 72 });
+const href = await p.evaluate(() => document.querySelector('.work-card__link').href);
+const p2 = await b.newPage({ viewport: { width: 1280, height: 900 } });
+const fail2 = [];
+p2.on('requestfailed', r => fail2.push(r.url().split('/').pop()));
+await p2.goto(href, { waitUntil: 'load' });
+await p2.waitForTimeout(1500);
+console.log('\n  demo page opened from the portfolio —');
+console.log('   url:', href.replace('file:///tmp/claude-0/unzipped/', ''));
+console.log('   heading:', (await p2.locator('h1').first().innerText()).replace(/\n/g, ' ').slice(0, 44));
+console.log('   fraunces loaded:', await p2.evaluate(() => document.fonts.check('600 24px Fraunces')));
+console.log('   failed requests:', [...new Set(fail2)]);
+await p2.screenshot({ path: '/tmp/claude-0/file-demo.jpg', type: 'jpeg', quality: 72 });
+await b.close();
