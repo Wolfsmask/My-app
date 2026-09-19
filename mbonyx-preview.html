@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="fonts-pending">
+<html lang="en" class="fonts-pending intro-ready">
 <head>
   <meta charset="UTF-8">
   <meta
@@ -48,9 +48,15 @@
 
   <script>
     /*
-      Render immediately with system fallbacks, then let Google Fonts swap in.
-      The entrance starts after the DOM exists, so slow or blocked font requests
-      can never leave visitors staring at a blank page.
+      `intro-ready` is set in the markup above, not here.
+
+      It used to be added on DOMContentLoaded, which meant the browser painted
+      the finished hero first and only then snapped every element back to its
+      animation's 0% frame — the flash. Shipping the class in the HTML means
+      each element's first paint is already the start of its animation, so
+      there is nothing to snap back from.
+
+      This script now only handles the handoff to the idle state.
     */
     (() => {
       const root = document.documentElement;
@@ -58,31 +64,23 @@
       root.classList.remove("fonts-pending");
       root.classList.add("fonts-loaded");
 
-      const beginEntrance = () => {
-        window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(() => {
-            root.classList.add("intro-ready");
+      /*
+        Must outlast the longest entrance delay + duration
+        (signatureDraw: 0.83s + 0.5s). Anchored to DOMContentLoaded, which
+        lands after the last animated element has painted, so this can never
+        fire early and cut the entrance short.
+      */
+      const settle = () => window.setTimeout(() => {
+        root.classList.add("intro-complete");
+      }, 1400);
 
-            if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-              root.classList.add("intro-complete");
-            } else {
-              /*
-                Must outlast the longest entrance delay + duration
-                (signatureDraw: 0.83s + 0.5s). Kept deliberately tight: the
-                hero is readable in well under half a second.
-              */
-              window.setTimeout(() => {
-                root.classList.add("intro-complete");
-              }, 1400);
-            }
-          });
-        });
-      };
-
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", beginEntrance, { once: true });
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        // Motion is already reduced to 0.01ms in CSS; go straight to idle.
+        root.classList.add("intro-complete");
+      } else if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", settle, { once: true });
       } else {
-        beginEntrance();
+        settle();
       }
     })();
   </script>
