@@ -8,3 +8,4 @@ app/out/
 # every rebuild rewrites a megabyte of base64 and git stores each copy whole.
 # Run `npm run preview` to regenerate it.
 mbonyx-preview.html
+dist/

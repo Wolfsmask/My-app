@@ -20,6 +20,23 @@ tools/                  Screenshot + image-optimisation scripts
 netlify.toml            Headers, caching, redirects
 ```
 
+## Deploying
+
+```bash
+npm run build     # copies just the public site into dist/
+```
+
+Netlify builds this automatically from `netlify.toml`. To deploy by hand
+instead, drag the `dist` folder onto [app.netlify.com/drop](https://app.netlify.com/drop).
+
+`dist/` contains only the public site — 32 files, 0.72MB. Publishing the
+repository root, which is what `netlify.toml` used to do, put **every** file in
+the project on the live site: `docs/SETUP-CHECKLIST.md` discusses the owner's
+age and the money side of the business, and `docs/OUTREACH.md` is the outreach
+playbook. Both would have been readable at their path on the live domain, and
+indexable. `tools/build-site.mjs` lists what ships rather than what does not,
+so a new file is private until it is deliberately added.
+
 ## Before this goes live
 
 Contact details are real: `mbonyxstudios@gmail.com`, based in Liberty, Missouri, no phone

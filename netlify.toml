@@ -7,8 +7,11 @@
 # ---------------------------------------------------------------------------
 
 [build]
-  publish = "."
-  command = ""
+  # dist/ holds only the public site. Publishing the repository root put every
+  # file in the project on the live site, including the docs about the business
+  # side of this, which is not something to hand a prospect.
+  publish = "dist"
+  command = "node tools/build-site.mjs"
 
 # --- Security baseline, applied to every response --------------------------
 [[headers]]

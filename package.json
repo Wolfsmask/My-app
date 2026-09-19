@@ -9,6 +9,7 @@
   "type": "module",
   "description": "MBOnyx Studio marketing site, five concept builds, and the lead checker.",
   "scripts": {
+    "build": "node tools/build-site.mjs",
     "preview": "node tools/build-preview.mjs",
     "shots": "node tools/shot.mjs && node tools/opt-img.mjs",
     "audit": "node tools/audit/all.mjs",
