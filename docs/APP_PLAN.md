@@ -64,18 +64,31 @@ These are what you actually put in the email. Each is a fact you can show them.
 
 Max 70.
 
-### Group C — Performance (30% of the score)
+### Group C — Design & structure (30 pts)
+
+Implemented in `app/src/visual.js`. How a site is *built* and how it *looks* —
+what the technical checks miss.
+
+| Signal | Points | How |
+|---|---|---|
+| Looks a decade out of date | 12 | Cluster of ≥3: system-only fonts, no flex/grid, table layout, no semantic tags, heavy inline styles |
+| Poor first impression | 8 | Claude judges the phone screenshot, 1–10 |
+| Body text under 14px | 4 | Median computed font size of text nodes |
+| Buttons too small to tap | 3 | Majority of *button-styled* controls under 32px |
+| Weak page structure | 3 | Missing/duplicate h1, skipped heading levels, no semantic tags |
+
+### Group D — Performance (25 pts)
 
 Real, but supporting evidence — never the headline.
 
 | Signal | Points | Source |
 |---|---|---|
-| LCP > 4.0s | 12 | PageSpeed Insights API (field or lab data) |
-| Mobile Lighthouse performance < 50 | 10 | PageSpeed Insights API |
-| Total page weight > 5MB | 5 | Sum of transferred bytes |
+| LCP > 4.0s | 10 | PageSpeed Insights API (field or lab data) |
+| Mobile Lighthouse performance < 50 | 8 | PageSpeed Insights API |
+| Total page weight > 5MB | 4 | Sum of transferred bytes |
 | No image compression (no WebP/AVIF) | 3 | Content-Type of image requests |
 
-Max 30.
+Max 25.
 
 ### Qualification filter — can they pay you?
 

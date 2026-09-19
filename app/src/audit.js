@@ -6,6 +6,7 @@
 
 import { chromium } from "playwright";
 import tls from "node:tls";
+import { structure, interpretStructure } from "./visual.js";
 
 const UA =
   "Mozilla/5.0 (compatible; MBOnyxAudit/1.0; +https://mbonyx.netlify.app/) " +
@@ -224,6 +225,11 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
     out.usesModernImages = measured.imageCount === 0
       ? null
       : [...imageTypes].some(t => t === "image/webp" || t === "image/avif");
+
+    // --- How it is built and how it looks -------------------------------
+    // Runs in the page that is already open, so it costs nothing extra.
+    const struct = await structure(page);
+    Object.assign(out, struct, interpretStructure(struct));
 
     out.brokenLinks = await countBrokenLinks(measured.links, hostname);
 

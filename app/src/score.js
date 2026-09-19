@@ -6,8 +6,11 @@
  *
  * The weighting is the whole argument of this project. A slow site is not a
  * reason to email someone; most owners of slow sites do not care. An
- * embarrassing site is. So embarrassment signals carry 70% of the weight and
- * raw speed carries 30%.
+ * embarrassing site is. So the score is three groups, deliberately unequal:
+ *
+ *   EMBARRASSMENT  70 pts — things an owner would wince at being shown
+ *   DESIGN         30 pts — how it looks and how it is built
+ *   PERFORMANCE    25 pts — real, but supporting evidence, never the headline
  */
 
 /** Signals a business owner would be embarrassed to have pointed out. */
@@ -61,25 +64,74 @@ export const EMBARRASSMENT = [
   },
 ];
 
+/**
+ * How the site looks and how it is put together. Separate from the technical
+ * checks above because a site can be perfectly responsive, perfectly secure,
+ * and still look like it was made in 2006 — which is its own reason to call.
+ */
+export const DESIGN = [
+  {
+    id: "looks_dated",
+    points: 12,
+    label: "Looks a decade out of date",
+    test: a => a.looksDated === true,
+    evidence: a =>
+      a.visualDecade
+        ? `The design reads as ${a.visualDecade} — system-only fonts, no modern layout, built before responsive design was standard.`
+        : `Built with pre-2013 techniques: ${a.datedSignals} of 5 dated-design markers present.`,
+  },
+  {
+    id: "poor_first_impression",
+    points: 8,
+    label: "Puts customers off on sight",
+    test: a => a.visualDesignScore != null && a.visualDesignScore <= 4,
+    evidence: a =>
+      a.visualFirstImpression
+        ? `Rated ${a.visualDesignScore}/10 on first impression: "${a.visualFirstImpression}"`
+        : `Rated ${a.visualDesignScore}/10 on visual first impression.`,
+  },
+  {
+    id: "text_too_small",
+    points: 4,
+    label: "Body text too small to read on a phone",
+    test: a => a.textTooSmall === true,
+    evidence: a => `Body text is ${a.bodyFontSize}px. Below 14px is uncomfortable on a phone and readers give up.`,
+  },
+  {
+    id: "tiny_tap_targets",
+    points: 3,
+    label: "Buttons and links too small to tap",
+    test: a => a.tapTargetsTooSmall === true,
+    evidence: a => `${a.tinyTapTargets} of ${a.tappableCount} links and buttons are under 32px tall — hard to hit with a thumb.`,
+  },
+  {
+    id: "weak_structure",
+    points: 3,
+    label: "Page structure works against Google",
+    test: a => a.hasStructureProblems === true,
+    evidence: a => `Structural issues: ${(a.structureProblems || []).slice(0, 3).join("; ")}.`,
+  },
+];
+
 /** Real, but supporting evidence — never the headline of an email. */
 export const PERFORMANCE = [
   {
     id: "slow_lcp",
-    points: 12,
+    points: 10,
     label: "Very slow to show content",
     test: a => a.lcpMs != null && a.lcpMs > 4000,
     evidence: a => `Main content takes ${(a.lcpMs / 1000).toFixed(1)}s to appear. Google's threshold for "good" is 2.5s.`,
   },
   {
     id: "low_lighthouse",
-    points: 10,
+    points: 8,
     label: "Poor mobile performance score",
     test: a => a.lighthousePerf != null && a.lighthousePerf < 50,
     evidence: a => `Google rates this site ${a.lighthousePerf}/100 for mobile speed.`,
   },
   {
     id: "heavy_page",
-    points: 5,
+    points: 4,
     label: "Very heavy page",
     test: a => a.pageWeightBytes != null && a.pageWeightBytes > 5_000_000,
     evidence: a => `Homepage downloads ${(a.pageWeightBytes / 1e6).toFixed(1)}MB — punishing on phone data.`,
@@ -139,7 +191,7 @@ export function score(audit) {
   let earned = 0;
   let possible = 0;
 
-  for (const check of [...EMBARRASSMENT, ...PERFORMANCE]) {
+  for (const check of [...EMBARRASSMENT, ...DESIGN, ...PERFORMANCE]) {
     const ran = check.test(audit) !== null && didCheckRun(check, audit);
     if (!ran) continue;
 
@@ -151,7 +203,9 @@ export function score(audit) {
         points: check.points,
         label: check.label,
         evidence: safeEvidence(check, audit),
-        group: EMBARRASSMENT.includes(check) ? "embarrassment" : "performance",
+        group: EMBARRASSMENT.includes(check) ? "embarrassment"
+             : DESIGN.includes(check) ? "design"
+             : "performance",
       });
     }
   }
@@ -175,6 +229,11 @@ function didCheckRun(check, a) {
     case "low_lighthouse":   return a.lighthousePerf != null;
     case "heavy_page":       return a.pageWeightBytes != null;
     case "unoptimised_images": return a.usesModernImages !== undefined && a.usesModernImages !== null;
+    case "looks_dated":            return a.looksDated !== undefined && a.looksDated !== null;
+    case "poor_first_impression":  return a.visualDesignScore != null;
+    case "text_too_small":         return a.textTooSmall !== undefined && a.textTooSmall !== null;
+    case "tiny_tap_targets":       return a.tapTargetsTooSmall !== undefined && a.tapTargetsTooSmall !== null;
+    case "weak_structure":         return a.hasStructureProblems !== undefined && a.hasStructureProblems !== null;
     default: return false;
   }
 }

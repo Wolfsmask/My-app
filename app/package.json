@@ -7,5 +7,9 @@
   "scripts": {
     "find": "node src/cli.js",
     "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0",
+    "zod": "^4.6.5"
   }
 }

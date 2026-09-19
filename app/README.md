@@ -63,10 +63,59 @@ until the setup checklist is done. Start with `file` and `osm`.
 --concurrency  how many at once             default 3
 ```
 
+## The full pipeline
+
+```bash
+# Everything: find, audit, look at it, score, notify, draft an email
+export ANTHROPIC_API_KEY=...
+node src/cli.js --source places --category "HVAC contractor" --city "Kansas City, MO" \
+  --vision --draft --notify --audit-base https://mbonyx.com/audit --sender Micah
+```
+
+| Stage | What happens |
+|---|---|
+| **Find** | Google Places / OpenStreetMap / your own list |
+| **Load** | Real Chromium at 390×844, the way a customer sees it |
+| **Examine the code** | SSL, viewport, platform fingerprint, broken links, page weight |
+| **Examine the structure** | Semantic tags, heading hierarchy, inline-style ratio, layout tables, tap targets, text size |
+| **Examine the visuals** | `--vision` sends the screenshot to Claude: what decade it reads as, first impression, visible problems |
+| **Rank** | 0–100, tiers A–D |
+| **Notify** | Terminal + `out/inbox.jsonl`; `--notify-email` also mails you the batch |
+| **Draft** | `--draft` writes a per-lead email to `out/drafts/<slug>.txt` |
+
+**Nothing here ever emails a prospect.** There is no send path in the codebase.
+Drafts land in a folder for you to read, edit and send yourself — see
+`docs/SETUP-CHECKLIST.md` for why that gate stays.
+
+## How the email writing works
+
+`src/email.js` gives Claude **only the verified findings** — not the raw audit,
+not the review count, not anything that was measured but did not score. The
+system prompt (cached, since it is identical for every lead) carries the rules
+from `docs/OUTREACH.md` and one hard instruction: every factual claim must come
+from the findings.
+
+Then `verifyDraft()` checks the output mechanically:
+
+- **Every number in the email must appear in the findings.** An invented load
+  time or review count fails the draft.
+- **Banned phrases** — "hope this email finds you well", "I came across your",
+  "quick 15-minute call", "guarantee", "first page of Google".
+- **Shape** — 4–6 sentences, subject under six words, no markdown, one link.
+
+A draft that fails is written to disk marked `FAILED verification — DO NOT SEND`
+rather than discarded, so a prompt regression is visible instead of silent.
+
+This matters more than the prose quality. One fabricated measurement turns you
+from *someone who looked at my site* into *a bot that also lies*, and there is
+no recovering from that with a business owner.
+
 ## How the score works
 
-Embarrassment signals carry **70%**, raw speed carries **30%**. That split is the core
-argument of the project: a slow site does not make an owner reply, an embarrassing one does.
+Three groups, deliberately unequal. The weighting is the argument of the whole
+project: a slow site does not make an owner reply, an embarrassing one does.
+
+**Embarrassment — 70 points**
 
 | Signal | Points |
 |---|---|
@@ -76,20 +125,47 @@ argument of the project: a slow site does not make an owner reply, an embarrassi
 | Obsolete platform (Flash, FrontPage, old WordPress) | 10 |
 | Broken links or missing images | 5 |
 | No contact method above the fold | 5 |
-| Slow to show content (LCP > 4s) | 12 |
-| Low mobile performance score | 10 |
-| Page over 5MB | 5 |
+
+**Design & structure — 30 points**
+
+| Signal | Points |
+|---|---|
+| Looks a decade out of date | 12 |
+| Poor first impression (`--vision`, ≤4/10) | 8 |
+| Body text under 14px | 4 |
+| Buttons too small to tap | 3 |
+| Heading/semantic structure problems | 3 |
+
+**Performance — 25 points**
+
+| Signal | Points |
+|---|---|
+| Slow to show content (LCP > 4s) | 10 |
+| Low mobile performance score | 8 |
+| Page over 5MB | 4 |
 | Images not compressed | 3 |
 
-Only checks that actually ran count toward the maximum, so a run without performance data
-still produces a meaningful 0–100 rather than capping everything at 70.
+Only checks that actually ran count toward the maximum, so a run without
+`--vision` or without performance data still produces a meaningful 0–100
+rather than capping everything below tier A.
 
-**Tiers:** A ≥ 70 (contact now) · B 50–69 (contact) · C 25–49 (hold, recheck in 6 months) ·
-D < 25 (drop, the site is fine).
+**Tiers:** A ≥ 70 (contact now) · B 50–69 (contact) · C 25–49 (hold, recheck in
+6 months) · D < 25 (drop, the site is fine).
 
-Leads are dropped before auditing if they have no website, are a Facebook page only, are
-permanently closed, or are on the suppression list. The cheapest audit is the one that
-never runs.
+Leads are dropped before auditing if they have no website, are a Facebook page
+only, are permanently closed, or are on the suppression list.
+
+## Costs
+
+Auditing is free. The optional Claude passes, at Opus 5 rates:
+
+| Per lead | Roughly |
+|---|---|
+| `--vision` (one screenshot, low effort) | ~$0.01 |
+| `--draft` (one email, cached system prompt) | ~$0.02 |
+
+40 leads a day with both on is well under $1/day. The cached system prompt is
+what keeps the draft cost down — it is byte-identical across every lead.
 
 ## Tests
 
