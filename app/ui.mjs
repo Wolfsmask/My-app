@@ -98,7 +98,7 @@ async function runAudit(listText, opts, res) {
   }
 
   leads.sort((a, z) => (z.score ?? -1) - (a.score ?? -1));
-  const meta = { category: opts.category || 'your list', city: opts.city || '-', source: 'the app' };
+  const meta = { category: opts.category || 'your list', city: opts.city || '', source: 'the app' };
   fs.writeFileSync(path.join(OUT, 'leads.csv'), toCsv(leads));
   fs.writeFileSync(path.join(OUT, 'report.html'), toHtml(leads, meta));
   send(res, { type: 'done', reportPath: path.join(OUT, 'report.html'), csvPath: path.join(OUT, 'leads.csv') });

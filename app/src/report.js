@@ -65,10 +65,16 @@ export function toHtml(leads, meta = {}) {
   const counts = { A: 0, B: 0, C: 0, D: 0 };
   live.forEach(l => { counts[l.tier] = (counts[l.tier] ?? 0) + 1; });
 
+  // A run started from the app's own window may have no category or city — both
+  // fields are optional there. Joining them unconditionally printed headings
+  // like "your list &middot; -", so only the parts that exist are joined.
+  const where = [meta.category, meta.city].filter(Boolean).join(' \u00b7 ') || 'Lead audit';
+  const title = [meta.category, meta.city].filter(Boolean).join(' in ');
+
   return `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Lead audit — ${esc(meta.category)} in ${esc(meta.city)}</title>
+<title>Lead audit${title ? ` — ${esc(title)}` : ''}</title>
 <style>
   :root{--bg:#080b10;--card:#12171f;--line:rgba(255,255,255,.09);--gold:#c9ad72;--gold-l:#e6d3a5;
     --text:#f5f3ed;--soft:#b3b6bd;--muted:#7d828c;--a:#4ade80;--b:#facc15;--c:#fb923c;--d:#64748b}
@@ -109,7 +115,7 @@ export function toHtml(leads, meta = {}) {
     background:rgba(201,173,114,.04);padding:14px 18px;font-size:.86rem;color:var(--soft);margin-bottom:28px}
 </style></head><body><div class="wrap">
 
-<h1>${esc(meta.category)} &middot; ${esc(meta.city)}</h1>
+<h1>${esc(where)}</h1>
 <p class="sub">${live.length} audited &middot; ${dropped.length} dropped before auditing &middot;
   ${esc(meta.source)} &middot; ${new Date().toLocaleString()}</p>
 
