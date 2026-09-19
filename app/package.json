@@ -3,13 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Finds local businesses whose websites need rebuilding. Audits only — sends nothing.",
+  "description": "Finds local businesses whose websites need rebuilding. Audits only - sends nothing.",
   "scripts": {
+    "demo": "node demo.mjs",
+    "doctor": "node doctor.mjs",
     "find": "node src/cli.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "postinstall": "node -e \"console.log('\\n  Next: npx playwright install chromium\\n  Then: npm run demo\\n')\""
   },
   "dependencies": {
+    "playwright": "^1.63.0",
     "@anthropic-ai/sdk": "^0.127.0",
     "zod": "^4.6.5"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

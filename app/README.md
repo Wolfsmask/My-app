@@ -10,14 +10,23 @@ deliberate, and it is Phase 3 work gated behind the setup in `docs/SETUP-CHECKLI
 
 ```bash
 cd app
-npm install            # installs playwright (uses the repo root's copy if present)
+npm install
 npx playwright install chromium
 
-# The zero-setup path: audit a list you made by hand
-node src/cli.js --source file --input my-list.txt
+npm run doctor    # checks the setup and names the fix for anything missing
+npm run demo      # audits 9 bundled example sites — no internet, no keys
+```
+
+Then on real businesses:
+
+```bash
+npm run find -- --source file --input my-list.txt --shots
 ```
 
 Open `app/out/report.html` when it finishes.
+
+**New to the terminal?** [`docs/TESTING.md`](../docs/TESTING.md) is the same
+thing written click-by-click, starting from installing Node.
 
 ### Your list file
 
