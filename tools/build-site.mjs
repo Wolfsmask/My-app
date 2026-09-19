@@ -68,10 +68,26 @@ const walk = dir => {
 };
 walk(dist);
 
-// The publish directory is its own root once deployed, so netlify.toml must
-// not point back at the repository.
+/*
+  Strip the whole [build] block from the shipped config.
+
+  dist/ is already built, so there is nothing left to run. Rewriting only the
+  publish path and leaving `command = "node tools/build-site.mjs"` behind broke
+  a drag-and-drop deploy outright: Netlify read the config, tried to run the
+  build script, and could not find it — tools/ is deliberately not shipped.
+
+  When the repository is connected instead, Netlify reads the netlify.toml at
+  the repo root, not this one, so nothing is lost by removing it here.
+*/
 const toml = path.join(dist, 'netlify.toml');
-fs.writeFileSync(toml, fs.readFileSync(toml, 'utf8').replace(/publish\s*=\s*"[^"]*"/, 'publish = "."'));
+fs.writeFileSync(toml,
+  fs.readFileSync(toml, 'utf8')
+    .replace(/\[build\][\s\S]*?(?=\n\[|\n# ---|$)/, '')
+    .replace(/^# The site is static HTML[\s\S]*?baseline\.$/m,
+             '# This copy ships inside dist/, which is already built. What remains is\n' +
+             '# headers and redirects: caching for stable assets, and a security baseline.')
+    .replace(/\n{3,}/g, '\n\n')
+    .trimStart());
 
 // Guard: nothing private may have slipped through.
 const leaked = [];
@@ -86,6 +102,20 @@ const audit = dir => {
 audit(dist);
 if (leaked.length) {
   console.error(`\n  ${leaked.length} private path(s) reached dist/:\n   ${leaked.join('\n   ')}\n`);
+  process.exit(1);
+}
+
+// Guard: the shipped config must not ask Netlify to run anything, and must not
+// reference a file that is not in the folder.
+const shipped = fs.readFileSync(toml, 'utf8');
+const configProblems = [];
+if (/^\s*command\s*=/m.test(shipped)) configProblems.push('a build command survived into dist/netlify.toml');
+if (/\[build\]/.test(shipped)) configProblems.push('a [build] section survived into dist/netlify.toml');
+for (const m of shipped.matchAll(/"((?:tools|app|docs)\/[^"]+)"/g)) {
+  configProblems.push(`dist/netlify.toml references ${m[1]}, which is not shipped`);
+}
+if (configProblems.length) {
+  console.error(`\n  ${configProblems.length} config problem(s):\n   ${configProblems.join('\n   ')}\n`);
   process.exit(1);
 }
 
