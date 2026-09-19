@@ -20,13 +20,19 @@ const ELEMENTS = [
   { type: "node", id: 5, tags: { craft: "hvac", website: "http://noname.test" } },
 ];
 
-let server, port;
+let server, port, OVERPASS;
 before(async () => {
   server = http.createServer((req, res) => {
     const u = new URL(req.url, "http://x");
     if (u.pathname === "/search") {
       res.writeHead(200, { "Content-Type": "application/json" });
       return res.end(u.searchParams.get("q") === "Atlantis" ? "[]" : JSON.stringify([{ lat: "39.2", lon: "-94.4" }]));
+    }
+    // Stands in for an instance that refuses everything, the way the real one
+    // was refusing with a bare 406.
+    if (u.pathname === "/refuses") {
+      return res.writeHead(406, { "Content-Type": "text/html" })
+        .end("<html><body>Not Acceptable: your client is not welcome here</body></html>");
     }
     if (u.pathname === "/interpreter") {
       let body = "";
@@ -35,6 +41,8 @@ before(async () => {
         // Keyed off the tag the gym query actually sends, not the word "gym",
         // which never appears in an Overpass query.
         if (body.includes("fitness_centre")) return res.writeHead(504).end("gateway timeout");
+        // The query must arrive as the raw body, not wrapped in "data=".
+        if (!body.startsWith("[out:json]")) return res.writeHead(400).end("expected a raw query");
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ elements: ELEMENTS }));
       });
@@ -45,6 +53,7 @@ before(async () => {
   port = server.address().port;
   process.env.MBONYX_NOMINATIM_URL = `http://127.0.0.1:${port}/search`;
   process.env.MBONYX_OVERPASS_URL = `http://127.0.0.1:${port}/interpreter`;
+  OVERPASS = { good: `http://127.0.0.1:${port}/interpreter`, refuses: `http://127.0.0.1:${port}/refuses` };
 });
 after(() => server?.close());
 
@@ -116,7 +125,36 @@ test("failures say what to do about them", async () => {
   );
   await assert.rejects(
     () => discoverOsm({ category: "gym", city: "Liberty, MO" }),
-    /Overpass 504/,
+    /504/,
     "a service outage is reported, not swallowed into an empty result",
   );
+});
+
+test("moves on to the next server when one refuses", async () => {
+  process.env.MBONYX_OVERPASS_URL = `${OVERPASS.refuses},${OVERPASS.good}`;
+  try {
+    const found = await discoverOsm({ category: "hvac", city: "Liberty, MO" });
+    // A single instance refusing is routine; it must not end the search.
+    assert.equal(found.length, 3, "the search still returns results");
+  } finally {
+    process.env.MBONYX_OVERPASS_URL = OVERPASS.good;
+  }
+});
+
+test("when every server refuses, the error repeats what they said", async () => {
+  process.env.MBONYX_OVERPASS_URL = `${OVERPASS.refuses},${OVERPASS.refuses}`;
+  try {
+    await assert.rejects(
+      () => discoverOsm({ category: "hvac", city: "Liberty, MO" }),
+      e => {
+        // "Overpass 406" on its own is a dead end for whoever has to fix it.
+        assert.match(e.message, /406/, "keeps the status");
+        assert.match(e.message, /not welcome here/, "keeps what the server actually said");
+        assert.match(e.message, /127\.0\.0\.1/, "names which server");
+        return true;
+      },
+    );
+  } finally {
+    process.env.MBONYX_OVERPASS_URL = OVERPASS.good;
+  }
 });

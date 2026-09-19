@@ -10,7 +10,12 @@
  *           fastest way to sanity-check the scoring on sites you already know.
  */
 
-const UA = "MBOnyxAudit/1.0 (+https://mbonyx.netlify.app/)";
+/**
+ * Nominatim requires a contactable User-Agent, so this identifies the tool and
+ * where to complain. It deliberately avoids the "Name/1.0 (+https://site/)"
+ * shape used by search-engine crawlers, which bot filters match on.
+ */
+const UA = "MBOnyx lead checker - contact mbonyxstudios@gmail.com";
 
 /**
  * The two OpenStreetMap endpoints, overridable so the search can be driven
@@ -22,7 +27,11 @@ const UA = "MBOnyxAudit/1.0 (+https://mbonyx.netlify.app/)";
  * after the import. Reading at load time made the override silently miss and
  * sent the tests at the real service instead.
  */
-const overpassUrl = () => process.env.MBONYX_OVERPASS_URL || "https://overpass-api.de/api/interpreter";
+const overpassUrls = () => (process.env.MBONYX_OVERPASS_URL || [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+].join(",")).split(",").map(u => u.trim()).filter(Boolean);
 const nominatimUrl = () => process.env.MBONYX_NOMINATIM_URL || "https://nominatim.openstreetmap.org/search";
 
 /* ------------------------------------------------------------------ Places */
@@ -135,17 +144,11 @@ export async function discoverOsm({ category, city, limit = 60, radiusKm = 25 })
     .flatMap(tag => ["node", "way"].map(kind => `${kind}${tag}(around:${radius},${geo.lat},${geo.lon});`))
     .join("\n  ");
 
-  const query = `[out:json][timeout:60];\n(\n  ${parts}\n);\nout center tags ${limit * 3};`;
+  // Modifier order matters: [ids|skel|body|tags|meta] [geom|bb|center] [number].
+  // This read "out center tags N", which is the wrong way round.
+  const query = `[out:json][timeout:60];\n(\n  ${parts}\n);\nout tags center ${limit * 3};`;
 
-  const res = await fetch(overpassUrl(), {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA },
-    body: "data=" + encodeURIComponent(query),
-    signal: AbortSignal.timeout(90000),
-  });
-  if (!res.ok) throw new Error(`Overpass ${res.status}`);
-
-  const data = await res.json();
+  const data = await askOverpass(query);
   const seen = new Set();
   const out = [];
 
@@ -176,6 +179,61 @@ export async function discoverOsm({ category, city, limit = 60, radiusKm = 25 })
 
   return out;
 }
+
+/**
+ * Puts a query to Overpass, trying each public instance in turn.
+ *
+ * Every instance is a free service run by volunteers, and any of them can be
+ * busy, rate-limiting, or refusing a request outright. One refusing is normal
+ * and should not end the search, so a refusal moves on to the next.
+ *
+ * The query goes in as the raw body, which is the form every instance accepts;
+ * the form-encoded "data=" wrapper is also documented but is the one that was
+ * being refused with a bare 406 in the field.
+ *
+ * Whatever the server said is carried into the error. Reporting only the status
+ * code, as this used to, turned an explanation the server had already written
+ * into an unactionable number.
+ */
+async function askOverpass(query) {
+  const tried = [];
+
+  for (const url of overpassUrls()) {
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain; charset=utf-8", "Accept": "application/json", "User-Agent": UA },
+        body: query,
+        signal: AbortSignal.timeout(90000),
+      });
+    } catch (e) {
+      tried.push(`${host(url)}: ${e.name === "TimeoutError" ? "timed out" : e.message}`);
+      continue;
+    }
+
+    if (res.ok) {
+      try {
+        return await res.json();
+      } catch {
+        // A 200 carrying an HTML error page is a refusal wearing the wrong hat.
+        tried.push(`${host(url)}: replied with something that was not JSON`);
+        continue;
+      }
+    }
+
+    const said = (await res.text().catch(() => "")).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    tried.push(`${host(url)}: ${res.status}${said ? ` - ${said.slice(0, 160)}` : ""}`);
+  }
+
+  throw new Error(
+    `No OpenStreetMap server would answer. They are free services and do turn ` +
+    `requests away when busy, so this is often worth retrying in a few minutes. ` +
+    `If it keeps happening, paste a list in by hand instead.\n  ${tried.join("\n  ")}`,
+  );
+}
+
+const host = url => { try { return new URL(url).host; } catch { return url; } };
 
 async function geocode(place) {
   const url = `${nominatimUrl()}?q=${encodeURIComponent(place)}&format=json&limit=1`;

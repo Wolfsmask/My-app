@@ -54,6 +54,9 @@
   .bar.on{display:block}
   .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-l));transition:width .3s}
   .status{color:var(--soft);font-size:.87rem;min-height:1.3em}
+  /* A failure can name several servers, one per line. Without this the lines
+     run together into one unreadable sentence. */
+  .status .err{color:var(--bad);white-space:pre-line}
 
   .totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;margin:22px 0 4px;display:none}
   .totals.on{display:grid}
@@ -204,7 +207,7 @@ Tier D  under 25 — the site is fine, drop it</pre>
           + ' Look it over, then check them.';
       }
     } catch (err) {
-      $('status').innerHTML = `<span style="color:var(--bad)">${esc(err.message)}</span>`;
+      $('status').innerHTML = `<span class="err">${esc(err.message)}</span>`;
     } finally {
       $('find').disabled = false;
     }
@@ -293,7 +296,7 @@ Tier D  under 25 — the site is fine, drop it</pre>
         }
       }
     } catch (err) {
-      $('status').innerHTML = `<span style="color:var(--bad)">${esc(err.message)}</span>`;
+      $('status').innerHTML = `<span class="err">${esc(err.message)}</span>`;
     } finally {
       $('run').disabled = false;
     }
