@@ -70,3 +70,18 @@ Use a real server rather than opening `index.html` directly — the absolute
 - **Text selection is enabled.** Visitors need to copy prices and the email address.
 - **The concept builds are labelled as concept builds** on every page and in the
   portfolio section. They demonstrate range; they are not claimed as client work.
+
+## Offline preview file
+
+`mbonyx-preview.html` is a single self-contained copy of the whole site — fonts,
+screenshots and all nine sub-pages embedded. Double-click it to open in a browser; no
+server needed. Clicking a concept build opens it in an overlay with a Desktop/Phone
+toggle.
+
+Rebuild it after changing any page:
+
+```bash
+python3 tools/build-preview.py
+```
+
+It is a preview artifact, not what gets deployed — Netlify serves the real files.
