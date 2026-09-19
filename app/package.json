@@ -1,0 +1,11 @@
+{
+  "name": "mbonyx-lead-checker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Finds local businesses whose websites need rebuilding. Audits only — sends nothing.",
+  "scripts": {
+    "find": "node src/cli.js",
+    "test": "node --test test/*.test.js"
+  }
+}

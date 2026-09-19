@@ -1,0 +1,12 @@
+# Deliberately bad fixtures
+Ace Heating and Cooling, ./bad-2011.html, (555) 212-9000, 4.4, 130
+Riverside Plumbing, ./half-fixed.html, (555) 331-7788, 4.1, 62
+Copperline Electric, ./modern.html, (555) 664-2100, 4.8, 210
+# Real, well-built sites (the concept builds)
+Lumen Dental Studio, ../../../work/lumen-dental.html, (555) 123-4567, 4.9, 412
+Northpoint Heating, ../../../work/northpoint-hvac.html, (555) 930-0000, 4.8, 318
+Ember and Oak, ../../../work/ember-oak.html, (555) 204-7781, 4.7, 96
+Meridian Law Group, ../../../work/meridian-law.html, (555) 882-0140, 4.9, 41
+Forge Athletics, ../../../work/forge-athletics.html, (555) 447-3300, 4.9, 260
+# A business with a great site but too few reviews to afford a rebuild
+Tiny New Shop, ./modern.html, (555) 000-1111, 5.0, 3
