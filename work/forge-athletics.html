@@ -96,6 +96,16 @@
   .ft__bot{border-top:1px solid var(--line);padding-top:18px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:.78rem}
 
   @media(max-width:920px){.progs,.plans,.ft__grid{grid-template-columns:1fr}}
+
+  /* Sizes tuned on desktop land at ~13.8px on a phone, which is where these are
+     actually read. Raise prose to 16px and secondary text to 14px under 600px;
+     eyebrows and badges stay small because they are scanned, not read. */
+  @media(max-width:600px){
+    .prog p,.shead p,.hero p,.plan li{font-size:1rem;line-height:1.6}
+    .sched,.ticker,.prog .meta{font-size:.9rem}
+    .kick{font-size:.8rem}
+  }
+
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.btn:hover{transform:skewX(-8deg)}}
 </style>
 </head>

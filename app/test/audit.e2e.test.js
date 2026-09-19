@@ -56,6 +56,26 @@ test("a genuinely good site produces no findings", { skip: !up && "no server on 
   assert.equal(s.tier, "D");
 });
 
+test("a hero CTA counts as contact, whatever the trade calls it", { skip: !up && "no server on :8899" }, async () => {
+  /*
+    Regression: the href list only knew "contact", "book", "appointment",
+    "quote" and "booking", so a restaurant whose hero CTA is Reserve and a gym
+    whose hero CTA is Free Week were both reported as having no way to make
+    contact above the fold. Both plainly do.
+  */
+  for (const slug of ["ember-oak", "forge-athletics"]) {
+    const a = await auditSite(`${BASE}/work/${slug}.html`, { browser });
+    assert.equal(a.hasContactAboveFold, true, `${slug} has a conversion CTA in the first screen`);
+  }
+});
+
+test("a site with no way to make contact above the fold is still caught", { skip: !up && "no server on :8899" }, async () => {
+  // The guard on the widened list: it must not become impossible to fail.
+  const a = await auditSite(`${BASE}/app/test/fixtures/no-contact.html`, { browser });
+  assert.equal(a.fetchFailed, false);
+  assert.equal(a.hasContactAboveFold, false);
+});
+
 test("the five concept builds all pass their own audit", { skip: !up && "no server on :8899" }, async () => {
   for (const slug of ["lumen-dental", "northpoint-hvac", "ember-oak", "meridian-law", "forge-athletics"]) {
     const a = await auditSite(`${BASE}/work/${slug}.html`, { browser });

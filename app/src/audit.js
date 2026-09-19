@@ -172,12 +172,20 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
 
       // "Above the fold" = the first screen a visitor sees without scrolling.
       const fold = window.innerHeight;
-      const contactSelectors = [
-        'a[href^="tel:"]', 'a[href^="mailto:"]', 'form', 'input[type="tel"]',
-        'a[href*="contact" i]', 'a[href*="#book" i]', 'a[href*="appointment" i]',
-        'a[href*="quote" i]', 'a[href*="booking" i]',
-      ].join(",");
-      const contactWords = /\b(call|contact|book|quote|appointment|schedule|get in touch|reserve|enquire|inquire)\b/i;
+      /*
+        "Can a visitor reach you from the first screen." The href list has to
+        cover how each trade actually words its conversion action — a
+        restaurant says Reserve, a gym says Free Trial, a contractor says Get a
+        Quote. The narrow version of this list flagged two well-built sites
+        whose whole hero is a booking CTA, purely because neither used the word
+        "contact".
+      */
+      const contactHrefs = ['tel:', 'mailto:', 'contact', 'book', 'appointment',
+        'quote', 'booking', 'reserve', 'reservation', 'trial', 'schedule',
+        'estimate', 'consult', 'enquir', 'inquir', 'visit', 'find-us', 'order'];
+      const contactSelectors = ['form', 'input[type="tel"]', 'input[type="email"]']
+        .concat(contactHrefs.map(h => `a[href*="${h}" i]`)).join(",");
+      const contactWords = /\b(call|contact|book|quote|appointment|schedule|get in touch|reserve|enquire|inquire|free trial|free week|get started|order)\b/i;
 
       const contactable = [...document.querySelectorAll(contactSelectors + ",button")]
         .some(el => {

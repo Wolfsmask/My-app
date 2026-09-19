@@ -92,6 +92,16 @@
   .ft__bot{border-top:1px solid rgba(255,255,255,.12);padding-top:18px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:.79rem}
 
   @media(max-width:880px){.menu,.split,.cards,.ft__grid{grid-template-columns:1fr}}
+
+  /* Sizes tuned on desktop land at ~13.8px on a phone, which is where these are
+     actually read. Raise prose to 16px and secondary text to 14px under 600px;
+     eyebrows and badges stay small because they are scanned, not read. */
+  @media(max-width:600px){
+    .item p,.card p,.shead p,.split p,.hero p{font-size:1rem;line-height:1.6}
+    .hours,.ft{font-size:.92rem}
+    .kick{font-size:.8rem}
+  }
+
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>

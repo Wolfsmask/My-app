@@ -2889,6 +2889,62 @@
     }
 
     /* =========================================================
+       MOBILE READING SIZES
+    =========================================================
+       Caught by running this project's own lead checker against this site:
+       the median text size on a 390px screen was 13.92px, which trips its
+       "body text too small to read on a phone" finding.
+
+       It was right. Sizes tuned on a 1440px desktop look fine there and land
+       at 13-14px on a phone, which is where people actually read this. Below
+       raises prose to 16px and secondary text to 14px at phone widths, and
+       leaves genuinely small labels — eyebrows, badges, chrome — alone,
+       because those are scanned rather than read.
+    ========================================================= */
+
+    @media (max-width: 600px) {
+      .section-description,
+      .process-step__description,
+      .pricing-card__feature,
+      .pricing-card__for,
+      .work-card__note,
+      .faq-answer,
+      .care-plan__copy,
+      .care-plan__list li,
+      .referral__step p,
+      .referral__lede,
+      .contact__description,
+      .work-disclosure {
+        font-size: 1rem;
+        line-height: 1.65;
+      }
+
+      .pricing-note,
+      .referral__terms li,
+      .contact__reassure,
+      .contact__details-value,
+      .field__hint,
+      .form-fine,
+      .footer__copyright,
+      .footer__link,
+      .faq-intro__note,
+      .care-plan__fine,
+      .care-plan__per {
+        font-size: 0.875rem;
+      }
+
+      .field__label,
+      .work-card__tag {
+        font-size: 0.78rem;
+      }
+
+      /* Inputs below 16px make iOS Safari zoom the page on focus. */
+      .field__input {
+        font-size: 1rem;
+      }
+    }
+
+    /* =========================================================
        RESPONSIVE BREAKPOINTS
     ========================================================= */
 

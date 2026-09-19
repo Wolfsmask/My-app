@@ -59,4 +59,12 @@ strong{color:var(--color-text)}
 .doc-footer a:hover{color:var(--color-text)}
 .doc-footer .links{display:flex;gap:14px 22px;flex-wrap:wrap}
 
+/* Desktop-tuned secondary text lands at ~12.8px on a phone. Raise it where it
+   is prose rather than a label. */
+@media (max-width:600px){
+  .updated,.doc-footer,.doc-footer a{font-size:.875rem}
+  p,li{font-size:1rem}
+  .note p{font-size:.95rem}
+}
+
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

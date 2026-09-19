@@ -105,6 +105,17 @@
   .disclaimer{font-size:.76rem;color:#879891;max-width:70ch;margin-top:14px}
 
   @media(max-width:920px){.hero__grid,.practice,.split,.results,.consult__grid,.ft__grid{grid-template-columns:1fr}.creds{border-left:0;padding-left:0;display:flex;gap:30px;flex-wrap:wrap}}
+
+  /* Sizes tuned on desktop land at ~13.8px on a phone, which is where these are
+     actually read. Raise prose to 16px and secondary text to 14px under 600px;
+     eyebrows and badges stay small because they are scanned, not read. */
+  @media(max-width:600px){
+    .pr p,.res p,.shead p,.split p,.hero p,.consult p{font-size:1rem;line-height:1.6}
+    .fine,.disclaimer,.creds span,.bars li{font-size:.9rem}
+    .kick{font-size:.78rem}
+    .fld input,.fld select,.fld textarea{font-size:1rem}
+  }
+
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>

@@ -118,6 +118,17 @@
   /* The alert bar already carries the number, so the header sheds it on phones. */
   @media(max-width:560px){.logo{font-size:.82rem}.logo__mark{width:32px;height:32px}.phone small{display:none}.phone b{font-size:1rem}.nav__inner{min-height:66px;gap:12px}}
   @media(max-width:880px){.hero__grid,.steps,.revs,.ft__grid{grid-template-columns:1fr}}
+
+  /* Sizes tuned on desktop land at ~13.8px on a phone, which is where these are
+     actually read. Raise prose to 16px and secondary text to 14px under 600px;
+     eyebrows and badges stay small because they are scanned, not read. */
+  @media(max-width:600px){
+    .svc p,.step p,.rev p,.shead p,.hero p{font-size:1rem;line-height:1.6}
+    .quote .sub,.quote .fine,.badge,.rev cite{font-size:.9rem}
+    .tag{font-size:.8rem}
+    .fld input,.fld select{font-size:1rem}
+  }
+
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>

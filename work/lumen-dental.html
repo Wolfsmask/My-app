@@ -137,6 +137,17 @@
   .ft__inner{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:center}
   .ft a:hover{color:var(--brand)}
 
+
+  /* Sizes tuned on desktop land at ~13.8px on a phone, which is where these are
+     actually read. Raise prose to 16px and secondary text to 14px under 600px;
+     eyebrows and badges stay small because they are scanned, not read. */
+  @media(max-width:600px){
+    .step p,.price-row p,.person p,.shead p,.hero p.lead{font-size:1rem;line-height:1.6}
+    .price-note,.slots__label,.quote-by,.figures div span,.info dd{font-size:.9rem}
+    .eyebrow{font-size:.78rem}
+    .fld input,.fld select{font-size:1rem}
+  }
+
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
