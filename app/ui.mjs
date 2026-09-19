@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
 import { discoverFile, discoverOsm, OSM_CATEGORIES } from './src/discover.js';
+import { resolveWebsite } from './src/resolve.js';
 import { auditSite, launchBrowser } from './src/audit.js';
 import { score, disqualify, qualifies } from './src/score.js';
 import { toCsv, toHtml } from './src/report.js';
@@ -27,7 +28,78 @@ const PORT = Number(process.env.PORT ?? 8123);
 /** Only one audit at a time — each run owns the browser. */
 let running = false;
 
+/** Only one search at a time, so Stop always refers to something definite. */
+let finding = false;
+
+/**
+ * Auditing or probing this machine is only ever wanted by the test suite,
+ * never by a real run, so it is an env var rather than anything on the page.
+ */
+const ALLOW_LOCAL = process.env.MBONYX_ALLOW_LOCAL === '1';
+
 const send = (res, event) => res.write(JSON.stringify(event) + '\n');
+
+/**
+ * Searches outward from a town until it runs out of places to look, or until
+ * Stop is pressed.
+ *
+ * Two things happen per business. OpenStreetMap says who is there; it very
+ * rarely says where their website is, so each one without a website recorded
+ * gets looked up (src/resolve.js). That lookup is the slow part, so a few run
+ * at once - but only a few, since every one of them is a request to a small
+ * business's server.
+ */
+async function runFind(category, city, res, signal) {
+  const RINGS = [10, 25, 50, 80, 120];
+  const seen = new Set();
+  let withSite = 0, noSite = 0;
+
+  for (const radiusKm of RINGS) {
+    if (signal.aborted) break;
+    send(res, { type: 'stage', radiusKm, of: RINGS[RINGS.length - 1] });
+
+    let batch;
+    try {
+      batch = await discoverOsm({ category, city, radiusKm, limit: 200 });
+    } catch (e) {
+      // A ring failing is worth saying, but the rings already searched still
+      // count - reporting nothing would throw away real results.
+      send(res, { type: 'note', message: `${radiusKm}km: ${e.message.split('\n')[0]}` });
+      continue;
+    }
+
+    const fresh = batch.filter(b => {
+      const key = (b.name ?? '').toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    for (let i = 0; i < fresh.length; i += 4) {
+      if (signal.aborted) break;
+      const slice = fresh.slice(i, i + 4);
+      const hits = await Promise.all(slice.map(b =>
+        resolveWebsite(b, { allowLocal: ALLOW_LOCAL, signal }).catch(() => null)));
+
+      for (const [n, b] of slice.entries()) {
+        if (signal.aborted) break;
+        const hit = hits[n];
+        if (hit) withSite++; else noSite++;
+        send(res, {
+          type: 'business',
+          name: b.name,
+          phone: b.phone,
+          website: hit?.website ?? null,
+          via: hit?.via ?? null,
+          why: hit?.why ?? null,
+          withSite, noSite,
+        });
+      }
+    }
+  }
+
+  if (!signal.aborted) send(res, { type: 'done', withSite, noSite });
+}
 
 async function runAudit(listText, opts, res) {
   const businesses = discoverFile(listText, { category: opts.category || 'manual', city: opts.city || '' });
@@ -68,9 +140,7 @@ async function runAudit(listText, opts, res) {
           const audit = await auditSite(business.website, {
             browser,
             screenshotPath: path.join(OUT, 'shots', `${slug}.jpg`),
-            // Env var rather than a UI control: auditing your own machine is
-            // only ever wanted by the test suite, never by a real run.
-            allowLocal: Boolean(opts.allowLocal) || process.env.MBONYX_ALLOW_LOCAL === '1',
+            allowLocal: Boolean(opts.allowLocal) || ALLOW_LOCAL,
           });
           if (audit.fetchFailed) {
             leads.push({ business, audit, dropReason: `unreachable: ${audit.error}`, tier: '-', score: null });
@@ -142,27 +212,30 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && url.pathname === '/api/find') {
+    if (finding) { res.writeHead(409, { 'Content-Type': 'application/json' }).end('{"error":"already searching"}'); return; }
+    finding = true;
+
     let body = '';
     req.on('data', c => { body += c; if (body.length > 1e5) req.destroy(); });
     await new Promise(r => req.on('end', r));
 
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    // Pressing Stop closes the connection. Nothing else tells the search to
+    // give up, so without this it would keep hitting other people's servers
+    // for a search nobody is watching any more.
+    const stop = new AbortController();
+    res.on('close', () => stop.abort());
+
+    res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' });
     try {
       const { category, city } = JSON.parse(body || '{}');
       if (!category) throw new Error('Pick a type of business first.');
       if (!String(city ?? '').trim()) throw new Error('Type a town or city first, like "Liberty, MO".');
-
-      const found = await discoverOsm({ category, city: String(city).trim() });
-
-      // A business with no website is still a real lead, just a different
-      // pitch - building one rather than replacing one. Dropping those here
-      // would hide them, so they come back separately and the page lists them.
-      res.end(JSON.stringify({
-        withSite: found.filter(b => b.website),
-        noSite: found.filter(b => !b.website),
-      }));
+      await runFind(category, String(city).trim(), res, stop.signal);
     } catch (e) {
-      res.end(JSON.stringify({ error: e.message }));
+      if (!stop.signal.aborted) send(res, { type: 'error', message: e.message });
+    } finally {
+      finding = false;
+      res.end();
     }
     return;
   }

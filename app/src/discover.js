@@ -154,7 +154,11 @@ export async function discoverOsm({ category, city, limit = 60, radiusKm = 25 })
 
   for (const el of data.elements ?? []) {
     const t = el.tags ?? {};
-    const website = t.website || t["contact:website"] || null;
+    // OpenStreetMap has no single agreed tag for a website, so all the ones in
+    // real use are checked. Even so, most US small businesses have none of
+    // them recorded, which is why the app also goes looking (src/resolve.js).
+    const website = t.website || t["contact:website"] || t["website:official"] ||
+                    t.url || t["contact:url"] || t["operator:website"] || t["brand:website"] || null;
     const name = t.name;
     if (!name || seen.has(name.toLowerCase())) continue;
     seen.add(name.toLowerCase());

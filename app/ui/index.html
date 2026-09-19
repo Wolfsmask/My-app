@@ -38,7 +38,10 @@
   .hint + label{margin-top:22px}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
   .row.find{grid-template-columns:1fr 1fr auto;align-items:start;margin-top:0}
-  .row.find button{white-space:nowrap}
+  .row.find button{white-space:nowrap;min-width:11.5rem}
+  /* Stop is a different action from Find, so it should not look like the
+     same button with different words on it. */
+  .row.find button.stop{border-color:rgba(248,113,113,.5);color:#fca5a5}
   @media(max-width:620px){.row,.row.find{grid-template-columns:1fr}}
 
   .actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:18px}
@@ -105,9 +108,9 @@
       <div><input id="city" placeholder="Liberty, MO"></div>
       <button class="ghost" id="find">Find them for me</button>
     </div>
-    <p class="hint">Searches OpenStreetMap — free, no account, nothing to sign up for. It fills the box below so you
-      can look at what it found before checking any of it. Coverage of small trade businesses is patchy, so treat it as a
-      starting point, not the whole town.</p>
+    <p class="hint">Finds who is there using OpenStreetMap, then goes and looks for each one&rsquo;s website — free, no
+      account, nothing to sign up for. It searches further out the longer you leave it, filling the box as it goes.
+      <strong>Press Stop when you have enough</strong>, then check them.</p>
 
     <label for="list">Businesses to check</label>
     <textarea id="list" spellcheck="false" placeholder="Bob's Heating and Air, bobsheatingkc.com, (816) 555-0100, 4.5, 87
@@ -178,38 +181,88 @@ Tier D  under 25 — the site is fine, drop it</pre>
     $('city').value = 'Kansas City, MO';
   };
 
+  // The search runs until it runs out of rings or the Stop button is pressed,
+  // so the button is a toggle and the results arrive as they are found rather
+  // than all at the end.
+  let searching = null;
+
   $('find').onclick = async () => {
-    const label = $('cat').selectedOptions[0]?.textContent ?? '';
-    $('find').disabled = true;
-    $('status').textContent = `Searching for ${label.toLowerCase() || 'businesses'} near ${$('city').value || '\u2026'}\u2026`;
+    if (searching) { searching.abort(); return; }
+
+    const label = ($('cat').selectedOptions[0]?.textContent ?? '').toLowerCase();
+    searching = new AbortController();
+    $('find').textContent = 'Stop';
+    $('find').classList.add('stop');
+    $('list').value = '';
+
+    const withSite = [];
+    const noSite = [];
+    let stage = '';
+
+    // Rebuilt on every update so the box always reflects what has been found,
+    // including when Stop ends it early.
+    const repaint = () => {
+      $('list').value = [
+        ...withSite,
+        ...(noSite.length ? ['', '# No website found for these. Still leads - a different pitch:', '# building one from scratch. The checker skips them.', ...noSite] : []),
+      ].join('\n');
+    };
+
     try {
       const res = await fetch('/api/find', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ category: $('cat').value, city: $('city').value }),
+        signal: searching.signal,
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      if (res.status === 409) throw new Error('A search is already running in another tab.');
 
-      // Businesses with no website listed are still leads, just a different
-      // conversation - so they go in as #comments, which the checker skips
-      // but he can still read.
-      const lines = data.withSite.map(b => [b.name, b.website, b.phone].filter(Boolean).join(', '));
-      const notes = data.noSite.map(b => `# no website listed: ${[b.name, b.phone].filter(Boolean).join(' - ')}`);
-      const body = [...lines, ...(notes.length ? ['', '# These have no website at all. Different pitch: building one from', '# scratch, not replacing one. The checker skips them.', ...notes] : [])].join('\n');
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
 
-      if (!lines.length && !notes.length) {
-        $('status').textContent = `Found nothing for ${label.toLowerCase()} near there. OpenStreetMap's coverage is patchy \u2014 try a bigger nearby city, or paste a list in yourself.`;
-      } else {
-        $('list').value = body;
-        $('status').textContent = `Found ${lines.length} with a website to check`
-          + (notes.length ? `, and ${notes.length} with no website listed (noted at the bottom).` : '.')
-          + ' Look it over, then check them.';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const e = JSON.parse(line);
+
+          if (e.type === 'error') throw new Error(e.message);
+          if (e.type === 'note') { stage = e.message; continue; }
+          if (e.type === 'stage') { stage = `searching ${e.radiusKm}km out`; }
+
+          if (e.type === 'business') {
+            if (e.website) withSite.push([e.name, e.website, e.phone].filter(Boolean).join(', '));
+            else noSite.push(`# no website found: ${[e.name, e.phone].filter(Boolean).join(' - ')}`);
+            repaint();
+          }
+
+          const n = withSite.length;
+          $('status').textContent = `${n} ${n === 1 ? 'website' : 'websites'} found`
+            + (noSite.length ? `, ${noSite.length} without one` : '')
+            + (e.type === 'done' ? '. Finished \u2014 now check them.' : ` \u2014 ${stage}. Press Stop when you have enough.`);
+        }
       }
     } catch (err) {
-      $('status').innerHTML = `<span class="err">${esc(err.message)}</span>`;
+      // Stop aborts the request, which surfaces here as an error. That is the
+      // button working, not a failure.
+      if (err.name === 'AbortError') {
+        const n = withSite.length;
+        $('status').textContent = `Stopped. ${n} ${n === 1 ? 'website' : 'websites'} found`
+          + (noSite.length ? `, ${noSite.length} without one` : '') + '. Now check them.';
+      } else {
+        $('status').innerHTML = `<span class="err">${esc(err.message)}</span>`;
+      }
     } finally {
-      $('find').disabled = false;
+      searching = null;
+      $('find').textContent = 'Find them for me';
+      $('find').classList.remove('stop');
+      repaint();
     }
   };
 

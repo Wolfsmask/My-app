@@ -19,13 +19,26 @@ The first run installs what's missing and downloads the browser it audits with �
 a few minutes, once. After that it opens straight to a window in your browser.
 
 In that window you can either **paste a list in yourself**, or pick a type of business and a
-town and click **Find them for me** — that searches OpenStreetMap (free, no account, no key)
-and fills the box, so you can look at what it found before checking any of it. Then click
-**Check these websites**.
+town and click **Find them for me**. That does two things:
 
-OpenStreetMap coverage of small trade businesses in the US is patchy and it holds no ratings
-at all, so the "can they afford you" filter can't run on those leads. It's a starting point,
-not the whole town. Google Places has far better data and review counts — see
+1. Asks OpenStreetMap who is there (free, no account, no key).
+2. **Goes and finds each one's website.** OpenStreetMap almost never records a website for a
+   US small business, so the search guesses the addresses a business is likely to be at and
+   loads them. A guess is only accepted when the page proves it belongs to that business.
+
+It searches further out the longer you leave it, filling the box as it goes. Press **Stop**
+when you have enough, then **Check these websites**.
+
+### What it will not do
+
+It would rather find nothing than find the wrong company — a wrong match means emailing a
+stranger about a website that isn't theirs. So it refuses a page that only shares a family
+name (`wilson.com` is Wilson Sporting Goods, not Wilson Mechanical), refuses parked
+"this domain is for sale" pages, and never guesses a bare one-word domain at all. Expect
+misses; that's the trade being made deliberately.
+
+OpenStreetMap holds no ratings, so the "can they afford you" filter can't run on these leads.
+Google Places has far better data and review counts — see
 [`docs/SETUP-CHECKLIST.md`](../docs/SETUP-CHECKLIST.md); it needs a billing account.
 
 > On a Mac the first double-click may say the file is from an unidentified developer.
