@@ -46,17 +46,28 @@ After editing any file in `work/`:
 
 ```bash
 npm install
-python3 -m http.server 8899 &     # tools/shot.mjs loads from this
-node tools/shot.mjs               # re-screenshot desktop + mobile
-node tools/opt-img.mjs            # resize and convert to WebP
+npm run serve &     # static server on :8899, which the tools load from
+npm run shots       # re-screenshot desktop + mobile, then optimise to WebP
 ```
 
 `tools/og.mjs` regenerates the social share card the same way.
 
+## Checking the site
+
+```bash
+npm run serve &
+npm run audit       # every check, one command
+```
+
+Covers console errors, broken links, mobile overflow, WCAG AA contrast, phone
+reading sizes, keyboard accessibility, how different the concept builds
+actually are, load performance, and the Netlify form wiring. Each check also
+runs on its own from `tools/audit/`.
+
 ## Local preview
 
 ```bash
-python3 -m http.server 8899
+npm run serve
 # then open http://127.0.0.1:8899
 ```
 
@@ -83,7 +94,9 @@ toggle.
 Rebuild it after changing any page:
 
 ```bash
-python3 tools/build-preview.py
+npm run preview
 ```
 
-It is a preview artifact, not what gets deployed — Netlify serves the real files.
+It is a build artifact and is not committed — regenerate it with
+`npm run preview` whenever you want a copy to send. Netlify serves the real
+files, not this.

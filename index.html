@@ -4128,12 +4128,24 @@
             </p>
           </div>
 
-          <form class="contact-form" name="contact" method="POST" data-netlify="true" action="/success.html" id="contactForm">
+          <form
+            class="contact-form"
+            id="contactForm"
+            name="contact"
+            method="POST"
+            action="/success.html"
+            data-netlify="true"
+            data-netlify-honeypot="bot-field"
+          >
             <input type="hidden" name="form-name" value="contact" />
 
             <!--
-              Netlify honeypot. Bots fill hidden fields; humans never see this one,
-              so anything that arrives with it filled gets dropped silently.
+              Netlify honeypot. Bots fill hidden fields; humans never see this
+              one, so anything arriving with it filled is dropped silently.
+
+              The field alone does nothing — Netlify only treats it as a trap
+              because of data-netlify-honeypot on the form above. Without that
+              attribute it is just an extra field submitted with every message.
             -->
             <p class="hp-field" aria-hidden="true">
               <label>Leave this field empty <input name="bot-field" tabindex="-1" autocomplete="off"></label>

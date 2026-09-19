@@ -3,5 +3,15 @@
     "playwright": "^1.63.0",
     "pngjs": "^7.0.0",
     "sharp": "^0.35.4"
+  },
+  "name": "mbonyx-studio",
+  "private": true,
+  "type": "module",
+  "description": "MBOnyx Studio marketing site, five concept builds, and the lead checker.",
+  "scripts": {
+    "preview": "node tools/build-preview.mjs",
+    "shots": "node tools/shot.mjs && node tools/opt-img.mjs",
+    "audit": "node tools/audit/all.mjs",
+    "serve": "node tools/serve.mjs"
   }
 }

@@ -1,0 +1,92 @@
+
+<!-- ===== OFFLINE PREVIEW SHELL =========================================
+     Only present in mbonyx-preview.html. The live site links to real pages.
+====================================================================== -->
+<style>
+  .pv{position:fixed;inset:0;z-index:5000;display:none;flex-direction:column;background:#05070a}
+  .pv.is-open{display:flex}
+  .pv__bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:11px 16px;
+    border-bottom:1px solid rgba(255,255,255,.1);background:#0b0f15;color:#f5f3ed;
+    font-family:"Inter",Arial,sans-serif;font-size:.84rem}
+  .pv__title{font-weight:700;letter-spacing:.02em;margin-right:auto}
+  .pv__title small{display:block;font-weight:400;font-size:.72rem;color:#7d828c;letter-spacing:.06em;text-transform:uppercase}
+  .pv__seg{display:flex;border:1px solid rgba(255,255,255,.14);border-radius:999px;overflow:hidden}
+  .pv__seg button{padding:7px 15px;border:0;background:transparent;color:#b3b6bd;
+    font:inherit;font-size:.78rem;font-weight:600;cursor:pointer}
+  .pv__seg button.on{background:#c9ad72;color:#0a0c10}
+  .pv__close{min-height:36px;padding:7px 16px;border:1px solid rgba(255,255,255,.18);
+    border-radius:999px;background:transparent;color:#f5f3ed;font:inherit;font-size:.78rem;
+    font-weight:700;cursor:pointer}
+  .pv__close:hover{border-color:#c9ad72;color:#e6d3a5}
+  .pv__stage{flex:1;display:grid;place-items:center;overflow:auto;padding:0;background:#05070a}
+  .pv__stage.mobile{padding:22px}
+  .pv__frame{width:100%;height:100%;border:0;background:#fff}
+  .pv__stage.mobile .pv__frame{width:390px;height:min(780px,100%);max-width:100%;
+    border:8px solid #22242b;border-radius:30px;box-shadow:0 30px 70px rgba(0,0,0,.6)}
+  @media(max-width:620px){.pv__stage.mobile{padding:0}.pv__stage.mobile .pv__frame{width:100%;height:100%;border:0;border-radius:0}}
+</style>
+
+<div class="pv" id="pv" role="dialog" aria-modal="true" aria-label="Site preview">
+  <div class="pv__bar">
+    <div class="pv__title"><small>Concept build</small><span id="pvTitle"></span></div>
+    <div class="pv__seg">
+      <button type="button" id="pvDesktop" class="on">Desktop</button>
+      <button type="button" id="pvMobile">Phone</button>
+    </div>
+    <button type="button" class="pv__close" id="pvClose">Close ✕</button>
+  </div>
+  <div class="pv__stage" id="pvStage"><iframe class="pv__frame" id="pvFrame" title="Preview"></iframe></div>
+</div>
+
+<script type="application/json" id="pvPages">__PAGES__</script>
+<script>
+(() => {
+  const PAGES  = JSON.parse(document.getElementById("pvPages").textContent);
+  const TITLES = __TITLES__;
+  const FONTS  = document.getElementById("pvFonts").textContent;
+
+  const pv = document.getElementById("pv");
+  const frame = document.getElementById("pvFrame");
+  const stage = document.getElementById("pvStage");
+  const title = document.getElementById("pvTitle");
+  const bDesk = document.getElementById("pvDesktop");
+  const bMob  = document.getElementById("pvMobile");
+  let lastFocus = null;
+
+  function open(slug) {
+    if (!PAGES[slug]) return;
+    lastFocus = document.activeElement;
+    title.textContent = TITLES[slug] || slug;
+    frame.srcdoc = PAGES[slug].replace("/*__FONTS__*/", FONTS);
+    pv.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+    document.getElementById("pvClose").focus();
+  }
+
+  window.closePreview = function () {
+    pv.classList.remove("is-open");
+    frame.srcdoc = "";
+    document.body.style.overflow = "";
+    if (lastFocus) lastFocus.focus();
+  };
+
+  document.addEventListener("click", e => {
+    const t = e.target.closest("[data-preview]");
+    if (!t) return;
+    e.preventDefault();
+    open(t.getAttribute("data-preview"));
+  });
+
+  document.getElementById("pvClose").addEventListener("click", closePreview);
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && pv.classList.contains("is-open")) closePreview();
+  });
+
+  bDesk.addEventListener("click", () => {
+    stage.classList.remove("mobile"); bDesk.classList.add("on"); bMob.classList.remove("on");
+  });
+  bMob.addEventListener("click", () => {
+    stage.classList.add("mobile"); bMob.classList.add("on"); bDesk.classList.remove("on");
+  });
+})();
+</script>

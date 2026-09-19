@@ -180,7 +180,7 @@ what keeps the draft cost down — it is byte-identical across every lead.
 ## Tests
 
 ```bash
-python3 -m http.server 8899 &     # from the repo root; the e2e tests need it
+npm run serve &                   # from the repo root; the e2e tests need it
 cd app && npm test
 ```
 
