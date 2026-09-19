@@ -1,8 +1,35 @@
 # How to run this on your computer
 
+Everything here runs on your own machine — nothing is sent anywhere and nobody
+is contacted.
+
+## The short way (no terminal)
+
+If you just want to use the checker, you need two things:
+
+1. **Install Node** — Step 1 below. One time, five minutes.
+2. **Double-click the launcher** in the `app` folder:
+   - Windows → `Start MBOnyx.bat`
+   - Mac → `Start MBOnyx.command`
+
+The first double-click installs the rest and downloads the browser it audits
+with (~150 MB, a few minutes). Every one after that opens straight to a window
+in your browser. Leave the black window open while you use it — closing it
+stops the checker.
+
+> **Mac:** the first double-click may refuse and say the file is from an
+> unidentified developer. Right-click it → **Open** → **Open**. Once only.
+
+If the launcher fails, it tells you what's missing and what to do about it —
+and the rest of this page is the same steps done by hand, which is also how you
+get the extra features (screenshots, AI drafts).
+
+---
+
+## The long way (terminal)
+
 Written assuming you have never used a terminal. About 10 minutes, most of it
-waiting for downloads. Everything here runs on your own machine — nothing is
-sent anywhere and nobody is contacted.
+waiting for downloads.
 
 ---
 
@@ -233,6 +260,7 @@ the fix.
 | `node: command not found` | Node isn't installed, or you didn't restart the terminal |
 | `Cannot find module 'playwright'` | You skipped `npm install`, or ran it in the wrong folder |
 | `browserType.launch: Executable doesn't exist` | Run `npx playwright install chromium` |
+| Launcher window flashes and vanishes | Node isn't installed, or isn't on PATH yet — do Step 1 and restart the computer |
 | `--input is required` | You forgot the `--` after `npm run find` |
 | Every site scores 0 | Your list file paths are wrong — check the websites actually load |
 | `unreachable` next to a business | Their site is down, blocked the checker, or the URL is typo'd |

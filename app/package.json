@@ -9,7 +9,8 @@
     "doctor": "node doctor.mjs",
     "find": "node src/cli.js",
     "test": "node --test test/*.test.js",
-    "postinstall": "node -e \"console.log('\\n  Next: npx playwright install chromium\\n  Then: npm run demo\\n')\""
+    "start": "node start.mjs",
+    "ui": "node ui.mjs"
   },
   "dependencies": {
     "playwright": "^1.63.0",

@@ -6,7 +6,27 @@ scores them 0–100.
 **It audits. It does not email anyone.** There is no sending code in here at all — that is
 deliberate, and it is Phase 3 work gated behind the setup in `docs/SETUP-CHECKLIST.md`.
 
-## Quick start
+## Quick start — no terminal
+
+Install Node once from [nodejs.org](https://nodejs.org) (the big green **LTS** button), then
+double-click:
+
+| Windows | Mac |
+| --- | --- |
+| `Start MBOnyx.bat` | `Start MBOnyx.command` |
+
+The first run installs what's missing and downloads the browser it audits with — about 150 MB,
+a few minutes, once. After that it opens straight to a window in your browser: paste in a list
+of businesses, click **Check these websites**, and watch the results arrive.
+
+> On a Mac the first double-click may say the file is from an unidentified developer.
+> Right-click it → **Open** → **Open**. That only happens once.
+
+Everything runs on your own computer. Nothing is sent anywhere and nothing is emailed.
+
+## Quick start — terminal
+
+Same tool, if you prefer the command line:
 
 ```bash
 cd app
@@ -15,6 +35,7 @@ npx playwright install chromium
 
 npm run doctor    # checks the setup and names the fix for anything missing
 npm run demo      # audits 9 bundled example sites — no internet, no keys
+npm start         # the same window the double-click opens
 ```
 
 Then on real businesses:

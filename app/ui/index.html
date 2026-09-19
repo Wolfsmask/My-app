@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MBOnyx Lead Checker</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+  :root{
+    --bg:#080b10; --panel:#12171f; --panel-2:#171d27; --line:rgba(255,255,255,.1);
+    --text:#f5f3ed; --soft:#b3b6bd; --muted:#7d828c;
+    --gold:#c9ad72; --gold-l:#e6d3a5;
+    --a:#4ade80; --b:#facc15; --c:#fb923c; --d:#64748b; --bad:#f87171;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    background-image:radial-gradient(circle at 12% 0,rgba(201,173,114,.07),transparent 30rem)}
+  .wrap{max-width:1000px;margin:0 auto;padding:30px 22px 90px}
+  header{display:flex;align-items:center;gap:13px;margin-bottom:6px}
+  .mark{width:36px;height:36px;border:1px solid rgba(201,173,114,.4);border-radius:50%;
+    display:grid;place-items:center;color:var(--gold-l);font-size:.74rem;font-weight:700;letter-spacing:-.02em}
+  h1{font-size:1.28rem;margin:0;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:.87rem;margin:0 0 30px 49px}
+
+  .panel{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:22px;margin-bottom:18px}
+  label{display:block;font-size:.76rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:9px}
+  textarea,input{width:100%;background:#0b0f15;color:var(--text);border:1px solid var(--line);
+    border-radius:10px;padding:13px 15px;font:inherit;font-size:.93rem}
+  textarea{min-height:190px;resize:vertical;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:.86rem;line-height:1.65}
+  textarea:focus,input:focus{outline:none;border-color:rgba(201,173,114,.55);box-shadow:0 0 0 3px rgba(201,173,114,.1)}
+  .hint{color:var(--muted);font-size:.8rem;margin:9px 0 0}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+  @media(max-width:620px){.row{grid-template-columns:1fr}}
+
+  .actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:18px}
+  button{font:inherit;cursor:pointer;border:1px solid transparent;border-radius:999px;
+    padding:13px 26px;font-weight:650;font-size:.94rem;transition:transform .15s,background .2s,opacity .2s}
+  button:hover:not(:disabled){transform:translateY(-2px)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .go{background:linear-gradient(135deg,var(--gold-l),var(--gold));color:#090b0f}
+  .ghost{background:transparent;border-color:var(--line);color:var(--text)}
+  .ghost:hover:not(:disabled){border-color:rgba(201,173,114,.5)}
+
+  .bar{height:5px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;margin:20px 0 10px;display:none}
+  .bar.on{display:block}
+  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-l));transition:width .3s}
+  .status{color:var(--soft);font-size:.87rem;min-height:1.3em}
+
+  .totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;margin:22px 0 4px;display:none}
+  .totals.on{display:grid}
+  .tot{border:1px solid var(--line);border-radius:11px;background:var(--panel-2);padding:13px 15px}
+  .tot b{display:block;font-size:1.6rem;line-height:1.1;letter-spacing:-.02em}
+  .tot span{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+
+  .lead{border:1px solid var(--line);border-left-width:4px;border-radius:12px;background:var(--panel);
+    padding:16px 19px;margin-bottom:11px;animation:in .28s ease both}
+  @keyframes in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+  .lead.A{border-left-color:var(--a)} .lead.B{border-left-color:var(--b)}
+  .lead.C{border-left-color:var(--c)} .lead.D{border-left-color:var(--d)}
+  .lead\['-'\],.lead.drop{border-left-color:var(--bad)}
+  .lead__top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .lead__score{font-size:1.45rem;font-weight:700;min-width:46px;letter-spacing:-.02em}
+  .A .lead__score{color:var(--a)} .B .lead__score{color:var(--b)}
+  .C .lead__score{color:var(--c)} .D .lead__score{color:var(--d)}
+  .drop .lead__score{color:var(--bad);font-size:1rem}
+  .lead__name{font-weight:600;margin-right:auto}
+  .pill{font-size:.66rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+    padding:3px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+  .lead__url{color:var(--muted);font-size:.8rem;word-break:break-all;margin-top:2px}
+  .finding{display:grid;grid-template-columns:34px 1fr;gap:10px;padding:8px 0 0;font-size:.87rem}
+  .finding b{color:var(--gold);font-size:.76rem;font-weight:700}
+  .finding span span{color:var(--soft)}
+
+  .done{border:1px solid rgba(201,173,114,.35);border-radius:14px;background:rgba(201,173,114,.05);
+    padding:20px 22px;margin-top:22px;display:none}
+  .done.on{display:block}
+  .done a{color:var(--gold-l);font-weight:600}
+  details{margin-top:16px}
+  summary{cursor:pointer;color:var(--muted);font-size:.85rem}
+  details pre{background:#0b0f15;border:1px solid var(--line);border-radius:9px;padding:14px;
+    overflow-x:auto;font-size:.8rem;color:var(--soft);line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><span class="mark">MB</span><h1>Lead Checker</h1></header>
+  <p class="sub">Finds businesses whose websites need rebuilding. Audits only — it never emails anyone.</p>
+
+  <div class="panel">
+    <label for="list">Businesses to check</label>
+    <textarea id="list" spellcheck="false" placeholder="Bob's Heating and Air, bobsheatingkc.com, (816) 555-0100, 4.5, 87
+Metro Comfort Systems, metrocomfort.net
+someothercompany.com"></textarea>
+    <p class="hint">One per line. Format: <strong>name, website, phone, rating, review count</strong> — only the website is
+      required. The rating and review count come off the Google listing and tell the checker who can afford you.</p>
+
+    <div class="row">
+      <div><label for="cat">Type of business</label><input id="cat" placeholder="HVAC contractor"></div>
+      <div><label for="city">Area</label><input id="city" placeholder="Kansas City, MO"></div>
+    </div>
+
+    <div class="actions">
+      <button class="go" id="run">Check these websites</button>
+      <button class="ghost" id="sample">Load an example list</button>
+    </div>
+
+    <div class="bar" id="bar"><i id="fill"></i></div>
+    <p class="status" id="status"></p>
+  </div>
+
+  <div class="totals" id="totals"></div>
+  <div id="results"></div>
+
+  <div class="done" id="done">
+    <strong>Finished.</strong>
+    <p style="margin:8px 0 0;color:var(--soft);font-size:.9rem">
+      <a href="/out/report.html" target="_blank" rel="noopener">Open the full report</a> —
+      every finding with the measurement behind it, plus a screenshot of each site.
+      <a href="/out/leads.csv" target="_blank" rel="noopener">Download the spreadsheet</a>.
+    </p>
+    <details>
+      <summary>What to look for</summary>
+      <pre>For each Tier A and B business, honestly:
+
+  1. Would you actually pay someone to rebuild this site?
+  2. Open one on your real phone — is the finding true?
+  3. Anything scoring high that is actually fine?      (false positive)
+  4. Anything scoring low that is obviously terrible?  (a miss — worse)
+
+Tier A  70+   contact now
+Tier B  50-69 worth contacting
+Tier C  25-49 hold, re-check in six months
+Tier D  under 25 — the site is fine, drop it</pre>
+    </details>
+  </div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  $('sample').onclick = () => {
+    $('list').value = [
+      "Bob's Heating and Air, bobsheatingkc.com, (816) 555-0100, 4.5, 87",
+      'Metro Comfort Systems, metrocomfort.net, (816) 555-0200, 4.2, 34',
+      'example.com',
+    ].join('\n');
+    $('cat').value = 'HVAC contractor';
+    $('city').value = 'Kansas City, MO';
+  };
+
+  $('run').onclick = async () => {
+    const list = $('list').value.trim();
+    if (!list) { $('status').textContent = 'Paste at least one business first.'; return; }
+
+    $('run').disabled = true;
+    $('results').innerHTML = '';
+    $('done').classList.remove('on');
+    $('totals').classList.remove('on');
+    $('bar').classList.add('on');
+    $('fill').style.width = '0%';
+    $('status').textContent = 'Starting…';
+
+    const counts = { A: 0, B: 0, C: 0, D: 0, dropped: 0 };
+    let total = 0;
+
+    try {
+      const res = await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ list, category: $('cat').value, city: $('city').value }),
+      });
+      if (res.status === 409) throw new Error('A check is already running in another tab.');
+
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+
+        for (const line of lines.filter(Boolean)) {
+          const e = JSON.parse(line);
+
+          if (e.type === 'found') { total = e.count; $('status').textContent = `Found ${e.count} business${e.count === 1 ? '' : 'es'}. Opening each site…`; }
+
+          if (e.type === 'progress' && total) {
+            $('fill').style.width = Math.round((e.done / Math.max(total, 1)) * 100) + '%';
+            $('status').textContent = `Checking ${e.name}…  (${e.done} of ${e.total})`;
+          }
+
+          if (e.type === 'lead') {
+            const dropped = e.tier === '-';
+            if (dropped) counts.dropped++; else counts[e.tier] = (counts[e.tier] ?? 0) + 1;
+
+            const findings = (e.findings ?? []).map(f =>
+              `<div class="finding"><b>+${f.points}</b><span><strong>${esc(f.label)}</strong><br><span>${esc(f.evidence)}</span></span></div>`).join('');
+
+            $('results').insertAdjacentHTML('beforeend', `
+              <div class="lead ${dropped ? 'drop' : esc(e.tier)}">
+                <div class="lead__top">
+                  <span class="lead__score">${dropped ? 'skip' : e.score}</span>
+                  <span class="lead__name">${esc(e.name)}</span>
+                  <span class="pill">${dropped ? esc(e.note ?? 'skipped') : 'Tier ' + esc(e.tier)}</span>
+                </div>
+                ${e.website ? `<div class="lead__url">${esc(e.website)}</div>` : ''}
+                ${findings}
+              </div>`);
+
+            $('totals').classList.add('on');
+            $('totals').innerHTML = ['A', 'B', 'C', 'D'].map(t =>
+              `<div class="tot"><b style="color:var(--${t.toLowerCase()})">${counts[t] ?? 0}</b><span>Tier ${t}</span></div>`).join('')
+              + `<div class="tot"><b style="color:var(--bad)">${counts.dropped}</b><span>Skipped</span></div>`;
+          }
+
+          if (e.type === 'done') {
+            $('fill').style.width = '100%';
+            const a = counts.A ?? 0, b = counts.B ?? 0;
+            $('status').textContent = a + b
+              ? `Done. ${a + b} ${a + b === 1 ? 'business is' : 'businesses are'} worth contacting \u2014 ${a} now (Tier A), ${b} soon (Tier B).`
+              : 'Done. Nothing here is worth contacting \u2014 every site checked out fine, or was skipped.';
+            $('done').classList.add('on');
+          }
+
+          if (e.type === 'error') throw new Error(e.message);
+        }
+      }
+    } catch (err) {
+      $('status').innerHTML = `<span style="color:var(--bad)">${esc(err.message)}</span>`;
+    } finally {
+      $('run').disabled = false;
+    }
+  };
+</script>
+</body>
+</html>
