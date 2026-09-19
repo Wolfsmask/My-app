@@ -8,7 +8,7 @@
   >
   <meta
     name="description"
-    content="MBOnyx Studio builds fast, custom-coded websites for local businesses. Sub-2-second load times, mobile-first, no templates. Packages from $900."
+    content="MBOnyx Studio builds fast, custom-coded websites for small businesses across the US. Sub-2-second load times, mobile-first, no templates. Packages from $900."
   >
   <meta name="theme-color" content="#080b10">
   <meta name="author" content="MBOnyx Studio">
@@ -51,9 +51,10 @@
     "@context": "https://schema.org",
     "@type": "ProfessionalService",
     "name": "MBOnyx Studio",
-    "description": "Custom-coded website design and development for local businesses.",
+    "description": "Custom-coded website design and development for small businesses.",
+    "areaServed": "US",
     "url": "https://mbonyx.netlify.app/",
-    "email": "hello@mbonyx.com",
+    "email": "mbonyxstudios@gmail.com",
     "priceRange": "$900-$2400",
     "serviceType": "Web Design and Development"
   }
@@ -2330,6 +2331,187 @@
     }
 
     /* =========================================================
+       REFERRAL PROGRAM
+    ========================================================= */
+
+    .referral {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(30px, 4.5vw, 62px);
+      border: 1px solid var(--color-line-strong);
+      border-radius: var(--radius-large);
+      background:
+        radial-gradient(circle at 92% 8%, rgba(201, 173, 114, 0.12), transparent 26rem),
+        linear-gradient(150deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.008));
+      box-shadow: var(--shadow-card);
+    }
+
+    .referral::after {
+      position: absolute;
+      right: -140px;
+      bottom: -200px;
+      width: 400px;
+      aspect-ratio: 1;
+      border: 1px solid rgba(201, 173, 114, 0.09);
+      border-radius: 50%;
+      pointer-events: none;
+      content: "";
+    }
+
+    .referral__head {
+      position: relative;
+      z-index: 2;
+      max-width: 640px;
+      margin-bottom: clamp(34px, 4vw, 50px);
+    }
+
+    .referral__title {
+      margin-bottom: 14px;
+      font-family: var(--font-heading);
+      font-size: clamp(2rem, 4.2vw, 3.2rem);
+      font-weight: 600;
+      letter-spacing: -0.035em;
+      line-height: 1.05;
+    }
+
+    .referral__title em {
+      color: var(--color-accent-light);
+      font-style: italic;
+    }
+
+    .referral__lede {
+      margin-bottom: 0;
+      color: var(--color-text-soft);
+      font-size: clamp(0.98rem, 1.35vw, 1.12rem);
+    }
+
+    .referral__steps {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(18px, 2.4vw, 30px);
+      margin-bottom: clamp(30px, 3.6vw, 44px);
+    }
+
+    .referral__step {
+      min-width: 0;
+      padding-top: 20px;
+      border-top: 1px solid var(--color-line-strong);
+    }
+
+    .referral__step-n {
+      display: block;
+      margin-bottom: 12px;
+      color: var(--color-accent-light);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .referral__step h3 {
+      margin-bottom: 7px;
+      font-family: var(--font-heading);
+      font-size: clamp(1.2rem, 1.8vw, 1.45rem);
+      font-weight: 600;
+      line-height: 1.15;
+    }
+
+    .referral__step p {
+      margin: 0;
+      color: var(--color-text-soft);
+      font-size: 0.89rem;
+      line-height: 1.6;
+    }
+
+    .referral__rates {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      overflow: hidden;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-small);
+      background: var(--color-line);
+      margin-bottom: 26px;
+    }
+
+    .referral__rate {
+      padding: 22px 24px;
+      background: rgba(8, 11, 16, 0.55);
+      text-align: center;
+    }
+
+    .referral__rate-label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--color-text-muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .referral__rate-value {
+      display: block;
+      font-family: var(--font-heading);
+      font-size: clamp(1.9rem, 3vw, 2.5rem);
+      font-weight: 600;
+      letter-spacing: -0.035em;
+      line-height: 1;
+      color: var(--color-accent-light);
+    }
+
+    .referral__rate-sub {
+      display: block;
+      margin-top: 7px;
+      color: var(--color-text-muted);
+      font-size: 0.76rem;
+    }
+
+    .referral__terms {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px 26px;
+      margin: 0 0 28px;
+    }
+
+    .referral__terms li {
+      display: grid;
+      grid-template-columns: 16px minmax(0, 1fr);
+      gap: 9px;
+      color: var(--color-text-muted);
+      font-size: 0.83rem;
+      line-height: 1.55;
+    }
+
+    .referral__terms li::before {
+      color: var(--color-accent);
+      content: "✓";
+      font-size: 0.7rem;
+    }
+
+    .referral__actions {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 860px) {
+      .referral__steps,
+      .referral__rates,
+      .referral__terms {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* =========================================================
        FAQ / OBJECTION KILLER
     ========================================================= */
 
@@ -3078,6 +3260,7 @@
               <a href="#work" class="nav-link">Work</a>
               <a href="#process" class="nav-link">Process</a>
               <a href="#pricing" class="nav-link">Pricing</a>
+              <a href="#referrals" class="nav-link">Referrals</a>
               <a href="#faq" class="nav-link">FAQ</a>
               <a href="#contact" class="button button--secondary">Let's Talk</a>
             </div>
@@ -3158,7 +3341,9 @@
                   </h1>
 
                   <p class="hero__description">
-                    We build lightning-fast, highly aesthetic digital experiences for ambitious businesses. Custom design, sub-3-second load times, and luxury aesthetics that keep your customers engaged.
+                    I build fast, custom-coded websites for businesses that are tired of
+                    looking smaller than they are. Every site is written by hand, loads in
+                    under two seconds, and is built to turn visitors into customers.
                   </p>
                 </div>
 
@@ -3449,7 +3634,7 @@
               </div>
               <h3 class="process-step__title">Discovery Strategy</h3>
               <p class="process-step__description">
-                We map out your business goals and target audience.
+                I map out your business goals and who you are actually trying to reach.
               </p>
             </article>
 
@@ -3662,6 +3847,82 @@
         </p>
       </section>
 
+      <section id="referrals" class="section container">
+        <div class="referral" data-reveal>
+          <div class="referral__head">
+            <span class="section-kicker">Referral program</span>
+            <h2 class="referral__title">Send someone my way, <em>get paid.</em></h2>
+            <p class="referral__lede">
+              Most of my work comes from one business owner telling another. So rather than
+              spend money on ads, I pay that back to the person who made the introduction —
+              whether or not you have ever hired me yourself.
+            </p>
+          </div>
+
+          <div class="referral__steps">
+            <div class="referral__step">
+              <span class="referral__step-n">Step 01</span>
+              <h3>Tell them about me</h3>
+              <p>
+                Mention my name to a business you think needs a better site. That is the
+                whole job — no link to track, no code to remember.
+              </p>
+            </div>
+            <div class="referral__step">
+              <span class="referral__step-n">Step 02</span>
+              <h3>They name you</h3>
+              <p>
+                When they get in touch, they put your business in the "who referred you"
+                box on the inquiry form. I confirm it with you before anything starts.
+              </p>
+            </div>
+            <div class="referral__step">
+              <span class="referral__step-n">Step 03</span>
+              <h3>You get paid</h3>
+              <p>
+                Once their project is finished and their final payment clears, I send you
+                15% of what they paid. Cash, not credit.
+              </p>
+            </div>
+          </div>
+
+          <div class="referral__rates">
+            <div class="referral__rate">
+              <span class="referral__rate-label">Starter</span>
+              <span class="referral__rate-value">$135</span>
+              <span class="referral__rate-sub">on a $900 build</span>
+            </div>
+            <div class="referral__rate">
+              <span class="referral__rate-label">Business</span>
+              <span class="referral__rate-value">$270</span>
+              <span class="referral__rate-sub">on a $1,800 build</span>
+            </div>
+            <div class="referral__rate">
+              <span class="referral__rate-label">Signature</span>
+              <span class="referral__rate-value">$480</span>
+              <span class="referral__rate-sub">on a $3,200 build</span>
+            </div>
+          </div>
+
+          <ul class="referral__terms">
+            <li>No limit — refer as many businesses as you like</li>
+            <li>Open to anyone, not just past clients</li>
+            <li>Paid within 14 days of their final payment clearing</li>
+            <li>You earn on people you refer directly, one level only</li>
+            <li>Nothing owed if the project does not complete</li>
+            <li>Full terms in writing before your first referral</li>
+          </ul>
+
+          <div class="referral__actions">
+            <a href="#contact" class="button button--primary">
+              Refer a business <span aria-hidden="true">↗</span>
+            </a>
+            <a href="mailto:mbonyxstudios@gmail.com?subject=Referral%20program%20question"
+               class="button button--secondary">Ask about it first</a>
+          </div>
+        </div>
+      </section>
+
       <section id="faq" class="section section--soft">
         <div class="container faq-layout">
           <div class="faq-intro" data-reveal="left">
@@ -3716,9 +3977,19 @@
             <details class="faq-item">
               <summary class="faq-question">What if I already have a website?</summary>
               <p class="faq-answer">
-                Then we rebuild it without losing what already works. Your domain stays yours,
+                Then I rebuild it without losing what already works. Your domain stays yours,
                 your Google ranking carries over through proper redirects, and your existing
                 site stays live right up until the new one is ready to switch on.
+              </p>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-question">How does the referral payment work?</summary>
+              <p class="faq-answer">
+                If someone names you as their referrer, you get 15% of what they pay,
+                sent within 14 days of their final payment clearing. You earn on businesses
+                you refer directly — one level, no chains or downlines. There is no cap on
+                how many you can refer, and you do not have to be a client yourself.
               </p>
             </details>
 
@@ -3747,21 +4018,22 @@
             <ul class="contact__details">
               <li>
                 <span class="contact__details-label">Email</span>
-                <a class="contact__email" href="mailto:hello@mbonyx.com">hello@mbonyx.com</a>
+                <a class="contact__email" href="mailto:mbonyxstudios@gmail.com">mbonyxstudios@gmail.com</a>
               </li>
               <li>
-                <span class="contact__details-label">Phone</span>
-                <a class="contact__email" href="tel:+15550000000">(555) 000-0000</a>
+                <span class="contact__details-label">Based in</span>
+                <span class="contact__details-value">Liberty, Missouri — working with clients anywhere in the US</span>
               </li>
               <li>
-                <span class="contact__details-label">Hours</span>
-                <span class="contact__details-value">Mon–Fri, 9am – 6pm</span>
+                <span class="contact__details-label">Reply time</span>
+                <span class="contact__details-value">Within one business day</span>
               </li>
             </ul>
 
             <p class="contact__reassure">
               Prefer to just ask a question first? Email is fine — there is no sales sequence
-              waiting on the other end of this form.
+              waiting on the other end of this form. Everything is handled over email and
+              video call, so where you are located makes no difference.
             </p>
           </div>
 
@@ -3848,8 +4120,8 @@
                 placeholder="Business name"
               >
               <p class="field__hint">
-                If another business sent you here, tell me who — they get $100 when your
-                project starts.
+                If another business sent you here, tell me who — they earn 15% of your
+                project once it is finished. <a href="#referrals">How it works</a>.
               </p>
             </div>
 
@@ -3879,12 +4151,17 @@
 
       <footer class="site-footer">
         <div class="container footer__inner">
+          <!--
+            TODO before any cold-email outreach begins: a real postal address is
+            legally required in commercial email (CAN-SPAM). A PO Box rented by a
+            parent or guardian is the intended solution. Never publish a home address.
+          -->
           <p class="footer__copyright">
             &copy; <span id="currentYear">2026</span> MBOnyx Studio ·
-            <span class="footer__address">123 Example Street, Your City, ST 00000</span>
+            <span class="footer__address">Liberty, Missouri</span>
           </p>
           <div class="footer__links">
-            <a href="mailto:hello@mbonyx.com" class="footer__link">hello@mbonyx.com</a>
+            <a href="mailto:mbonyxstudios@gmail.com" class="footer__link">mbonyxstudios@gmail.com</a>
             <a href="/privacy.html" class="footer__link">Privacy Policy</a>
             <a href="/terms.html" class="footer__link">Terms of Service</a>
             <a href="#home" class="footer__link">Back to top ↑</a>

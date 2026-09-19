@@ -20,20 +20,22 @@ tools/                  Screenshot + image-optimisation scripts
 netlify.toml            Headers, caching, redirects
 ```
 
-## ⚠️ Before this goes live — placeholders to replace
+## Before this goes live
 
-Search and replace across every file:
+Contact details are real: `mbonyxstudios@gmail.com`, based in Liberty, Missouri, no phone
+listed (email and video call only — stated on the site).
 
-| Placeholder | Replace with |
-|---|---|
-| `hello@mbonyx.com` | Your real email |
-| `(555) 000-0000` and `+15550000000` | Your real phone |
-| `123 Example Street, Your City, ST 00000` | Your real postal address |
-| `https://mbonyx.netlify.app` | Your custom domain, once you have one |
+**Still outstanding — see [`docs/SETUP-CHECKLIST.md`](docs/SETUP-CHECKLIST.md):**
 
-The postal address is not optional if you plan to send commercial email — CAN-SPAM
-requires a physical mailing address in every message. A PO box or registered agent
-address is fine.
+| Item | Status | Blocks |
+|---|---|---|
+| Way to accept payment | ❌ Not set up | Every paid project |
+| Postal address (PO Box) | ❌ Not set up | Any cold-email outreach — legally required |
+| Referral agreement in writing | ❌ Not written | First referral payout |
+| Parent co-signature on client contracts | ❌ Not set up | Enforceable client agreements |
+
+There is a `TODO` comment in `index.html` at the footer marking where the postal address
+goes once it exists. **Do not publish a home address there.**
 
 Also: **have a lawyer read `privacy.html` and `terms.html`.** They are solid templates,
 not legal advice.

@@ -355,6 +355,11 @@ version that is" wins. You are pointing at a fixable problem, not grading their 
 Portfolio, pricing, legal pages, contact details, performance. You cannot email someone
 about their website from a site with no proof on it.
 
+### Phase 0.5 — Business setup (blocks everything that involves money)
+Payment account, postal address, referral agreement in writing. See
+[`SETUP-CHECKLIST.md`](./SETUP-CHECKLIST.md). Phases 1 and 2 can be built in parallel with
+this; **Phase 3 cannot start until the postal address exists.**
+
 ### Phase 1 — The checker. No email.
 A CLI you run yourself.
 
@@ -390,24 +395,68 @@ months.
 
 ---
 
-## 9. Pick one vertical and one city
+## 9. Where to point it: HVAC, Kansas City metro
 
-"All companies" is unbuildable. You cannot write a good email to "a company."
+"I don't want to limit myself to my area" is the right instinct about **who you can serve**
+and the wrong instinct about **who you email first**. They are different things.
 
-Good first verticals — high ticket, visual businesses, old websites:
+- **Delivery is remote.** Websites are built and handed over online. A client in Oregon is
+  no harder than one in Liberty. The site now says exactly that.
+- **Prospecting should be narrow.** Not because you can only serve one place, but because a
+  narrow list is what makes the email good enough to get a reply.
 
-| Vertical | Why it works |
+### Why narrow prospecting wins
+
+One email to 100 random businesses has to be vague enough to fit all of them, which makes it
+the email everybody deletes. One email to 100 HVAC companies can name the exact thing
+costing them jobs this week. Same effort, completely different reply rate.
+
+It also decides the cost of building this. The demo template is built **once per vertical**
+and reused for every lead in it. Target everything and you need a new template per lead,
+which kills the whole economic argument for the app.
+
+### The plan: sequence cities, don't limit them
+
+```
+Phase 3   HVAC · Kansas City metro        ~300-500 businesses
+Phase 5a  HVAC · Springfield, Columbia, St. Joseph
+Phase 5b  HVAC · St. Louis, Omaha, Des Moines, Tulsa
+Phase 5c  Second vertical (plumbing or roofing) · start again at KC
+```
+
+Same template every time. Swap the city in the Places query and the list refills. You are
+not limited to your area — you are starting there and cloning outward. By phase 5b you are
+prospecting four states with a system that took one week to build.
+
+### Why HVAC first
+
+| Reason | Detail |
 |---|---|
-| Dentists / orthodontists | High customer value, care about looking professional, many 2015-era sites |
-| HVAC / plumbing / roofing | Emergency searches, mobile-heavy, terrible sites are everywhere |
-| Law firms (small) | Budget exists, appearance = credibility |
-| Restaurants | Most visual, but lower budget — good for volume, not for $3,200 |
-| Med spas / salons | Appearance-obsessed, booking integration sells the upgrade |
+| Their sites are genuinely bad | Trade businesses are the worst offenders. Plenty of pre-2015 sites that fail completely on a phone |
+| They can pay | A system install is $8,000+. An $1,800 website is a rounding error |
+| Phone-first customers | Heat dies, customer searches on a phone, calls whoever looks legitimate. A broken mobile site costs them money *today* — and that is a sentence you can put in an email |
+| They think in leads | "Three more calls a month" lands with a contractor. Design opinions do not |
+| Weak competition | Most agencies chase dentists and lawyers |
 
-Pick one. Build its demo template once, reuse it 200 times, learn what that industry
-actually cares about. Narrow always beats broad at the start.
+Kansas City metro is roughly 2.2M people — comfortably enough HVAC companies to run
+Phase 3 for months without repeating a name.
 
----
+### Vertical backups, in order
+
+1. **Plumbing** — nearly identical profile to HVAC, same template with light edits
+2. **Roofing** — bigger ticket, more competition
+3. **Dentists** — more budget, but more designers already targeting them
+4. **Med spas / salons** — appearance-obsessed, booking integration sells the upgrade
+
+Avoid restaurants at first. Worst-looking sites, thinnest margins, most likely to balk at
+$1,800.
+
+### First client will not come from this app
+
+Worth repeating from `SETUP-CHECKLIST.md`: the app is Phase 3+. It needs a warmed domain
+and a PO Box before it sends a single email. Client #1 should come from warm introductions
+and the referral program — and having two real clients first makes the cold email far more
+likely to work when it does turn on.
 
 ## 10. Metrics and kill criteria
 
@@ -432,8 +481,12 @@ of $1,800 that's $3,600/month plus Care Plan recurring. That is the realistic ta
 
 ## 11. Open questions
 
-1. **Which vertical and city?** Blocks the demo template and the scoring thresholds.
-2. **Outreach domain name?** Needs buying now — warmup takes a month.
-3. **Real postal address for email footers?** A PO box is fine. Legally required.
-4. **Do you want the audit pages on the main domain or a subdomain?** Main domain gets you
-   SEO credit; subdomain isolates risk if something goes wrong.
+1. ~~Which vertical and city?~~ **Decided: HVAC contractors, Kansas City metro.** The
+   Northpoint concept build in `work/` is already the template.
+2. **Payment account** — who holds it, and is it under a parent or an LLC? Blocks every
+   phase that involves an invoice.
+3. **Postal address** — PO Box or virtual mailbox. Hard blocker on Phase 3.
+4. **Outreach domain name?** Needs buying about a month before the first send, because
+   warmup takes that long.
+5. **Audit pages on the main domain or a subdomain?** Main domain gets the SEO credit;
+   a subdomain isolates the risk if deliverability ever goes wrong.
