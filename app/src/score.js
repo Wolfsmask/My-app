@@ -270,10 +270,29 @@ function safeEvidence(check, audit) {
   try { return check.evidence(audit); } catch { return check.label; }
 }
 
+/**
+ * Where the lines sit, calibrated against real sites rather than round numbers.
+ *
+ * The first thresholds were guesses made before anything had been run: 70 for
+ * A, 50 for B. Checking real businesses showed what that actually meant. A
+ * site scoring 42 - not readable on a phone, a decade out of date, a stale
+ * footer - came out Tier C, "hold, re-check in six months", when it plainly
+ * needed rebuilding. The archetypal 2011 table-layout site reached only 66,
+ * so Tier A effectively required failing every single check at once.
+ *
+ * The cause is the denominator. A score is a fraction of everything a page
+ * load can examine, and a site does not have to be wrong in every way to be
+ * worth rebuilding - it has to be wrong in the ways that cost the owner
+ * customers. Failing a quarter of the checks is already a site losing people.
+ *
+ * Against the same set of profiles these lines now give: a perfect site 0 (D),
+ * a stale footer alone 10 (D), a dated look alone 12 (C), an unreadable phone
+ * layout 25 (B), that 42 (B), the 2011 site 66 (A).
+ */
 export function tierFor(value) {
-  if (value >= 70) return "A";
-  if (value >= 50) return "B";
-  if (value >= 25) return "C";
+  if (value >= 45) return "A";
+  if (value >= 25) return "B";
+  if (value >= 12) return "C";
   return "D";
 }
 

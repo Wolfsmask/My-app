@@ -292,7 +292,11 @@ async function runAudit(listText, opts, res, signal) {
   // from the findings themselves rather than from anything typed back in.
   // Everything checked so far, not just this run's batch, so the report is
   // the whole picture after a day of stopping and starting.
-  const all = store.leads.length >= leads.length ? store.leads : leads;
+  // Sorted here, not only in the page. The in-run list was ordered but the
+  // saved one wins, so the report and the spreadsheet were coming out in
+  // whatever order the checks happened to finish - best leads buried.
+  const all = [...(store.leads.length >= leads.length ? store.leads : leads)]
+    .sort((a, z) => (z.score ?? -1) - (a.score ?? -1));
   fs.writeFileSync(path.join(OUT, 'leads.csv'), toCsv(all));
   fs.writeFileSync(path.join(OUT, 'report.html'), toHtml(all, meta));
   if (!signal?.aborted) send(res, { type: 'done', reportPath: path.join(OUT, 'report.html'), csvPath: path.join(OUT, 'leads.csv') });

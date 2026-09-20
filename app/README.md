@@ -32,6 +32,9 @@ Three buttons, in order. Each one runs for a long time; leave it and come back.
 nothing keeps running against other people's servers once nobody is watching. Leave the tab
 open while you are at school; close it and it stops.
 
+**Best first.** Results are ordered by score as they arrive — highest at the top, sites that
+could not be reached at the bottom — and the report and spreadsheet come out the same way.
+
 **A low score is provisional.** Tier C and D leads get *Agreed, drop it* / *Actually worth it*
 buttons. Until you press one, that site stays in the queue and gets checked again next time —
 the app will not write a business off forever on a guess nobody looked at. Tier A and B are

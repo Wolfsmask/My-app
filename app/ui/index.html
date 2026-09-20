@@ -214,10 +214,10 @@ someothercompany.com"></textarea>
   3. Anything scoring high that is actually fine?      (false positive)
   4. Anything scoring low that is obviously terrible?  (a miss — worse)
 
-Tier A  70+   contact now
-Tier B  50-69 worth contacting
-Tier C  25-49 hold, re-check in six months
-Tier D  under 25 — the site is fine, drop it</pre>
+Tier A  45+   contact now
+Tier B  25-44 worth contacting
+Tier C  12-24 have a look yourself, then say
+Tier D  under 12 — the site is fine, drop it</pre>
     </details>
   </div>
 </div>
@@ -501,8 +501,17 @@ Tier D  under 25 — the site is fine, drop it</pre>
             const findings = (e.findings ?? []).map(f =>
               `<div class="finding"><b>+${f.points}</b><span><strong>${esc(f.label)}</strong><br><span>${esc(f.evidence)}</span></span></div>`).join('');
 
-            $('results').insertAdjacentHTML('beforeend', `
-              <div class="lead ${dropped ? 'drop' : esc(e.tier)}">
+            // Placed by score rather than appended, so the list reads best
+            // first at every moment during a run - not only once it finishes.
+            // Sites that could not be checked sink to the bottom.
+            const rank = dropped ? -1 : (e.score ?? -1);
+            const card = document.createElement('div');
+            card.className = `lead ${dropped ? 'drop' : esc(e.tier)}`;
+            card.dataset.rank = rank;
+            const below = [...$('results').children].find(c => Number(c.dataset.rank) < rank);
+            $('results').insertBefore(card, below ?? null);
+
+            card.innerHTML = `
                 <div class="lead__top">
                   <span class="lead__score">${dropped ? 'skip' : e.score}</span>
                   <span class="lead__name">${esc(e.name)}</span>
@@ -518,24 +527,25 @@ Tier D  under 25 — the site is fine, drop it</pre>
                     <span>Scored low. Have a quick look \u2014 until you say, it gets checked again next time.</span>
                     <button class="tiny" data-decision="confirmed">Agreed, drop it</button>
                     <button class="tiny" data-decision="keep">Actually worth it</button>
-                  </div>` : ''}
-              </div>`);
+                  </div>` : ''}`;
 
             // Wired after the card is in the page, so a decision is recorded
             // the moment it is made rather than at the end of the run.
-            const card = $('results').lastElementChild?.querySelector('.verdict');
-            if (card) {
-              for (const btn of card.querySelectorAll('.tiny')) {
+            // Looked up inside the card just made, not at the end of the
+            // list: once the list is sorted, the newest card is rarely last.
+            const verdict = card.querySelector('.verdict');
+            if (verdict) {
+              for (const btn of verdict.querySelectorAll('.tiny')) {
                 btn.onclick = async () => {
                   const decision = btn.dataset.decision;
                   try {
                     await fetch('/api/review', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ website: card.dataset.site, decision }),
+                      body: JSON.stringify({ website: verdict.dataset.site, decision }),
                     });
-                    card.classList.add('settled');
-                    card.innerHTML = `<span>${decision === 'confirmed' ? 'Dropped \u2014 it will not be checked again.' : 'Kept \u2014 it will not be checked again.'}</span>`;
+                    verdict.classList.add('settled');
+                    verdict.innerHTML = `<span>${decision === 'confirmed' ? 'Dropped \u2014 it will not be checked again.' : 'Kept \u2014 it will not be checked again.'}</span>`;
                     showState();
                   } catch { btn.textContent = 'could not save'; }
                 };

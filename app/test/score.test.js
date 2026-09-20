@@ -112,12 +112,32 @@ test("evidence quotes the real measurement, never a guess", () => {
 
 test("tier boundaries", () => {
   assert.equal(tierFor(100), "A");
-  assert.equal(tierFor(70), "A");
-  assert.equal(tierFor(69), "B");
-  assert.equal(tierFor(50), "B");
-  assert.equal(tierFor(49), "C");
-  assert.equal(tierFor(25), "C");
-  assert.equal(tierFor(24), "D");
+  assert.equal(tierFor(45), "A");
+  assert.equal(tierFor(44), "B");
+  assert.equal(tierFor(25), "B");
+  assert.equal(tierFor(24), "C");
+  assert.equal(tierFor(12), "C");
+  assert.equal(tierFor(11), "D");
+});
+
+test("the sites a person would actually rebuild come out worth contacting", () => {
+  // Calibrated against real businesses, not round numbers. Each of these was
+  // Tier C under the first guess at the boundaries - "hold, re-check in six
+  // months" - when they plainly needed rebuilding.
+  const base = { ...fine };
+  const worthDoing = [
+    ["unreadable on a phone", { isResponsive: false, mobileScrollWidth: 980 }],
+    ["old software, still mobile-friendly", { looksDated: true, datedSignals: 5, copyrightYear: YEAR - 9, platformIsObsolete: true }],
+    ["unreadable on a phone and a decade old", { isResponsive: false, mobileScrollWidth: 980, looksDated: true, datedSignals: 4, copyrightYear: YEAR - 8 }],
+  ];
+  for (const [label, over] of worthDoing) {
+    const r = score({ ...base, ...over });
+    assert.ok(r.tier === "A" || r.tier === "B", `${label} scored ${r.score} (${r.tier}) - should be worth contacting`);
+  }
+
+  // And a site that is genuinely fine still must not be.
+  assert.equal(score(base).tier, "D");
+  assert.equal(score({ ...base, copyrightYear: YEAR - 4 }).tier, "D", "a stale footer alone is not a rebuild");
 });
 
 test("leads are dropped before any money is spent auditing them", () => {
