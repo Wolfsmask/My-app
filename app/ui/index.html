@@ -88,6 +88,8 @@
   .A .lead__score{color:var(--a)} .B .lead__score{color:var(--b)}
   .C .lead__score{color:var(--c)} .D .lead__score{color:var(--d)}
   .drop .lead__score{color:var(--bad);font-size:1rem}
+  /* A score built on half an audit is a guess, and should look like one. */
+  .lead__thin{font-size:.79rem;color:var(--b);margin:2px 0 8px}
   .lead__name{font-weight:600;margin-right:auto}
   .pill{font-size:.66rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
     padding:3px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
@@ -274,9 +276,12 @@ Tier D  under 25 — the site is fine, drop it</pre>
 
           if (e.type === 'error') throw new Error(e.message);
           if (e.type === 'note') { stage = e.message; continue; }
-          if (e.type === 'plan') { stage = `${e.towns.length} town${e.towns.length === 1 ? '' : 's'} to work through`; }
-          if (e.type === 'town') { stage = `${e.name} (${e.index + 1} of ${e.of})`; }
+          if (e.type === 'plan') { stage = `${e.towns.length} towns to work through`; }
+          if (e.type === 'town') { stage = `${e.name} \u2014 town ${e.index + 1} of ${e.of}, pass ${e.pass} of ${e.passes}`; }
           if (e.type === 'stage') { stage = `${e.town} \u2014 ${e.radiusKm}km`; }
+          // It searched everywhere it knows, twice. Saying so beats looking
+          // like it is still working.
+          if (e.type === 'exhausted') { stage = 'searched everywhere it knows and found nobody new'; }
           // Naming the business being looked up turns a stalled-looking window
           // into one that is visibly working.
           if (e.type === 'looking') stage = `looking up ${e.names[0]}${e.names.length > 1 ? ` and ${e.names.length - 1} more` : ''}`;
@@ -443,6 +448,9 @@ Tier D  under 25 — the site is fine, drop it</pre>
                   <span class="pill">${dropped ? esc(e.note ?? 'skipped') : 'Tier ' + esc(e.tier)}</span>
                 </div>
                 ${e.website ? `<div class="lead__url">${esc(e.website)}</div>` : ''}
+                ${!dropped && e.confidence != null && e.confidence < 100
+                  ? `<div class="lead__thin">Only ${esc(e.confidence)}% of the usual checks could be run on this page \u2014 the score is less certain than the others.</div>`
+                  : ''}
                 ${findings}
               </div>`);
 

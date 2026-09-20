@@ -17,7 +17,7 @@ import { spawn } from 'node:child_process';
 
 import { discoverFile, discoverOsm, locate, OSM_CATEGORIES } from './src/discover.js';
 import { resolveWebsite } from './src/resolve.js';
-import { REGIONS, citiesFor } from './src/places.js';
+import { REGIONS, citiesFor, ALL_CITIES } from './src/places.js';
 import { draftEmail, numbersAreReal } from './src/draft.js';
 import { auditSite, launchBrowser } from './src/audit.js';
 import { score, disqualify, qualifies } from './src/score.js';
@@ -78,8 +78,17 @@ function saveFound(list) {
  * same metro sixty times over.
  */
 async function runFind(category, where, res, signal) {
-  const towns = where.region ? citiesFor(where.region) : [where.city];
-  if (!towns.length) throw new Error('That area has no towns listed.');
+  const chosen = where.region ? citiesFor(where.region) : [where.city].filter(Boolean);
+  if (!chosen.length) throw new Error('That area has no towns listed.');
+
+  // What was asked for first, then everywhere else, so it never runs out of
+  // somewhere to look. Stop is the thing that ends a search.
+  const towns = [...new Set([...chosen, ...ALL_CITIES])];
+
+  // Each pass goes over every town again at a wider radius, picking up what
+  // sat between them. Four passes is the point at which the circles overlap so
+  // heavily that another one is all re-reading.
+  const PASSES = [1, 1.6, 2.6, 4];
 
   const kept = loadFound();
   // Businesses already found, by name, so re-running adds rather than repeats.
@@ -87,7 +96,11 @@ async function runFind(category, where, res, signal) {
   let withSite = kept.filter(b => b.website).length;
   let noSite = kept.length - withSite;
 
-  send(res, { type: 'plan', towns, already: kept.length });
+  send(res, { type: 'plan', towns, already: kept.length, passes: PASSES.length });
+
+  for (const [passIndex, spread] of PASSES.entries()) {
+    if (signal.aborted) break;
+    const foundBeforePass = kept.length;
 
   for (const [townIndex, town] of towns.entries()) {
     if (signal.aborted) break;
@@ -106,13 +119,13 @@ async function runFind(category, where, res, signal) {
       continue;
     }
 
-    const rings = where.region
-      ? [place.radiusKm]
-      : [1, 1.6, 2.6, 4, 6]
-          .map(f => Math.min(Math.round(place.radiusKm * f), 160))
-          .filter((km, i, all) => all.indexOf(km) === i);
+    // One ring per town per pass. Widening each town fully before moving on
+    // would search the same metro sixty times over; widening across passes
+    // covers the same ground once each time round.
+    const rings = [Math.min(Math.round(place.radiusKm * spread), 160)];
 
-    send(res, { type: 'town', name: town, label: place.label, index: townIndex, of: towns.length, radiusKm: place.radiusKm });
+    send(res, { type: 'town', name: town, label: place.label, index: townIndex, of: towns.length,
+      radiusKm: rings[0], pass: passIndex + 1, passes: PASSES.length });
 
     for (const radiusKm of rings) {
       if (signal.aborted) break;
@@ -134,23 +147,29 @@ async function runFind(category, where, res, signal) {
         return true;
       });
 
-      for (let i = 0; i < fresh.length; i += 4) {
-        if (signal.aborted) break;
-        const slice = fresh.slice(i, i + 4);
-        send(res, { type: 'looking', names: slice.map(b => b.name), done: i, total: fresh.length, town });
+      // A rolling pool rather than fixed batches. In batches of four, three
+      // businesses that resolved instantly sat waiting on a fourth that was
+      // timing out before the next four could start; here a worker that
+      // finishes takes the next name immediately.
+      let next = 0;
+      let done = 0;
+      const worker = async () => {
+        while (!signal.aborted) {
+          const i = next++;
+          if (i >= fresh.length) return;
+          const b = fresh[i];
+          send(res, { type: 'looking', names: [b.name], done: done, total: fresh.length, town });
 
-        const hits = await Promise.all(slice.map(async b => {
+          let hit = null;
           try {
-            return await resolveWebsite(b, { allowLocal: ALLOW_LOCAL, signal });
+            hit = await resolveWebsite(b, { allowLocal: ALLOW_LOCAL, signal });
           } catch (e) {
             if (!signal.aborted) send(res, { type: 'error', message: `The website lookup failed: ${e.message}` });
             throw e;
           }
-        }));
+          if (signal.aborted) return;
 
-        for (const [n, b] of slice.entries()) {
-          if (signal.aborted) break;
-          const hit = hits[n];
+          done++;
           if (hit?.website) withSite++; else noSite++;
 
           const found = {
@@ -166,7 +185,19 @@ async function runFind(category, where, res, signal) {
 
           send(res, { type: 'business', ...found, withSite, noSite, saved: kept.length });
         }
-      }
+      };
+
+      await Promise.all(Array.from({ length: Math.min(6, fresh.length) }, worker));
+    }
+  }
+
+    // A whole pass over every town that turned up nobody new means the area is
+    // worked out at this spread. Going round again would be the same queries
+    // to the same free servers for the same nothing, so it says so instead of
+    // pretending to still be working.
+    if (passIndex > 0 && kept.length === foundBeforePass) {
+      send(res, { type: 'exhausted', pass: passIndex + 1 });
+      break;
     }
   }
 
@@ -223,7 +254,7 @@ async function runAudit(listText, opts, res) {
             leads.push({ business, audit, ...s, slug, qualified: q === null ? null : q.ok, qualifyReasons: q?.reasons ?? [] });
             send(res, {
               type: 'lead', name: business.name, website: business.website,
-              tier: s.tier, score: s.score,
+              tier: s.tier, score: s.score, confidence: s.confidence,
               findings: s.hits.map(h => ({ label: h.label, points: h.points, evidence: h.evidence })),
             });
           }

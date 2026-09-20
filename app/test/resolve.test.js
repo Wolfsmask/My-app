@@ -193,6 +193,50 @@ test("keeps a website OpenStreetMap already had, without guessing", async () => 
   assert.equal(hit.via, "listed");
 });
 
+test("prefers the best guess, not whichever answered first", async () => {
+  // Candidates are probed together now. A race would hand the answer to the
+  // quickest server, so a business whose real site is slow would be recorded
+  // at whatever lookalike replied first.
+  const names = candidateDomains("Buckner's Heating & Cooling");
+  const best = names[0], quick = names[names.length - 1];
+  const body = "<p>" + "Buckners Heating of Liberty. ".repeat(30) + "</p>";
+
+  const fetchImpl = url => new Promise(r => {
+    const d = decodeURIComponent(new URL(url).pathname.slice(1));
+    if (d === best) return setTimeout(() => r(new Response(body, { status: 200 })), 300);
+    if (d === quick) return r(new Response(body, { status: 200 }));
+    r(new Response("no", { status: 404 }));
+  });
+
+  const hit = await resolveWebsite(
+    { name: "Buckner's Heating & Cooling", city: "Liberty, MO", website: null },
+    { allowLocal: true, fetchImpl, urlFor: d => `http://127.0.0.1:1/${encodeURIComponent(d)}` },
+  );
+  assert.match(hit.website, new RegExp(best.replace(".", "\\.")), "the likeliest domain wins, slow or not");
+});
+
+test("probing every guess at once does not take as long as one at a time", async () => {
+  const names = candidateDomains("Buckner's Heating & Cooling");
+  const last = names[names.length - 1];
+  const fetchImpl = url => new Promise(r => setTimeout(() => {
+    const d = decodeURIComponent(new URL(url).pathname.slice(1));
+    r(d === last
+      ? new Response("<p>" + "Buckners Heating of Liberty. ".repeat(30) + "</p>", { status: 200 })
+      : new Response("no", { status: 404 }));
+  }, 200));
+
+  const started = Date.now();
+  const hit = await resolveWebsite(
+    { name: "Buckner's Heating & Cooling", city: "Liberty, MO", website: null },
+    { allowLocal: true, fetchImpl, urlFor: d => `http://127.0.0.1:1/${encodeURIComponent(d)}` },
+  );
+  const took = Date.now() - started;
+  assert.ok(hit.website, "still found it");
+  // One at a time this is 200ms per guess. Allow plenty of slack for a loaded
+  // machine; the point is that it is not the sum of them.
+  assert.ok(took < 200 * names.length * 0.6, `took ${took}ms for ${names.length} guesses`);
+});
+
 test("records where a redirect actually landed", async () => {
   const hit = await find("Shanks Heating & Cooling");
   assert.ok(hit);

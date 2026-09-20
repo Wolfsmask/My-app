@@ -198,6 +198,29 @@ const defaultUrlFor = domain => {
 };
 
 /**
+ * A ceiling on lookups in flight at once, across every business.
+ *
+ * Candidates are probed in parallel rather than one after another, which is
+ * the difference between a business taking a minute and taking a second. But
+ * eight guesses times eight businesses is sixty-four simultaneous requests to
+ * strangers' servers, so they queue behind a shared limit.
+ */
+function makeLimiter(max) {
+  let active = 0;
+  const waiting = [];
+  const pump = () => {
+    while (active < max && waiting.length) {
+      active++;
+      const { fn, resolve, reject } = waiting.shift();
+      fn().then(resolve, reject).finally(() => { active--; pump(); });
+    }
+  };
+  return fn => new Promise((resolve, reject) => { waiting.push({ fn, resolve, reject }); pump(); });
+}
+
+const sharedLimit = makeLimiter(Number(process.env.MBONYX_MAX_LOOKUPS ?? 24));
+
+/**
  * Tries the candidates for one business.
  *
  * Always returns { website, via, why, tried }. On a miss `website` is null and
@@ -215,16 +238,19 @@ export async function resolveWebsite(business, {
 } = {}) {
   if (business.website) return { website: business.website, via: "listed", why: "OpenStreetMap had it", tried: [] };
 
-  const tried = [];
-  for (const domain of candidateDomains(business.name, { limit })) {
-    if (signal?.aborted) break;
+  const candidates = candidateDomains(business.name, { limit });
+
+  // Probed together, not in turn. Sequentially, a business whose first seven
+  // guesses did not resolve waited out seven timeouts before reaching the one
+  // that did.
+  const results = await Promise.all(candidates.map(domain => sharedLimit(async () => {
+    if (signal?.aborted) return { domain, note: "stopped" };
     const url = urlFor(domain);
 
     try {
       await assertPublicTarget(new URL(url).hostname, { allowLocal });
     } catch {
-      tried.push(`${domain}: refused as a local address`);
-      continue;
+      return { domain, note: "refused as a local address" };
     }
 
     // Built before the request, not inside its argument list. Composing the
@@ -251,20 +277,26 @@ export async function resolveWebsite(business, {
       // What separates them is `cause`: a network failure carries the real
       // error underneath, a programming mistake has nothing under it.
       if (isProgrammingError(e)) throw e;
-      tried.push(`${domain}: ${describe(e)}`);
-      continue;
+      return { domain, note: describe(e) };
     }
 
-    if (!res.ok) { tried.push(`${domain}: ${res.status}`); continue; }
+    if (!res.ok) return { domain, note: String(res.status) };
 
     const html = await res.text().catch(() => "");
     const proof = pageProvesBusiness(html, business.name, { city: business.city });
-    if (!proof.ok) { tried.push(`${domain}: ${proof.why}`); continue; }
+    if (!proof.ok) return { domain, note: proof.why };
 
     // res.url follows redirects, so a business at a different final address is
     // recorded where it actually lives rather than where it was guessed.
-    return { website: res.url || url, via: "found", why: proof.why, tried };
-  }
+    return { domain, website: res.url || url, why: proof.why };
+  })));
+
+  // Probing happens all at once, but the answer is still the best guess, not
+  // the fastest one: candidateDomains returns them in order of likelihood, and
+  // that order decides.
+  const tried = results.map(r => `${r.domain}: ${r.website ? "matched" : r.note}`);
+  const winner = results.find(r => r.website);
+  if (winner) return { website: winner.website, via: "found", why: winner.why, tried };
 
   // Always an object, never a bare null: a miss has a reason, and throwing
   // that reason away is what made "no website found" unreadable.

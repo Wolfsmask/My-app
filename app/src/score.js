@@ -82,6 +82,9 @@ export const DESIGN = [
   },
   {
     id: "poor_first_impression",
+    // Needs a measurement a plain page load does not produce, so it only
+    // counts against a site when it was actually taken.
+    optional: true,
     points: 8,
     label: "Puts customers off on sight",
     test: a => a.visualDesignScore != null && a.visualDesignScore <= 4,
@@ -117,6 +120,9 @@ export const DESIGN = [
 export const PERFORMANCE = [
   {
     id: "slow_lcp",
+    // Needs a measurement a plain page load does not produce, so it only
+    // counts against a site when it was actually taken.
+    optional: true,
     points: 10,
     label: "Very slow to show content",
     test: a => a.lcpMs != null && a.lcpMs > 4000,
@@ -124,6 +130,9 @@ export const PERFORMANCE = [
   },
   {
     id: "low_lighthouse",
+    // Needs a measurement a plain page load does not produce, so it only
+    // counts against a site when it was actually taken.
+    optional: true,
     points: 8,
     label: "Poor mobile performance score",
     test: a => a.lighthousePerf != null && a.lighthousePerf < 50,
@@ -191,12 +200,26 @@ export function score(audit) {
   let earned = 0;
   let possible = 0;
 
+  let coreChecks = 0;
+  let coreRan = 0;
+
   for (const check of [...EMBARRASSMENT, ...DESIGN, ...PERFORMANCE]) {
-    const ran = check.test(audit) !== null && didCheckRun(check, audit);
-    if (!ran) continue;
+    const ran = didCheckRun(check, audit);
+    if (!check.optional) { coreChecks++; if (ran) coreRan++; }
+
+    // An optional check counts only when its measurement was taken - including
+    // its points otherwise would mark every site down for a test that was
+    // never run.
+    //
+    // A core check counts whether or not it ran. It used to be skipped, which
+    // shrank the denominator: a page where only one check could be measured,
+    // and it failed, scored 100 out of 100 and came out Tier A. The same
+    // single fault on a fully measured page scored 25. Missing data must
+    // never raise a score.
+    if (check.optional && !ran) continue;
 
     possible += check.points;
-    if (check.test(audit)) {
+    if (ran && check.test(audit)) {
       earned += check.points;
       hits.push({
         id: check.id,
@@ -213,7 +236,12 @@ export function score(audit) {
   const value = possible === 0 ? 0 : Math.round((earned / possible) * 100);
   hits.sort((a, b) => b.points - a.points);
 
-  return { score: value, earned, possible, tier: tierFor(value), hits };
+  // How much of the page could actually be examined. A score built on half an
+  // audit is a guess, and the report says so rather than presenting it as a
+  // measurement like any other.
+  const confidence = coreChecks === 0 ? 0 : Math.round((coreRan / coreChecks) * 100);
+
+  return { score: value, earned, possible, tier: tierFor(value), hits, confidence, coreRan, coreChecks };
 }
 
 /** A check only counts if the data it needs was actually collected. */

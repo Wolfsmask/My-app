@@ -5,7 +5,11 @@ import { findCopyrightYear, detectPlatform } from "../src/audit.js";
 
 const YEAR = new Date().getFullYear();
 
-/** A site with everything wrong. */
+/**
+ * A site with everything wrong - every core check measured, every one failing.
+ * It has to set all of them: a score is now a fraction of what a normal page
+ * load can examine, not of whatever happened to be measurable.
+ */
 const awful = {
   isResponsive: false, mobileScrollWidth: 980,
   sslValid: false, sslExpiredAt: "2024-03-03",
@@ -13,6 +17,12 @@ const awful = {
   platformIsObsolete: true, platform: "Microsoft FrontPage",
   brokenLinks: 2, brokenImages: 1,
   hasContactAboveFold: false,
+  pageWeightBytes: 9e6,
+  usesModernImages: false,
+  looksDated: true, datedSignals: 5,
+  textTooSmall: true, bodyFontSize: 11,
+  tapTargetsTooSmall: true, tinyTapTargets: 9,
+  hasStructureProblems: true, structureProblems: ["no h1"],
 };
 
 /** A site with nothing wrong. */
@@ -23,13 +33,19 @@ const fine = {
   platformIsObsolete: false, platform: "custom or unknown",
   brokenLinks: 0, brokenImages: 0,
   hasContactAboveFold: true,
+  pageWeightBytes: 400000,
+  usesModernImages: true,
+  looksDated: false,
+  textTooSmall: false,
+  tapTargetsTooSmall: false,
+  hasStructureProblems: false,
 };
 
 test("a site with every problem scores 100 and lands in tier A", () => {
   const r = score(awful);
   assert.equal(r.score, 100);
   assert.equal(r.tier, "A");
-  assert.equal(r.hits.length, 6);
+  assert.equal(r.confidence, 100, "every core check was measured");
 });
 
 test("a healthy site scores 0 and is dropped as tier D", () => {
@@ -58,11 +74,29 @@ test("findings are ordered by weight, so the email leads with the strongest", ()
   assert.equal(r.hits[0].id, "not_responsive");
 });
 
-test("checks that could not run are excluded from the maximum", () => {
-  // No performance data at all: score must still use the full 0-100 range.
-  const r = score({ isResponsive: false, mobileScrollWidth: 980 });
-  assert.equal(r.possible, 25, "only the one check that ran counts");
-  assert.equal(r.score, 100);
+test("an optional measurement only counts against a site when it was taken", () => {
+  // Page-speed timings need a measurement a plain load does not produce.
+  // Counting them regardless would mark every site down for a test never run.
+  const withoutTimings = score(fine);
+  const withTimings = score({ ...fine, lcpMs: 900, lighthousePerf: 95 });
+  assert.ok(withTimings.possible > withoutTimings.possible, "taking the measurement adds it to the total");
+  assert.equal(withoutTimings.score, 0);
+  assert.equal(withTimings.score, 0);
+});
+
+test("a check that could not run never raises the score", () => {
+  // The bug this replaces: the maximum shrank to whatever happened to be
+  // measurable, so a page where one check ran and failed scored 100 out of
+  // 100 and came out Tier A - the same single fault on a fully measured page
+  // scored 25. An unexaminable page must rank low, not high.
+  const thin = score({ isResponsive: false, mobileScrollWidth: 980 });
+  const full = score({ ...fine, isResponsive: false, mobileScrollWidth: 980 });
+
+  assert.equal(thin.score, full.score, "the same fault scores the same either way");
+  assert.ok(thin.tier !== "A", `a page examined once must not be tier A (was ${thin.score})`);
+  // And the thinness is reported rather than hidden.
+  assert.ok(thin.confidence < 20, `confidence should be low, was ${thin.confidence}%`);
+  assert.equal(full.confidence, 100);
 });
 
 test("a fresh copyright year is not a finding", () => {
