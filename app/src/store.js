@@ -168,6 +168,7 @@ export function createStore(dir) {
     saveNow(keepUrls = []) {
       const keep = new Set(keepUrls);
       let kept = 0, closed = 0;
+      const closedSlugs = [];
       for (const lead of leads) {
         const url = lead.business?.website;
         if (!url) continue;
@@ -175,10 +176,14 @@ export function createStore(dir) {
           lead.review = "keep"; kept++;
         } else {
           lead.review = "confirmed"; closed++;
+          // Handed back so the caller can bin the screenshot with it. A
+          // night's checking writes something like 180MB of them, and nothing
+          // was ever removing the ones for sites already passed over.
+          if (lead.slug) closedSlugs.push(lead.slug);
         }
       }
       write(file("leads.json"), leads);
-      return { kept, closed };
+      return { kept, closed, closedSlugs };
     },
 
     /** Checked, ranked low, and nobody has looked at it yet. */

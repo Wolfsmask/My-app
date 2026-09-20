@@ -157,6 +157,20 @@ test("saving keeps the good ones and closes the book on the rest", () => {
   assert.equal(createStore(dir).leads.find(l => l.business.website === "https://c.test").review, "keep");
 });
 
+test("saving hands back the screenshots that can be binned", () => {
+  const s = createStore(dir);
+  for (const [name, url, tier, slug] of [
+    ["Good", "https://a.test", "A", "good"], ["Fine", "https://d.test", "D", "fine"],
+  ]) {
+    s.addBusiness({ name, town: "Liberty, MO", website: url });
+    s.addLead({ business: { name, website: url }, tier, score: 40, slug });
+  }
+  const { closedSlugs } = s.saveNow([]);
+  // A night's checking writes about 180MB of screenshots and nothing was
+  // removing the ones belonging to sites already passed over.
+  assert.deepEqual(closedSlugs, ["fine"], "only the closed one's");
+});
+
 test("what is closed stays on disk but stops counting as kept", () => {
   const s = createStore(dir);
   for (const [name, url, tier] of [["Good", "https://a.test", "A"], ["Fine", "https://d.test", "D"]]) {

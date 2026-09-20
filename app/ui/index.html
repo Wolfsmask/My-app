@@ -264,6 +264,22 @@ Tier D  under 12 — the site is fine, drop it</pre>
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
+  /**
+   * A link that is safe to click.
+   *
+   * Escaping stops an address breaking out of the attribute, but it does not
+   * stop "javascript:" being the address. Every path that reaches here does
+   * force http or https today - but that is three separate places all having
+   * to stay right forever, and the report has always guarded this. Anything
+   * that is not plainly a web address is shown as text with no link on it.
+   */
+  const safeHref = url => {
+    try {
+      const u = new URL(String(url), window.location.href);
+      return (u.protocol === 'http:' || u.protocol === 'https:') ? u.href : null;
+    } catch { return null; }
+  };
+
   // The dropdown is built from what the search actually supports, so it cannot
   // offer a category the search would then reject.
   (async () => {
@@ -375,7 +391,9 @@ Tier D  under 12 — the site is fine, drop it</pre>
           <span class="lead__name">${esc(e.name)}</span>
           <span class="pill">${dropped ? esc(e.note ?? 'skipped') : 'Tier ' + esc(e.tier)}</span>
         </div>
-        ${e.website ? `<div class="lead__url"><a href="${esc(e.website)}" target="_blank" rel="noopener noreferrer">${esc(e.website)}</a></div>` : ''}
+        ${e.website ? `<div class="lead__url">${safeHref(e.website)
+          ? `<a href="${esc(safeHref(e.website))}" target="_blank" rel="noopener noreferrer">${esc(e.website)}</a>`
+          : esc(e.website)}</div>` : ''}
         ${!dropped && e.confidence != null && e.confidence < 100
           ? `<div class="lead__thin">Only ${esc(e.confidence)}% of the usual checks could be run on this page \u2014 the score is less certain than the others.</div>`
           : ''}
@@ -443,7 +461,9 @@ Tier D  under 12 — the site is fine, drop it</pre>
       $('drafts').innerHTML = data.drafts.map(d => `
         <div class="draft">
           <h4>${esc(d.name)}</h4>
-          <div class="meta">Tier ${esc(d.tier)} &middot; scored ${esc(d.score)}${d.website ? ` &middot; <a href="${esc(d.website)}" target="_blank" rel="noopener noreferrer">${esc(d.website)}</a>` : ''}</div>
+          <div class="meta">Tier ${esc(d.tier)} &middot; scored ${esc(d.score)}${d.website ? ` &middot; ${safeHref(d.website)
+            ? `<a href="${esc(safeHref(d.website))}" target="_blank" rel="noopener noreferrer">${esc(d.website)}</a>`
+            : esc(d.website)}` : ''}</div>
           ${d.warnings.length ? `<div class="warn">${d.warnings.map(esc).join('<br>')}</div>` : ''}
           <p class="subj"><strong>Subject:</strong> ${esc(d.subject)}</p>
           <pre>${esc(d.body)}</pre>
@@ -506,7 +526,8 @@ Tier D  under 12 — the site is fine, drop it</pre>
         body: JSON.stringify({ keep }),
       })).json();
       if (r.error) throw new Error(r.error);
-      $('status').textContent = `Saved. ${r.kept} kept, ${r.closed} closed for good \u2014 those will not be checked again.`;
+      $('status').textContent = `Saved. ${r.kept} kept, ${r.closed} closed for good \u2014 those will not be checked again.`
+        + (r.freedMb ? ` Freed ${r.freedMb}MB of screenshots.` : '');
       // Closed cards leave the page. They are done with, and leaving them
       // sitting there is why "saved" looked like it had saved everything.
       await loadSaved({ quiet: true });
@@ -525,20 +546,50 @@ Tier D  under 12 — the site is fine, drop it</pre>
    * a night's work looked lost - it had been saved the whole time, but there
    * was no way to see it.
    */
-  async function loadSaved({ quiet = false } = {}) {
+  /**
+   * How many result cards to draw.
+   *
+   * A night's run leaves a couple of thousand, and building every card took
+   * twelve seconds of frozen page every time it opened. They are sorted
+   * best-first, so the ones worth reading are all at the top; the rest are
+   * counted, and there is a button for them.
+   */
+  const SHOW_AT_FIRST = 150;
+
+  async function loadSaved({ quiet = false, all = false } = {}) {
     try {
       const rows = await (await fetch('/api/leads')).json();
       const counts = { A: 0, B: 0, C: 0, D: 0, dropped: 0 };
       // Cleared even when nothing comes back: closing everything should empty
       // the page, not leave the closed cards sitting there.
       $('results').innerHTML = '';
-      for (const r of rows) addLead({ ...r, tier: r.tier ?? '-' }, counts);
+
+      // Counted from all of them, drawn from some of them: the tallies have
+      // to be right even when the list is trimmed.
+      for (const r of rows) {
+        if (r.tier === '-') counts.dropped++;
+        else counts[r.tier] = (counts[r.tier] ?? 0) + 1;
+      }
+
+      const shown = all ? rows : rows.slice(0, SHOW_AT_FIRST);
+      for (const r of shown) addLead({ ...r, tier: r.tier ?? '-' }, { A:0,B:0,C:0,D:0,dropped:0 });
       showTotals(counts);
+
+      if (rows.length > shown.length) {
+        const more = document.createElement('button');
+        more.className = 'ghost';
+        more.id = 'showmore';
+        more.style.marginTop = '10px';
+        more.textContent = `Show the other ${rows.length - shown.length}`;
+        more.onclick = () => loadSaved({ quiet: true, all: true });
+        $('results').append(more);
+      }
       // Quiet when something else has just said what happened - otherwise the
       // "Saved, 3 kept" message is replaced a moment later by a count.
       if (!quiet) {
         $('status').textContent = rows.length
           ? `${rows.length} kept so far. ${counts.A} Tier A, ${counts.B} Tier B.`
+            + (rows.length > shown.length ? ` Showing the best ${shown.length}.` : '')
           : '';
       }
     } catch { /* nothing saved yet */ }

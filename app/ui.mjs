@@ -422,7 +422,12 @@ const server = http.createServer(async (req, res) => {
       // Drafts are written from the last run's leads, not from anything the
       // page sends back, so an email can only ever cite a real measurement.
       const leads = store.leads;
-      const worth = leads.filter(l => l.tier === 'A' || l.tier === 'B');
+      // A lead kept by hand counts as much as a high-ranked one. Filtering on
+      // tier alone meant ticking "actually worth it" on a Tier C put it in
+      // the keep list and then never wrote it a letter - the one case where
+      // the score was overruled on purpose.
+      const worth = leads.filter(l =>
+        l.review !== 'confirmed' && (l.tier === 'A' || l.tier === 'B' || l.review === 'keep'));
 
       const drafts = worth.map(lead => {
         const draft = draftEmail(lead, sender ?? {});
@@ -493,7 +498,20 @@ const server = http.createServer(async (req, res) => {
     try {
       const { keep } = JSON.parse(body || '{}');
       const result = store.saveNow(Array.isArray(keep) ? keep : []);
-      res.end(JSON.stringify({ ...result, ...store.summary() }));
+
+      // The screenshots of closed sites go with them. Left alone they are
+      // about 80KB each and nothing ever removed them, so a few nights of
+      // running would quietly fill a laptop.
+      let freed = 0;
+      for (const slug of result.closedSlugs ?? []) {
+        const shot = path.join(OUT, 'shots', `${slug}.jpg`);
+        try {
+          freed += fs.statSync(shot).size;
+          fs.rmSync(shot, { force: true });
+        } catch { /* already gone, or never taken */ }
+      }
+
+      res.end(JSON.stringify({ ...result, freedMb: +(freed / 1048576).toFixed(1), ...store.summary() }));
     } catch (e) {
       res.end(JSON.stringify({ error: e.message }));
     }
