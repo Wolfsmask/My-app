@@ -18,13 +18,58 @@ const lead = (name, over = {}) => ({
 
 const SENDER = { name: "Brennen", email: "mbonyxstudios@gmail.com", address: "PO Box 1, Liberty, MO 64068" };
 
-test("puts the measured number in the email, and no other", () => {
+test("says what is wrong without a single measurement in it", () => {
+  // "about 980 pixels wide" is what the report says. An owner does not think
+  // in pixels and has no idea whether 980 is bad - they know they have to
+  // pinch and zoom to read their own site.
+  //
+  // Every phrasing has to pass, not just the one a single business happens to
+  // draw: there are several per fault, and one of them carrying jargon is one
+  // owner in three getting an email they cannot read.
+  const jargon = /\bpixels?\b|\bpx\b|milliseconds|viewport|responsive\b|\bLCP\b|\bDOM\b|semantic/i;
+  const faults = [
+    ["not_responsive", { mobileScrollWidth: 980 }],
+    ["looks_dated", { datedSignals: 5 }],
+    ["stale_copyright", { copyrightYear: 2018 }],
+    ["dead_platform", { platform: "Microsoft FrontPage" }],
+    ["broken_assets", { brokenLinks: 4, brokenImages: 2 }],
+    ["no_contact", {}],
+    ["text_too_small", { bodyFontSize: 11 }],
+    ["tiny_tap_targets", { tinyTapTargets: 8 }],
+    ["ssl_broken", {}],
+    ["weak_structure", {}],
+  ];
+  // Enough different names to exhaust every phrasing in every pool.
+  const names = Array.from({ length: 40 }, (_, i) => `Business ${i} Heating`);
+
+  for (const [id, audit] of faults) {
+    for (const name of names) {
+      const d = draftEmail({
+        business: { name, town: "Liberty, MO", category: "HVAC / heating & cooling" },
+        hits: [{ id, points: 30, evidence: "report wording with 980px in it" }],
+        audit,
+      }, SENDER);
+      assert.doesNotMatch(d.claims, jargon, `${id} for ${name} reads: ${d.claims}`);
+    }
+  }
+});
+
+test("any number it does use is one that was measured", () => {
   const d = draftEmail(lead("Buckner's Heating"), SENDER);
-  assert.match(d.body, /980/, "the measurement is there to be checked");
-  const check = numbersAreReal(d, ["Page is 980px wide on a 390px phone screen."]);
+  const check = numbersAreReal(d, d.facts);
   // A figure nobody took off their page is the one thing an owner will
   // notice and disbelieve.
   assert.ok(check.ok, `invented numbers: ${check.invented.join(", ")}`);
+});
+
+test("keeps the numbers a person would use themselves", () => {
+  // A year in the footer and a count of broken links are plain facts an owner
+  // can check in ten seconds. Those earn their place; pixels do not.
+  const year = draftEmail(lead("Buckner's Heating", {
+    hits: [{ id: "stale_copyright", points: 8, evidence: "Footer still says 2018." }],
+    audit: { copyrightYear: 2018 },
+  }), SENDER);
+  assert.match(year.claims, /2018/);
 });
 
 test("refuses to call a draft ready with no postal address", () => {
@@ -84,7 +129,9 @@ test("reads the findings where the scorer actually puts them", () => {
     hits: [{ id: "not_responsive", points: 25, label: "x", evidence: "Page is 980px wide." }],
   };
   const d = draftEmail(scored, SENDER);
-  assert.match(d.body, /980/, "the measurement reached the email");
+  // Not the number - the fact. If the finding never reached the drafter, the
+  // email would talk about nothing in particular, which is how it read before.
+  assert.match(d.claims, /phone/i, "the finding reached the email");
   assert.equal(d.warnings.length, 0);
 });
 

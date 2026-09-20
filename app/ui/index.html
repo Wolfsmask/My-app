@@ -103,6 +103,11 @@
   .pick input{width:auto;margin:0;accent-color:var(--gold)}
   .saverow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
   .saverow .note{color:var(--muted);font-size:.79rem;flex:1 1 18rem}
+  .tabs{display:flex;gap:6px;margin:0 0 18px;border-bottom:1px solid var(--line)}
+  .tab{background:none;border:none;border-radius:0;color:var(--muted);padding:11px 18px;
+    font-size:.9rem;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab:hover:not(.on){color:var(--soft);transform:none}
+  .tab.on{color:var(--gold-l);border-bottom-color:var(--gold)}
   .panel.start{text-align:center;padding:30px 22px 24px}
   .big{width:100%;max-width:360px;font-size:1.22rem;font-weight:700;padding:19px 24px;border-radius:14px;
     border:none;cursor:pointer;color:#14100a;background:linear-gradient(135deg,var(--gold-l),var(--gold));
@@ -142,6 +147,12 @@
   <header><span class="mark">MB</span><h1>Lead Checker</h1></header>
   <p class="sub">Finds businesses whose websites need rebuilding. Audits only — it never emails anyone.</p>
 
+  <nav class="tabs">
+    <button class="tab on" data-tab="find">Find &amp; check</button>
+    <button class="tab" data-tab="mail">Emails</button>
+  </nav>
+
+  <section id="tab-find">
   <div class="panel start">
     <button class="big" id="start">Start</button>
     <p class="hint big-hint">Runs the whole thing on a loop: finds 100 websites, checks them, saves every A and B,
@@ -194,7 +205,12 @@ someothercompany.com"></textarea>
     <p class="status" id="status"></p>
   </div>
 
-  <div class="panel" id="you" hidden>
+  <div class="totals" id="totals"></div>
+  <div id="results"></div>
+  </section>
+
+  <section id="tab-mail" hidden>
+  <div class="panel" id="you">
     <label>Your details — these go at the bottom of every email</label>
     <div class="row three">
       <div><input id="s-name" placeholder="Brennen"></div>
@@ -205,10 +221,15 @@ someothercompany.com"></textarea>
       dollars a month at the post office. Until you have one, the drafts below are for practice, not for sending.</p>
   </div>
 
-  <div id="drafts"></div>
+  <div class="panel">
+    <button class="go" id="writeall">Write the emails</button>
+    <p class="hint">One draft for every website you have kept. Read each one before you send it — they are a starting
+      point, not something to fire off unread.</p>
+    <p class="status" id="mailstatus"></p>
+  </div>
 
-  <div class="totals" id="totals"></div>
-  <div id="results"></div>
+  <div id="drafts"></div>
+  </section>
 
   <div class="done" id="done">
     <strong>Finished.</strong>
@@ -385,6 +406,67 @@ Tier D  under 12 — the site is fine, drop it</pre>
       }
     }
   }
+
+  // Two views of the same run: finding and checking on one, the letters it
+  // produced on the other.
+  for (const tab of document.querySelectorAll('.tab')) {
+    tab.onclick = () => {
+      for (const t of document.querySelectorAll('.tab')) t.classList.toggle('on', t === tab);
+      $('tab-find').hidden = tab.dataset.tab !== 'find';
+      $('tab-mail').hidden = tab.dataset.tab !== 'mail';
+    };
+  }
+
+  /** Drafts one email per kept website. */
+  async function writeEmails() {
+    $('writeall').disabled = true;
+    $('mailstatus').textContent = 'Writing\u2026';
+    try {
+      const data = await (await fetch('/api/emails', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sender: readSender() }),
+      })).json();
+      if (data.error) throw new Error(data.error);
+
+      if (!data.drafts.length) {
+        $('drafts').innerHTML = '';
+        $('mailstatus').textContent = `Nothing to write yet \u2014 no Tier A or B among the ${data.total} checked. `
+          + `Run Find & check first, or keep a lower-ranked one you think is worth it.`;
+        return;
+      }
+
+      $('drafts').innerHTML = data.drafts.map(d => `
+        <div class="draft">
+          <h4>${esc(d.name)}</h4>
+          <div class="meta">Tier ${esc(d.tier)} &middot; scored ${esc(d.score)}${d.website ? ` &middot; <a href="${esc(d.website)}" target="_blank" rel="noopener noreferrer">${esc(d.website)}</a>` : ''}</div>
+          ${d.warnings.length ? `<div class="warn">${d.warnings.map(esc).join('<br>')}</div>` : ''}
+          <p class="subj"><strong>Subject:</strong> ${esc(d.subject)}</p>
+          <pre>${esc(d.body)}</pre>
+          <button class="ghost copy" data-i="${esc(d.name)}">Copy this one</button>
+        </div>`).join('');
+
+      for (const btn of $('drafts').querySelectorAll('.copy')) {
+        btn.onclick = async () => {
+          const d = data.drafts.find(x => x.name === btn.dataset.i);
+          try {
+            await navigator.clipboard.writeText(`Subject: ${d.subject}\n\n${d.body}`);
+            btn.textContent = 'Copied';
+            setTimeout(() => { btn.textContent = 'Copy this one'; }, 1500);
+          } catch { btn.textContent = 'Select the text above and copy it'; }
+        };
+      }
+
+      const unready = data.drafts.filter(d => d.warnings.length).length;
+      $('mailstatus').textContent = `${data.drafts.length} draft${data.drafts.length === 1 ? '' : 's'} ready`
+        + (unready ? `. ${unready} need something dealt with before sending \u2014 see the yellow notes.` : '.');
+    } catch (err) {
+      $('mailstatus').innerHTML = `<span class="err">${esc(err.message)}</span>`;
+    } finally {
+      $('writeall').disabled = false;
+    }
+  }
+
+  $('writeall').onclick = writeEmails;
 
   $('save').onclick = async () => {
     $('save').disabled = true;
@@ -630,56 +712,12 @@ Tier D  under 12 — the site is fine, drop it</pre>
     $(id).oninput = () => { try { localStorage.setItem('mbonyx.' + id, $(id).value); } catch {} };
   }
 
-  $('emails').onclick = async () => {
-    $('you').hidden = false;
-    $('emails').disabled = true;
-    $('status').textContent = 'Writing the emails\u2026';
-    try {
-      const res = await fetch('/api/emails', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender: readSender() }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      if (!data.drafts.length) {
-        $('status').textContent = `Nothing worth emailing yet \u2014 no Tier A or B out of ${data.total} checked.`;
-        $('drafts').innerHTML = '';
-        return;
-      }
-
-      $('drafts').innerHTML = data.drafts.map(d => `
-        <div class="draft">
-          <h4>${esc(d.name)}</h4>
-          <div class="meta">Tier ${esc(d.tier)} &middot; scored ${esc(d.score)}${d.website ? ' &middot; ' + esc(d.website) : ''}</div>
-          ${d.warnings.length ? `<div class="warn">${d.warnings.map(esc).join('<br>')}</div>` : ''}
-          <p class="subj"><strong>Subject:</strong> ${esc(d.subject)}</p>
-          <pre>${esc(d.body)}</pre>
-          <button class="ghost copy" data-i="${esc(d.name)}">Copy this one</button>
-        </div>`).join('');
-
-      // Copying is the whole point - these get pasted into Gmail by hand,
-      // which is also what keeps a person reading each one before it goes.
-      for (const btn of $('drafts').querySelectorAll('.copy')) {
-        btn.onclick = async () => {
-          const d = data.drafts.find(x => x.name === btn.dataset.i);
-          try {
-            await navigator.clipboard.writeText(`Subject: ${d.subject}\n\n${d.body}`);
-            btn.textContent = 'Copied';
-            setTimeout(() => { btn.textContent = 'Copy this one'; }, 1500);
-          } catch { btn.textContent = 'Select the text above and copy it'; }
-        };
-      }
-
-      const unready = data.drafts.filter(d => d.warnings.length).length;
-      $('status').textContent = `${data.drafts.length} draft${data.drafts.length === 1 ? '' : 's'} written`
-        + (unready ? `. ${unready} need something dealt with before sending \u2014 see the yellow notes.` : '.');
-    } catch (err) {
-      $('status').innerHTML = `<span class="err">${esc(err.message)}</span>`;
-    } finally {
-      $('emails').disabled = false;
-    }
+  // The button on the checking side just takes you to the letters, which is
+  // where they live now.
+  $('emails').onclick = () => {
+    document.querySelector('.tab[data-tab="mail"]').click();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    writeEmails();
   };
 
   $('run').onclick = async () => {

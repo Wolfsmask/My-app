@@ -80,7 +80,7 @@ enough, then **Check these websites**.
 
 ### Writing the emails
 
-**Write the emails** takes every Tier A and B lead and drafts one each. No API key needed —
+The **Emails** tab drafts one letter for every website you have kept. No API key needed —
 the drafts are built from the findings the audit measured, so every number in an email is a
 number taken off that business's own page. A draft citing a figure nobody measured is flagged
 and never presented as ready.
@@ -89,6 +89,11 @@ Before sending anything, fill in **your details**. US law (CAN-SPAM) requires a 
 address in commercial email — a PO box counts, and costs a few dollars a month. Until one is
 set, every draft carries a warning and is for practice only. Each draft also carries an
 opt-out line and names who is writing.
+
+They are written in the words an owner uses, not the words the report uses — no pixels, no
+milliseconds, no "viewport". A number only appears where a person would use one themselves:
+the year in the footer, how many links are broken. And every part is drawn from several
+phrasings, so a town's worth of these do not read as the same letter with the name swapped.
 
 The drafts are meant to be read and edited before they go. Copy one at a time into Gmail;
 that friction is deliberate.
