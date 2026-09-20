@@ -18,8 +18,28 @@ double-click:
 The first run installs what's missing and downloads the browser it audits with — about 150 MB,
 a few minutes, once. After that it opens straight to a window in your browser.
 
-In that window you can either **paste a list in yourself**, or pick a type of business and a
-town and click **Find them for me**. That does two things:
+## A day of it
+
+Three buttons, in order. Each one runs for a long time; leave it and come back.
+
+1. **Start** — no setting up. Finds every kind of business it knows, in every town it knows,
+   and looks for each one's website. Leave it running while you're at school.
+2. **Check these websites** — leave the box empty and it works through everything Start found
+   and hasn't checked yet, scoring each one.
+3. **Write the emails** — drafts one for every Tier A and B lead.
+
+**It remembers.** Closing the window, restarting, or a dead battery costs nothing: every
+search it completes, every town it locates, every business it finds and every site it checks
+is written to disk as it happens. Press Start again and it picks up where it stopped instead
+of repeating two thousand queries against free volunteer servers.
+
+Progress is shown under the Start button, so you can see where it got to. To wipe it and
+begin again, delete `app/out/ui/`.
+
+## Searching one trade or one town
+
+Open **Search one trade or one town instead**. You can either **paste a list in yourself**, or
+pick a type of business and a town and click **Find them for me**. That does two things:
 
 1. Asks OpenStreetMap who is there (free, no account, no key).
 2. **Goes and finds each one's website.** OpenStreetMap almost never records a website for a

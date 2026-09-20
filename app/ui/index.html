@@ -90,6 +90,22 @@
   .drop .lead__score{color:var(--bad);font-size:1rem}
   /* A score built on half an audit is a guess, and should look like one. */
   .lead__thin{font-size:.79rem;color:var(--b);margin:2px 0 8px}
+  .panel.start{text-align:center;padding:30px 22px 24px}
+  .big{width:100%;max-width:360px;font-size:1.22rem;font-weight:700;padding:19px 24px;border-radius:14px;
+    border:none;cursor:pointer;color:#14100a;background:linear-gradient(135deg,var(--gold-l),var(--gold));
+    letter-spacing:.01em;transition:transform .12s ease,filter .12s ease}
+  .big:hover{filter:brightness(1.06)} .big:active{transform:translateY(1px)}
+  .big.stop{background:none;border:1px solid rgba(248,113,113,.5);color:#fca5a5}
+  .big-hint{max-width:56ch;margin:14px auto 0}
+  .state{color:var(--muted);font-size:.8rem;margin:12px 0 0}
+  .state b{color:var(--soft);font-weight:600}
+  details.narrow{padding:0}
+  details.narrow summary{cursor:pointer;padding:16px 22px;font-size:.84rem;color:var(--muted);list-style:none}
+  details.narrow summary::-webkit-details-marker{display:none}
+  details.narrow summary::before{content:"\25B8  ";color:var(--muted)}
+  details.narrow[open] summary::before{content:"\25BE  "}
+  details.narrow > *:not(summary){padding-left:22px;padding-right:22px}
+  details.narrow > *:last-child{padding-bottom:20px}
   .lead__name{font-weight:600;margin-right:auto}
   .pill{font-size:.66rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
     padding:3px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
@@ -113,7 +129,16 @@
   <header><span class="mark">MB</span><h1>Lead Checker</h1></header>
   <p class="sub">Finds businesses whose websites need rebuilding. Audits only — it never emails anyone.</p>
 
-  <div class="panel">
+  <div class="panel start">
+    <button class="big" id="start">Start</button>
+    <p class="hint big-hint">Finds every kind of business it knows, in every town it knows, and looks for each one&rsquo;s
+      website. Leave it running and come back to it &mdash; it remembers what it has already done, so closing the window
+      or restarting never repeats work.</p>
+    <p class="state" id="state"></p>
+  </div>
+
+  <details class="panel narrow">
+    <summary>Search one trade or one town instead</summary>
     <label for="cat">Find businesses</label>
     <div class="row find">
       <div><select id="cat"><option value="">Type of business…</option></select></div>
@@ -129,13 +154,16 @@
       account, nothing to sign up for. Pick an <strong>area</strong> and it works through every town in it, moving to the
       next when one runs out and <strong>saving as it goes</strong> — so stopping never loses anything, and starting
       again adds to what you have. <strong>Press Stop when you have enough</strong>, then check them.</p>
+  </details>
 
+  <div class="panel">
     <label for="list">Businesses to check</label>
     <textarea id="list" spellcheck="false" placeholder="Bob's Heating and Air, bobsheatingkc.com, (816) 555-0100, 4.5, 87
 Metro Comfort Systems, metrocomfort.net
 someothercompany.com"></textarea>
-    <p class="hint">One per line. Format: <strong>name, website, phone, rating, review count</strong> — only the website is
-      required. The rating and review count come off the Google listing and tell the checker who can afford you.</p>
+    <p class="hint"><strong>Leave this empty</strong> and Check goes through everything Start has found and not yet
+      checked. Or paste your own, one per line: <strong>name, website, phone, rating, review count</strong> — only the
+      website is required.</p>
 
     <div class="actions">
       <button class="go" id="run">Check these websites</button>
@@ -228,6 +256,26 @@ Tier D  under 25 — the site is fine, drop it</pre>
   // than all at the end.
   let searching = null;
 
+  // How much is already done, so leaving and coming back shows progress
+  // rather than an empty page.
+  async function showState() {
+    try {
+      const st = await (await fetch('/api/state')).json();
+      $('state').innerHTML = st.found
+        ? `<b>${st.found}</b> businesses found, <b>${st.withSite}</b> with a website &middot; `
+          + `<b>${st.audited}</b> checked, <b>${st.pending}</b> waiting &middot; `
+          + `<b>${st.searches}</b> searches done`
+        : 'Nothing found yet.';
+    } catch { $('state').textContent = ''; }
+  }
+  showState();
+
+  // Start is Find with nothing chosen: every trade, every town.
+  $('start').onclick = () => {
+    if (!searching) { $('cat').value = ''; $('region').value = ''; $('city').value = ''; }
+    $('find').click();
+  };
+
   $('find').onclick = async () => {
     if (searching) { searching.abort(); return; }
 
@@ -235,6 +283,8 @@ Tier D  under 25 — the site is fine, drop it</pre>
     searching = new AbortController();
     $('find').textContent = 'Stop';
     $('find').classList.add('stop');
+    $('start').textContent = 'Stop';
+    $('start').classList.add('stop');
     $('list').value = '';
 
     const withSite = [];
@@ -320,7 +370,10 @@ Tier D  under 25 — the site is fine, drop it</pre>
       searching = null;
       $('find').textContent = 'Find them for me';
       $('find').classList.remove('stop');
+      $('start').textContent = 'Start';
+      $('start').classList.remove('stop');
       repaint();
+      showState();
     }
   };
 

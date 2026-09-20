@@ -19,6 +19,7 @@ import { discoverFile, discoverOsm, locate, OSM_CATEGORIES } from './src/discove
 import { resolveWebsite } from './src/resolve.js';
 import { REGIONS, citiesFor, ALL_CITIES } from './src/places.js';
 import { draftEmail, numbersAreReal } from './src/draft.js';
+import { createStore } from './src/store.js';
 import { auditSite, launchBrowser } from './src/audit.js';
 import { score, disqualify, qualifies } from './src/score.js';
 import { toCsv, toHtml } from './src/report.js';
@@ -51,161 +52,165 @@ const send = (res, event) => res.write(JSON.stringify(event) + '\n');
  * at once - but only a few, since every one of them is a request to a small
  * business's server.
  */
-/** Where found businesses are kept, so stopping never loses the work. */
-const FOUND = path.join(OUT, 'found.json');
-
-function loadFound() {
-  try { return JSON.parse(fs.readFileSync(FOUND, 'utf8')); } catch { return []; }
-}
-
-function saveFound(list) {
-  try {
-    fs.mkdirSync(OUT, { recursive: true });
-    fs.writeFileSync(FOUND, JSON.stringify(list, null, 2));
-  } catch { /* a failed save must not end a search that is working */ }
-}
+const store = createStore(OUT);
 
 /**
- * Searches one town, then the next.
+ * Searches everything, and remembers what it already searched.
  *
- * Given a region it works through every town in it and saves as it goes, so
- * stopping halfway keeps everything found so far and starting again adds to
- * it rather than replacing it.
+ * The sweep is category by category within each town, so the first hour
+ * produces plumbers and dentists and roofers rather than sixty towns of
+ * nothing but HVAC. Each town then widens over successive passes, picking up
+ * what sits between them.
  *
- * One town on its own is searched in widening rings, since that is a request
- * to look around that place. A whole region is searched one ring per town,
- * because the towns already overlap - widening each of sixty would search the
- * same metro sixty times over.
+ * Every (category, town, pass) that completes is written down. Starting again
+ * skips all of it, which is the difference between leaving this running for a
+ * school day and having to babysit it.
  */
-async function runFind(category, where, res, signal) {
+async function runFind(categories, where, res, signal) {
   const chosen = where.region ? citiesFor(where.region) : [where.city].filter(Boolean);
-  if (!chosen.length) throw new Error('That area has no towns listed.');
-
   // What was asked for first, then everywhere else, so it never runs out of
   // somewhere to look. Stop is the thing that ends a search.
-  const towns = [...new Set([...chosen, ...ALL_CITIES])];
-
-  // Each pass goes over every town again at a wider radius, picking up what
-  // sat between them. Four passes is the point at which the circles overlap so
-  // heavily that another one is all re-reading.
+  const towns = [...new Set([...(chosen.length ? chosen : ALL_CITIES), ...ALL_CITIES])];
+  const cats = categories.length ? categories : OSM_CATEGORIES.map(c => c.key);
   const PASSES = [1, 1.6, 2.6, 4];
 
-  const kept = loadFound();
-  // Businesses already found, by name, so re-running adds rather than repeats.
-  const seen = new Set(kept.map(b => (b.name ?? '').toLowerCase()));
-  let withSite = kept.filter(b => b.website).length;
-  let noSite = kept.length - withSite;
+  let withSite = store.found.filter(b => b.website).length;
+  let noSite = store.found.length - withSite;
 
-  send(res, { type: 'plan', towns, already: kept.length, passes: PASSES.length });
+  send(res, {
+    type: 'plan', towns, passes: PASSES.length, categories: cats.length,
+    already: store.found.length, searches: store.summary().searches,
+  });
 
   for (const [passIndex, spread] of PASSES.entries()) {
     if (signal.aborted) break;
-    const foundBeforePass = kept.length;
+    const foundBeforePass = store.found.length;
 
-  for (const [townIndex, town] of towns.entries()) {
-    if (signal.aborted) break;
-
-    let place;
-    try {
-      place = await locate(town, signal);
-    } catch (e) {
+    for (const [townIndex, town] of towns.entries()) {
       if (signal.aborted) break;
-      send(res, { type: 'note', message: `${town}: ${e.message.split('\n')[0]}` });
-      continue;
-    }
-    if (!place) {
-      // One unfindable town must not end a run through sixty of them.
-      send(res, { type: 'note', message: `${town}: not on the map` });
-      continue;
-    }
 
-    // One ring per town per pass. Widening each town fully before moving on
-    // would search the same metro sixty times over; widening across passes
-    // covers the same ground once each time round.
-    const rings = [Math.min(Math.round(place.radiusKm * spread), 160)];
-
-    send(res, { type: 'town', name: town, label: place.label, index: townIndex, of: towns.length,
-      radiusKm: rings[0], pass: passIndex + 1, passes: PASSES.length });
-
-    for (const radiusKm of rings) {
-      if (signal.aborted) break;
-      send(res, { type: 'stage', town, radiusKm, of: rings[rings.length - 1] });
-
-      let batch;
-      try {
-        batch = await discoverOsm({ category, city: town, radiusKm, limit: 200, signal, at: place });
-      } catch (e) {
-        if (signal.aborted) break;
-        send(res, { type: 'note', message: `${town} ${radiusKm}km: ${e.message.split('\n')[0]}` });
-        continue;
-      }
-
-      const fresh = batch.filter(b => {
-        const key = (b.name ?? '').toLowerCase();
-        if (!key || seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-
-      // A rolling pool rather than fixed batches. In batches of four, three
-      // businesses that resolved instantly sat waiting on a fourth that was
-      // timing out before the next four could start; here a worker that
-      // finishes takes the next name immediately.
-      let next = 0;
-      let done = 0;
-      const worker = async () => {
-        while (!signal.aborted) {
-          const i = next++;
-          if (i >= fresh.length) return;
-          const b = fresh[i];
-          send(res, { type: 'looking', names: [b.name], done: done, total: fresh.length, town });
-
-          let hit = null;
-          try {
-            hit = await resolveWebsite(b, { allowLocal: ALLOW_LOCAL, signal });
-          } catch (e) {
-            if (!signal.aborted) send(res, { type: 'error', message: `The website lookup failed: ${e.message}` });
-            throw e;
-          }
-          if (signal.aborted) return;
-
-          done++;
-          if (hit?.website) withSite++; else noSite++;
-
-          const found = {
-            name: b.name, phone: b.phone, town,
-            website: hit?.website ?? null,
-            why: hit?.why ?? null,
-            tried: hit?.website ? null : (hit?.tried ?? null),
-          };
-          kept.push(found);
-          // Written per business rather than at the end: Stop, a crash or a
-          // closed window must not cost the work already done.
-          saveFound(kept);
-
-          send(res, { type: 'business', ...found, withSite, noSite, saved: kept.length });
+      // Towns do not move, so a town is geocoded once ever rather than once
+      // per pass per category - 244 requests became 61, against a service
+      // that asks for one a second.
+      let place = store.place(town);
+      if (!place) {
+        try {
+          place = await locate(town, signal);
+        } catch (e) {
+          if (signal.aborted) break;
+          send(res, { type: 'note', message: `${town}: ${e.message.split('\n')[0]}` });
+          continue;
         }
-      };
+        if (!place) {
+          // Remembered as unfindable too, so it is not looked up again on
+          // every pass for the rest of the day.
+          store.rememberPlace(town, { missing: true });
+          send(res, { type: 'note', message: `${town}: not on the map` });
+          continue;
+        }
+        store.rememberPlace(town, place);
+      }
+      if (place.missing) continue;
 
-      await Promise.all(Array.from({ length: Math.min(6, fresh.length) }, worker));
+      const radiusKm = Math.min(Math.round(place.radiusKm * spread), 160);
+
+      for (const category of cats) {
+        if (signal.aborted) break;
+
+        const key = `${category}|${town}|${passIndex}`;
+        if (store.isDone(key)) continue;
+
+        send(res, {
+          type: 'town', name: town, label: place.label, index: townIndex, of: towns.length,
+          radiusKm, pass: passIndex + 1, passes: PASSES.length, category,
+        });
+
+        let batch;
+        try {
+          batch = await discoverOsm({ category, city: town, radiusKm, limit: 200, signal, at: place });
+        } catch (e) {
+          if (signal.aborted) break;
+          // Not marked done: a search that failed should be tried again on a
+          // later run rather than written off.
+          send(res, { type: 'note', message: `${town} ${category}: ${e.message.split('\n')[0]}` });
+          continue;
+        }
+
+        const fresh = batch.filter(b => b.name && !store.hasBusiness(b.name, town));
+
+        // A rolling pool rather than fixed batches. In batches of four, three
+        // businesses that resolved instantly sat waiting on a fourth that was
+        // timing out before the next four could start; here a worker that
+        // finishes takes the next name immediately.
+        let next = 0;
+        const worker = async () => {
+          while (!signal.aborted) {
+            const i = next++;
+            if (i >= fresh.length) return;
+            const b = fresh[i];
+            send(res, { type: 'looking', names: [b.name], done: i, total: fresh.length, town, category });
+
+            let hit = null;
+            try {
+              hit = await resolveWebsite({ ...b, town }, { allowLocal: ALLOW_LOCAL, signal });
+            } catch (e) {
+              if (!signal.aborted) send(res, { type: 'error', message: `The website lookup failed: ${e.message}` });
+              throw e;
+            }
+            if (signal.aborted) return;
+
+            if (hit?.website) withSite++; else noSite++;
+
+            const found = {
+              name: b.name, phone: b.phone, town, category,
+              website: hit?.website ?? null,
+              why: hit?.why ?? null,
+              tried: hit?.website ? null : (hit?.tried ?? null),
+            };
+            // Written per business, so Stop, a crash or a closed laptop never
+            // costs the work already done.
+            store.addBusiness(found);
+            send(res, { type: 'business', ...found, withSite, noSite, saved: store.found.length });
+          }
+        };
+        await Promise.all(Array.from({ length: Math.min(6, fresh.length) }, worker));
+
+        if (!signal.aborted) store.markDone(key);
+      }
     }
-  }
 
-    // A whole pass over every town that turned up nobody new means the area is
-    // worked out at this spread. Going round again would be the same queries
-    // to the same free servers for the same nothing, so it says so instead of
-    // pretending to still be working.
-    if (passIndex > 0 && kept.length === foundBeforePass) {
+    // A whole pass over every town and every trade that turned up nobody new
+    // means the area is worked out at this spread. Going round again would be
+    // the same queries to the same free servers for the same nothing.
+    if (passIndex > 0 && store.found.length === foundBeforePass) {
       send(res, { type: 'exhausted', pass: passIndex + 1 });
       break;
     }
   }
 
-  if (!signal.aborted) send(res, { type: 'done', withSite, noSite, saved: kept.length });
+  if (!signal.aborted) send(res, { type: 'done', withSite, noSite, saved: store.found.length });
 }
 
+
 async function runAudit(listText, opts, res) {
-  const businesses = discoverFile(listText, { category: opts.category || 'manual', city: opts.city || '' });
+  // A pasted list is still honoured. With the box empty it works through
+  // everything the search found and has not checked yet, which is what makes
+  // "come back and press Check" a whole afternoon's work rather than a
+  // copy-and-paste job.
+  const businesses = String(listText ?? '').trim()
+    ? discoverFile(listText, { category: opts.category || 'manual', city: opts.city || '' })
+    : store.pendingAudit().map(b => ({
+        name: b.name, website: b.website, phone: b.phone,
+        rating: null, reviewCount: null, status: 'OPERATIONAL',
+        category: b.category ?? 'manual', city: b.town ?? '', source: 'found',
+      }));
+
+  if (!businesses.length) {
+    send(res, { type: 'error', message: store.found.length
+      ? 'Everything found has already been checked. Press Start to find more.'
+      : 'Nothing to check yet. Press Start to find businesses first.' });
+    return;
+  }
   send(res, { type: 'found', count: businesses.length });
 
   fs.mkdirSync(path.join(OUT, 'shots'), { recursive: true });
@@ -251,7 +256,12 @@ async function runAudit(listText, opts, res) {
           } else {
             const s = score(audit);
             const q = business.reviewCount == null ? null : qualifies(business);
-            leads.push({ business, audit, ...s, slug, qualified: q === null ? null : q.ok, qualifyReasons: q?.reasons ?? [] });
+            const lead = { business, audit, ...s, slug, qualified: q === null ? null : q.ok, qualifyReasons: q?.reasons ?? [] };
+            leads.push(lead);
+            // Kept as each one finishes. Checking two hundred sites takes a
+            // long time, and a closed laptop halfway through should cost the
+            // remainder, not the lot.
+            store.addLead(lead);
             send(res, {
               type: 'lead', name: business.name, website: business.website,
               tier: s.tier, score: s.score, confidence: s.confidence,
@@ -274,9 +284,11 @@ async function runAudit(listText, opts, res) {
   const meta = { category: opts.category || 'your list', city: opts.city || '', source: 'the app' };
   // Kept as data as well as as a report, so the email drafts can be built
   // from the findings themselves rather than from anything typed back in.
-  fs.writeFileSync(path.join(OUT, 'leads.json'), JSON.stringify(leads, null, 2));
-  fs.writeFileSync(path.join(OUT, 'leads.csv'), toCsv(leads));
-  fs.writeFileSync(path.join(OUT, 'report.html'), toHtml(leads, meta));
+  // Everything checked so far, not just this run's batch, so the report is
+  // the whole picture after a day of stopping and starting.
+  const all = store.leads.length >= leads.length ? store.leads : leads;
+  fs.writeFileSync(path.join(OUT, 'leads.csv'), toCsv(all));
+  fs.writeFileSync(path.join(OUT, 'report.html'), toHtml(all, meta));
   send(res, { type: 'done', reportPath: path.join(OUT, 'report.html'), csvPath: path.join(OUT, 'leads.csv') });
 }
 
@@ -321,7 +333,7 @@ const server = http.createServer(async (req, res) => {
       const { sender } = JSON.parse(body || '{}');
       // Drafts are written from the last run's leads, not from anything the
       // page sends back, so an email can only ever cite a real measurement.
-      const leads = JSON.parse(fs.readFileSync(path.join(OUT, 'leads.json'), 'utf8'));
+      const leads = store.leads;
       const worth = leads.filter(l => l.tier === 'A' || l.tier === 'B');
 
       const drafts = worth.map(lead => {
@@ -339,8 +351,22 @@ const server = http.createServer(async (req, res) => {
 
       res.end(JSON.stringify({ drafts, total: leads.length }));
     } catch (e) {
-      res.end(JSON.stringify({ error: /ENOENT/.test(e.message) ? 'Check some websites first — there is nothing scored yet.' : e.message }));
+      res.end(JSON.stringify({ error: e.message }));
     }
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/state') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(store.summary()));
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/reset') {
+    // Only ever on an explicit ask: this is the whole day's work.
+    store.reset();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(store.summary()));
     return;
   }
 
@@ -380,9 +406,9 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' });
     try {
       const { category, city, region } = JSON.parse(body || '{}');
-      if (!category) throw new Error('Pick a type of business first.');
-      if (!region && !String(city ?? '').trim()) throw new Error('Pick an area, or type a town like "Liberty, MO".');
-      await runFind(category, region ? { region } : { city: String(city).trim() }, res, stop.signal);
+      // No category and no area is the Start button: everything, everywhere.
+      const cats = category ? [category] : [];
+      await runFind(cats, region ? { region } : { city: String(city ?? '').trim() }, res, stop.signal);
     } catch (e) {
       if (!stop.signal.aborted) send(res, { type: 'error', message: e.message });
     } finally {
