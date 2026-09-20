@@ -66,6 +66,21 @@ const store = createStore(OUT);
  * skips all of it, which is the difference between leaving this running for a
  * school day and having to babysit it.
  */
+/**
+ * A failed lookup in words rather than Node's.
+ *
+ * Node reports every network failure as "fetch failed", which says nothing
+ * about what to do - and there is exactly one thing to do when the map
+ * servers cannot be reached.
+ */
+function plainly(message) {
+  if (/fetch failed|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|network/i.test(message)) {
+    return "could not reach the map servers - check the internet connection";
+  }
+  if (/timed out|TimeoutError|abort/i.test(message)) return "the map servers did not answer in time";
+  return message;
+}
+
 async function runFind(categories, where, res, signal, { harvest = Infinity, maxMs = Infinity } = {}) {
   // How many sites to gather before handing back. In the continuous mode the
   // search pauses every so often so the checker can work through what has
@@ -76,6 +91,8 @@ async function runFind(categories, where, res, signal, { harvest = Infinity, max
   // trade before checking a single site - an hour of watching a counter and
   // no results. Whichever comes first.
   let harvested = 0;
+  // Consecutive towns that could not even be located. Reset by any success.
+  let unreachable = 0;
   const until = Date.now() + maxMs;
   const enough = () => harvested >= harvest || Date.now() >= until;
   const chosen = where.region ? citiesFor(where.region) : [where.city].filter(Boolean);
@@ -107,9 +124,19 @@ async function runFind(categories, where, res, signal, { harvest = Infinity, max
       if (!place) {
         try {
           place = await locate(town, signal);
+          unreachable = 0;
         } catch (e) {
           if (signal.aborted) break;
-          send(res, { type: 'note', message: `${town}: ${e.message.split('\n')[0]}` });
+          // Sixty-one towns failing one after another is not sixty-one
+          // problems, it is one - and grinding through the whole list saying
+          // so each time wastes a night.
+          if (++unreachable >= 5) {
+            // Thrown rather than reported and carried on: the run is over,
+            // and saying "searched every town it knows" after giving up on
+            // the fifth is worse than saying nothing.
+            throw new Error(`${plainly(e.message.split('\n')[0])}. Nothing was lost - press Start again once you are back online.`);
+          }
+          send(res, { type: 'note', message: `${town}: ${plainly(e.message.split('\n')[0])}` });
           continue;
         }
         if (!place) {
@@ -143,7 +170,7 @@ async function runFind(categories, where, res, signal, { harvest = Infinity, max
           if (signal.aborted) break;
           // Not marked done: a search that failed should be tried again on a
           // later run rather than written off.
-          send(res, { type: 'note', message: `${town} ${category}: ${e.message.split('\n')[0]}` });
+          send(res, { type: 'note', message: `${town} ${category}: ${plainly(e.message.split('\n')[0])}` });
           continue;
         }
 
@@ -227,7 +254,16 @@ async function runCycle(res, signal, batchSize, gatherMs = 5 * 60_000) {
     round++;
 
     send(res, { type: 'cycle', round, phase: 'finding', batchSize });
-    const gathered = await runFind([], {}, res, signal, { harvest: batchSize, maxMs: gatherMs });
+    let gathered;
+    try {
+      gathered = await runFind([], {}, res, signal, { harvest: batchSize, maxMs: gatherMs });
+    } catch (e) {
+      if (signal.aborted) break;
+      // Whatever was found and checked before this is already saved, so the
+      // round ends here rather than the whole thing pretending to finish.
+      send(res, { type: 'error', message: e.message });
+      return;
+    }
     if (signal.aborted) break;
 
     const waiting = store.pendingAudit().length;

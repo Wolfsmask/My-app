@@ -19,8 +19,15 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { pipeline } from 'node:stream';
 
-const ROOT = process.cwd();
-const PORT = Number(process.env.PORT ?? 8899);
+// A port or a folder can be given on the command line, in either order. The
+// argument used to be ignored entirely - `serve.mjs 8901` quietly served on
+// 8899 and looked like a dead server.
+const args = process.argv.slice(2);
+const portArg = args.find(a => /^\d+$/.test(a));
+const dirArg = args.find(a => !/^\d+$/.test(a));
+
+const ROOT = dirArg ? path.resolve(dirArg) : process.cwd();
+const PORT = Number(portArg ?? process.env.PORT ?? 8899);
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript',

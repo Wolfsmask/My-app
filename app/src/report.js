@@ -103,6 +103,11 @@ export function toHtml(leads, meta = {}) {
   .lead__meta{color:var(--muted);font-size:.83rem;margin-bottom:14px;word-break:break-word}
   .lead__meta a{color:var(--gold-l)}
   .finding{display:grid;grid-template-columns:38px 1fr;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
+  /* The screenshot was always being taken - about 80KB a site - and never
+     shown anywhere, while the page promised one. Lazy so a report with two
+     thousand leads in it still opens instantly. */
+  .shot{display:block;margin:10px 0 12px;border:1px solid var(--line);border-radius:8px;overflow:hidden;max-width:290px}
+  .shot img{display:block;width:100%;height:auto;background:#0b0f15}
   .finding__pts{font-size:.78rem;font-weight:700;color:var(--gold)}
   .finding__label{font-weight:600;font-size:.92rem}
   .finding__ev{color:var(--soft);font-size:.86rem}
@@ -147,6 +152,10 @@ ${live.map(l => `
     ${l.business.reviewCount != null ? ` &middot; ${l.business.reviewCount} reviews (${l.business.rating}★)` : ""}
     ${l.audit?.platform ? " &middot; " + esc(l.audit.platform) : ""}
   </p>
+  ${l.slug ? `
+    <a class="shot" href="shots/${esc(l.slug)}.jpg" target="_blank" rel="noopener noreferrer">
+      <img src="shots/${esc(l.slug)}.jpg" alt="How ${esc(l.business.name)}'s homepage looks on a phone" loading="lazy">
+    </a>` : ""}
   ${(l.hits ?? []).map(h => `
     <div class="finding ${h.group === "performance" ? "perf" : ""}">
       <span class="finding__pts">+${h.points}</span>
