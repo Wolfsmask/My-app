@@ -28,6 +28,15 @@ Three buttons, in order. Each one runs for a long time; leave it and come back.
    and hasn't checked yet, scoring each one.
 3. **Write the emails** — drafts one for every Tier A and B lead.
 
+**Closing the tab stops it.** Both the search and the check watch for the tab going away, so
+nothing keeps running against other people's servers once nobody is watching. Leave the tab
+open while you are at school; close it and it stops.
+
+**A low score is provisional.** Tier C and D leads get *Agreed, drop it* / *Actually worth it*
+buttons. Until you press one, that site stays in the queue and gets checked again next time —
+the app will not write a business off forever on a guess nobody looked at. Tier A and B are
+never re-checked; they are leads waiting to be emailed.
+
 **It remembers.** Closing the window, restarting, or a dead battery costs nothing: every
 search it completes, every town it locates, every business it finds and every site it checks
 is written to disk as it happens. Press Start again and it picks up where it stopped instead

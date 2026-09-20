@@ -192,7 +192,7 @@ async function runFind(categories, where, res, signal) {
 }
 
 
-async function runAudit(listText, opts, res) {
+async function runAudit(listText, opts, res, signal) {
   // A pasted list is still honoured. With the box empty it works through
   // everything the search found and has not checked yet, which is what makes
   // "come back and press Check" a whole afternoon's work rather than a
@@ -240,7 +240,10 @@ async function runAudit(listText, opts, res) {
     const queue = [...toAudit];
     let done = 0;
     const worker = async () => {
-      while (queue.length) {
+      // Checked before each site rather than only at the start: closing the
+      // tab used to leave this working through hundreds of sites with a
+      // browser open and no way to reach it.
+      while (queue.length && !signal?.aborted) {
         const business = queue.shift();
         const slug = slugFor(business.name);
         send(res, { type: 'progress', name: business.name, done, total: toAudit.length });
@@ -264,7 +267,7 @@ async function runAudit(listText, opts, res) {
             store.addLead(lead);
             send(res, {
               type: 'lead', name: business.name, website: business.website,
-              tier: s.tier, score: s.score, confidence: s.confidence,
+              tier: s.tier, score: s.score, confidence: s.confidence, review: lead.review ?? null,
               findings: s.hits.map(h => ({ label: h.label, points: h.points, evidence: h.evidence })),
             });
           }
@@ -280,6 +283,9 @@ async function runAudit(listText, opts, res) {
     await browser.close().catch(() => {});
   }
 
+  // The report is still written when the tab was closed part way - those
+  // sites were really checked and their results are already on disk - but
+  // nothing is announced to a connection that has gone.
   leads.sort((a, z) => (z.score ?? -1) - (a.score ?? -1));
   const meta = { category: opts.category || 'your list', city: opts.city || '', source: 'the app' };
   // Kept as data as well as as a report, so the email drafts can be built
@@ -289,7 +295,7 @@ async function runAudit(listText, opts, res) {
   const all = store.leads.length >= leads.length ? store.leads : leads;
   fs.writeFileSync(path.join(OUT, 'leads.csv'), toCsv(all));
   fs.writeFileSync(path.join(OUT, 'report.html'), toHtml(all, meta));
-  send(res, { type: 'done', reportPath: path.join(OUT, 'report.html'), csvPath: path.join(OUT, 'leads.csv') });
+  if (!signal?.aborted) send(res, { type: 'done', reportPath: path.join(OUT, 'report.html'), csvPath: path.join(OUT, 'leads.csv') });
 }
 
 const server = http.createServer(async (req, res) => {
@@ -350,6 +356,22 @@ const server = http.createServer(async (req, res) => {
       });
 
       res.end(JSON.stringify({ drafts, total: leads.length }));
+    } catch (e) {
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/review') {
+    let body = '';
+    req.on('data', c => { body += c; if (body.length > 1e5) req.destroy(); });
+    await new Promise(r => req.on('end', r));
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    try {
+      const { website, decision } = JSON.parse(body || '{}');
+      const ok = store.review(website, decision);
+      res.end(JSON.stringify({ ok, ...store.summary() }));
     } catch (e) {
       res.end(JSON.stringify({ error: e.message }));
     }
@@ -426,12 +448,18 @@ const server = http.createServer(async (req, res) => {
     req.on('data', c => { body += c; if (body.length > 2e6) req.destroy(); });
     await new Promise(r => req.on('end', r));
 
+    // Closing the tab closes this connection, and that is the only signal
+    // that nobody is watching any more. Without it, a check kept going
+    // through every site it had left, holding a browser open, unreachable.
+    const stop = new AbortController();
+    res.on('close', () => { stop.abort(); running = false; });
+
     res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' });
     try {
       const { list, ...opts } = JSON.parse(body || '{}');
-      await runAudit(String(list ?? ''), opts, res);
+      await runAudit(String(list ?? ''), opts, res, stop.signal);
     } catch (e) {
-      send(res, { type: 'error', message: e.message });
+      if (!stop.signal.aborted) send(res, { type: 'error', message: e.message });
     } finally {
       running = false;
       res.end();

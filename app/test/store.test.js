@@ -82,6 +82,58 @@ test("a half-written file does not destroy the day's work", () => {
   assert.equal(createStore(dir).found.length, 1);
 });
 
+test("a low score is provisional until somebody looks at it", () => {
+  const s = createStore(dir);
+  s.addBusiness({ name: "Low Co", town: "Liberty, MO", website: "https://low.test" });
+  s.addLead({ business: { name: "Low Co", website: "https://low.test" }, tier: "D", score: 8 });
+
+  // The machine's opinion is not a decision. Writing a business off forever on
+  // an unreviewed guess is how a real lead disappears with nobody ever seeing
+  // it, so it stays in the queue until it has been looked at.
+  assert.deepEqual(s.pendingAudit().map(b => b.name), ["Low Co"], "still checkable");
+  assert.equal(s.summary().awaitingReview, 1);
+
+  s.review("https://low.test", "confirmed");
+  assert.deepEqual(s.pendingAudit(), [], "settled once confirmed");
+  assert.equal(s.summary().awaitingReview, 0);
+  assert.equal(createStore(dir).pendingAudit().length, 0, "and it stays settled after a restart");
+});
+
+test("keeping a low-scored business also settles it", () => {
+  const s = createStore(dir);
+  s.addBusiness({ name: "Low Co", town: "Liberty, MO", website: "https://low.test" });
+  s.addLead({ business: { name: "Low Co", website: "https://low.test" }, tier: "C", score: 30 });
+  // "Actually worth it" is a decision too - it should not keep coming back.
+  s.review("https://low.test", "keep");
+  assert.deepEqual(s.pendingAudit(), []);
+});
+
+test("a good score is not something to review", () => {
+  const s = createStore(dir);
+  s.addBusiness({ name: "Good Co", town: "Liberty, MO", website: "https://good.test" });
+  s.addLead({ business: { name: "Good Co", website: "https://good.test" }, tier: "A", score: 81 });
+  // A high rank is a lead waiting to be emailed, not a write-off. Re-checking
+  // it would be churn.
+  assert.deepEqual(s.pendingAudit(), []);
+  assert.equal(s.summary().awaitingReview, 0);
+});
+
+test("re-checking replaces the verdict and keeps the decision", () => {
+  const s = createStore(dir);
+  s.addBusiness({ name: "Low Co", town: "Liberty, MO", website: "https://low.test" });
+  s.addLead({ business: { name: "Low Co", website: "https://low.test" }, tier: "D", score: 8 });
+  s.addLead({ business: { name: "Low Co", website: "https://low.test" }, tier: "C", score: 30 });
+
+  // One business, one verdict - not two rows in the report for the same site.
+  assert.equal(s.leads.length, 1);
+  assert.equal(s.leads[0].score, 30, "the newer check wins");
+
+  s.review("https://low.test", "confirmed");
+  s.addLead({ business: { name: "Low Co", website: "https://low.test" }, tier: "D", score: 5 });
+  // A re-check must not quietly undo something already looked at and settled.
+  assert.equal(s.leads[0].review, "confirmed");
+});
+
 test("reset clears everything, and only on an explicit ask", () => {
   const s = createStore(dir);
   s.markDone("hvac|Liberty, MO|0");
@@ -89,7 +141,7 @@ test("reset clears everything, and only on an explicit ask", () => {
   s.addLead({ business: { name: "Arctic Air", website: "https://a.test" }, tier: "B" });
 
   s.reset();
-  assert.deepEqual(s.summary(), { towns: 0, searches: 0, found: 0, withSite: 0, audited: 0, pending: 0 });
+  assert.deepEqual(s.summary(), { towns: 0, searches: 0, found: 0, withSite: 0, audited: 0, awaitingReview: 0, pending: 0 });
   assert.equal(createStore(dir).found.length, 0, "and it stays cleared after a restart");
 });
 

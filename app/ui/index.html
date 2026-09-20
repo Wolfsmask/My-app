@@ -90,6 +90,13 @@
   .drop .lead__score{color:var(--bad);font-size:1rem}
   /* A score built on half an audit is a guess, and should look like one. */
   .lead__thin{font-size:.79rem;color:var(--b);margin:2px 0 8px}
+  .verdict{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px;padding-top:10px;
+    border-top:1px solid var(--line);font-size:.78rem;color:var(--muted)}
+  .verdict span{flex:1 1 15rem}
+  .tiny{background:none;border:1px solid var(--line);color:var(--soft);border-radius:7px;
+    padding:5px 11px;font:inherit;font-size:.76rem;cursor:pointer}
+  .tiny:hover{border-color:rgba(201,173,114,.5);color:var(--text)}
+  .verdict.settled{color:var(--muted)}
   .panel.start{text-align:center;padding:30px 22px 24px}
   .big{width:100%;max-width:360px;font-size:1.22rem;font-weight:700;padding:19px 24px;border-radius:14px;
     border:none;cursor:pointer;color:#14100a;background:linear-gradient(135deg,var(--gold-l),var(--gold));
@@ -264,6 +271,7 @@ Tier D  under 25 — the site is fine, drop it</pre>
       $('state').innerHTML = st.found
         ? `<b>${st.found}</b> businesses found, <b>${st.withSite}</b> with a website &middot; `
           + `<b>${st.audited}</b> checked, <b>${st.pending}</b> waiting &middot; `
+          + `<b>${st.awaitingReview}</b> low scores to look at &middot; `
           + `<b>${st.searches}</b> searches done`
         : 'Nothing found yet.';
     } catch { $('state').textContent = ''; }
@@ -505,7 +513,34 @@ Tier D  under 25 — the site is fine, drop it</pre>
                   ? `<div class="lead__thin">Only ${esc(e.confidence)}% of the usual checks could be run on this page \u2014 the score is less certain than the others.</div>`
                   : ''}
                 ${findings}
+                ${!dropped && e.tier !== 'A' && e.tier !== 'B' && e.website ? `
+                  <div class="verdict" data-site="${esc(e.website)}">
+                    <span>Scored low. Have a quick look \u2014 until you say, it gets checked again next time.</span>
+                    <button class="tiny" data-decision="confirmed">Agreed, drop it</button>
+                    <button class="tiny" data-decision="keep">Actually worth it</button>
+                  </div>` : ''}
               </div>`);
+
+            // Wired after the card is in the page, so a decision is recorded
+            // the moment it is made rather than at the end of the run.
+            const card = $('results').lastElementChild?.querySelector('.verdict');
+            if (card) {
+              for (const btn of card.querySelectorAll('.tiny')) {
+                btn.onclick = async () => {
+                  const decision = btn.dataset.decision;
+                  try {
+                    await fetch('/api/review', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ website: card.dataset.site, decision }),
+                    });
+                    card.classList.add('settled');
+                    card.innerHTML = `<span>${decision === 'confirmed' ? 'Dropped \u2014 it will not be checked again.' : 'Kept \u2014 it will not be checked again.'}</span>`;
+                    showState();
+                  } catch { btn.textContent = 'could not save'; }
+                };
+              }
+            }
 
             $('totals').classList.add('on');
             $('totals').innerHTML = ['A', 'B', 'C', 'D'].map(t =>
