@@ -366,7 +366,10 @@ async function runAudit(listText, opts, res, signal, { quiet = false } = {}) {
   // Sorted here, not only in the page. The in-run list was ordered but the
   // saved one wins, so the report and the spreadsheet were coming out in
   // whatever order the checks happened to finish - best leads buried.
-  const all = [...(store.leads.length >= leads.length ? store.leads : leads)]
+  // The report is what is still live, for the same reason. Everything ever
+  // checked is in leads.json if it is ever wanted.
+  const all = (store.leads.length >= leads.length ? store.leads : leads)
+    .filter(l => l.review !== 'confirmed')
     .sort((a, z) => (z.score ?? -1) - (a.score ?? -1));
   fs.writeFileSync(path.join(OUT, 'leads.csv'), toCsv(all));
   fs.writeFileSync(path.join(OUT, 'report.html'), toHtml(all, meta));
@@ -462,7 +465,11 @@ const server = http.createServer(async (req, res) => {
     // in the window, and pressing Start wiped them - a night's work looked
     // lost, though it was saved the whole time.
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    const rows = [...store.leads]
+    // Closed ones stay on disk - that is what stops them being checked again -
+    // but they are done with, and putting two thousand of them back on the
+    // page every time it opens is not "saved", it is clutter.
+    const rows = store.leads
+      .filter(l => l.review !== 'confirmed')
       .sort((a, z) => (z.score ?? -1) - (a.score ?? -1))
       .map(l => ({
         name: l.business?.name, website: l.business?.website,

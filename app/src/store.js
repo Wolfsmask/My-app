@@ -194,6 +194,8 @@ export function createStore(dir) {
       found: found.length,
       withSite: found.filter(b => b.website && !b.duplicateOf).length,
       audited: leads.length,
+      kept: leads.filter(l => l.review !== "confirmed").length,
+      closed: leads.filter(l => l.review === "confirmed").length,
       awaitingReview: leads.filter(l => !l.review && l.tier !== "A" && l.tier !== "B" && l.business?.website).length,
       pending: pendingAudit().length,
     }),

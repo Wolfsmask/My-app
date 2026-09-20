@@ -157,6 +157,24 @@ test("saving keeps the good ones and closes the book on the rest", () => {
   assert.equal(createStore(dir).leads.find(l => l.business.website === "https://c.test").review, "keep");
 });
 
+test("what is closed stays on disk but stops counting as kept", () => {
+  const s = createStore(dir);
+  for (const [name, url, tier] of [["Good", "https://a.test", "A"], ["Fine", "https://d.test", "D"]]) {
+    s.addBusiness({ name, town: "Liberty, MO", website: url });
+    s.addLead({ business: { name, website: url }, tier, score: 40 });
+  }
+  s.saveNow([]);
+
+  const after = createStore(dir);
+  // Still recorded - that is what stops it being checked a third time - but
+  // it is finished with, and should not come back onto the page or into the
+  // report every time the app opens.
+  assert.equal(after.leads.length, 2, "both are still on disk");
+  assert.equal(after.summary().kept, 1);
+  assert.equal(after.summary().closed, 1);
+  assert.equal(after.leads.filter(l => l.review !== "confirmed").length, 1, "one live lead");
+});
+
 test("reset clears everything, and only on an explicit ask", () => {
   const s = createStore(dir);
   s.markDone("hvac|Liberty, MO|0");
@@ -164,7 +182,7 @@ test("reset clears everything, and only on an explicit ask", () => {
   s.addLead({ business: { name: "Arctic Air", website: "https://a.test" }, tier: "B" });
 
   s.reset();
-  assert.deepEqual(s.summary(), { towns: 0, searches: 0, found: 0, withSite: 0, audited: 0, awaitingReview: 0, pending: 0 });
+  assert.deepEqual(s.summary(), { towns: 0, searches: 0, found: 0, withSite: 0, audited: 0, kept: 0, closed: 0, awaitingReview: 0, pending: 0 });
   assert.equal(createStore(dir).found.length, 0, "and it stays cleared after a restart");
 });
 

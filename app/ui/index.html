@@ -280,12 +280,15 @@ Tier D  under 12 — the site is fine, drop it</pre>
   async function showState() {
     try {
       const st = await (await fetch('/api/state')).json();
-      $('state').innerHTML = st.found
+      // Checked-but-not-found counts too: a pasted list never goes through
+      // Start, and reading "Nothing found yet" with leads on the page is
+      // simply wrong.
+      $('state').innerHTML = (st.found || st.audited)
         ? `<b>${st.found}</b> businesses found, <b>${st.withSite}</b> with a website &middot; `
-          + `<b>${st.audited}</b> checked, <b>${st.pending}</b> waiting &middot; `
-          + `<b>${st.awaitingReview}</b> low scores to look at &middot; `
+          + `<b>${st.audited}</b> checked &mdash; <b>${st.kept}</b> kept, <b>${st.closed}</b> closed &middot; `
+          + `<b>${st.pending}</b> waiting, <b>${st.awaitingReview}</b> low scores to look at &middot; `
           + `<b>${st.searches}</b> searches done`
-        : 'Nothing found yet.';
+        : 'Nothing found yet. Press Start.';
     } catch { $('state').textContent = ''; }
   }
   showState();
@@ -395,12 +398,9 @@ Tier D  under 12 — the site is fine, drop it</pre>
       })).json();
       if (r.error) throw new Error(r.error);
       $('status').textContent = `Saved. ${r.kept} kept, ${r.closed} closed for good \u2014 those will not be checked again.`;
-      // The closed ones are settled now, so their cards should stop asking.
-      for (const v of document.querySelectorAll('.verdict')) {
-        const box = v.querySelector('.keepbox');
-        v.classList.add('settled');
-        v.innerHTML = `<span>${box?.checked ? 'Kept.' : 'Closed \u2014 it will not be checked again.'}</span>`;
-      }
+      // Closed cards leave the page. They are done with, and leaving them
+      // sitting there is why "saved" looked like it had saved everything.
+      await loadSaved({ quiet: true });
       showState();
     } catch (err) {
       $('status').innerHTML = `<span class="err">${esc(err.message)}</span>`;
@@ -416,15 +416,22 @@ Tier D  under 12 — the site is fine, drop it</pre>
    * a night's work looked lost - it had been saved the whole time, but there
    * was no way to see it.
    */
-  async function loadSaved() {
+  async function loadSaved({ quiet = false } = {}) {
     try {
       const rows = await (await fetch('/api/leads')).json();
-      if (!rows.length) return;
       const counts = { A: 0, B: 0, C: 0, D: 0, dropped: 0 };
+      // Cleared even when nothing comes back: closing everything should empty
+      // the page, not leave the closed cards sitting there.
       $('results').innerHTML = '';
       for (const r of rows) addLead({ ...r, tier: r.tier ?? '-' }, counts);
       showTotals(counts);
-      $('status').textContent = `${rows.length} checked so far. ${counts.A} Tier A, ${counts.B} Tier B.`;
+      // Quiet when something else has just said what happened - otherwise the
+      // "Saved, 3 kept" message is replaced a moment later by a count.
+      if (!quiet) {
+        $('status').textContent = rows.length
+          ? `${rows.length} kept so far. ${counts.A} Tier A, ${counts.B} Tier B.`
+          : '';
+      }
     } catch { /* nothing saved yet */ }
   }
 
