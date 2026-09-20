@@ -157,6 +157,30 @@ export function createStore(dir) {
       return true;
     },
 
+    /**
+     * Keeps the leads worth keeping and closes the book on the rest.
+     *
+     * Everything ranked A or B is kept, plus any low-ranked ones picked out by
+     * hand. Everything else is marked settled, which takes it out of the queue
+     * for good - so a later run is not spending its night re-checking sites
+     * that were looked at and passed over days ago.
+     */
+    saveNow(keepUrls = []) {
+      const keep = new Set(keepUrls);
+      let kept = 0, closed = 0;
+      for (const lead of leads) {
+        const url = lead.business?.website;
+        if (!url) continue;
+        if (lead.tier === "A" || lead.tier === "B" || keep.has(url)) {
+          lead.review = "keep"; kept++;
+        } else {
+          lead.review = "confirmed"; closed++;
+        }
+      }
+      write(file("leads.json"), leads);
+      return { kept, closed };
+    },
+
     /** Checked, ranked low, and nobody has looked at it yet. */
     awaitingReview: () => leads.filter(l =>
       !l.review && l.tier !== "A" && l.tier !== "B" && l.business?.website),

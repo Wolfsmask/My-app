@@ -110,6 +110,34 @@ test("evidence quotes the real measurement, never a guess", () => {
   assert.match(hit.evidence, /390px/);
 });
 
+test("a fault that is a matter of degree scores in proportion", () => {
+  // A site with three dated markers and one built entirely like 2005 are both
+  // "dated". Scoring them the same buried the second among the first.
+  const mild = score({ ...fine, looksDated: true, datedSignals: 3 });
+  const total = score({ ...fine, looksDated: true, datedSignals: 5 });
+
+  assert.ok(total.score > mild.score, `5 markers (${total.score}) must beat 3 (${mild.score})`);
+  assert.ok(total.tier === "A" || total.tier === "B", "a thoroughly dated site is worth contacting");
+  assert.equal(mild.tier, "C", "a mildly dated one is not, yet");
+  // And the email has to be able to say how dated, in words an owner reads.
+  assert.match(total.hits.find(h => h.id === "looks_dated").evidence, /100%/);
+});
+
+test("how it looks and whether it works on a phone outweigh the plumbing", () => {
+  // People judge a business on its website's appearance long before anything
+  // technical, and most local searches happen on a phone. A site whose only
+  // faults are compression and page weight is not one to rebuild.
+  const plumbingOnly = score({
+    ...fine, pageWeightBytes: 9e6, usesModernImages: false, hasStructureProblems: true,
+  });
+  assert.equal(plumbingOnly.tier, "D", `technical nits alone scored ${plumbingOnly.score}`);
+
+  const phone = score({ ...fine, isResponsive: false, mobileScrollWidth: 980 });
+  const looks = score({ ...fine, looksDated: true, datedSignals: 5 });
+  assert.ok(phone.score > plumbingOnly.score * 3, "the phone test dominates");
+  assert.ok(looks.score > plumbingOnly.score * 3, "so does how it looks");
+});
+
 test("tier boundaries", () => {
   assert.equal(tierFor(100), "A");
   assert.equal(tierFor(45), "A");

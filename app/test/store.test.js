@@ -134,6 +134,29 @@ test("re-checking replaces the verdict and keeps the decision", () => {
   assert.equal(s.leads[0].review, "confirmed");
 });
 
+test("saving keeps the good ones and closes the book on the rest", () => {
+  const s = createStore(dir);
+  for (const [name, url, tier] of [
+    ["Good", "https://a.test", "A"], ["Alright", "https://b.test", "B"],
+    ["Meh", "https://c.test", "C"], ["Fine", "https://d.test", "D"],
+  ]) {
+    s.addBusiness({ name, town: "Liberty, MO", website: url });
+    s.addLead({ business: { name, website: url }, tier, score: 50 });
+  }
+
+  // Everything A or B, plus the one low-ranked site picked out by hand.
+  const { kept, closed } = s.saveNow(["https://c.test"]);
+  assert.equal(kept, 3);
+  assert.equal(closed, 1);
+
+  // The closed one must never come back round - that is the whole point: a
+  // later night is not spent re-checking sites already passed over.
+  assert.deepEqual(s.pendingAudit(), []);
+  assert.equal(createStore(dir).pendingAudit().length, 0, "still closed after a restart");
+  assert.equal(createStore(dir).leads.find(l => l.business.website === "https://d.test").review, "confirmed");
+  assert.equal(createStore(dir).leads.find(l => l.business.website === "https://c.test").review, "keep");
+});
+
 test("reset clears everything, and only on an explicit ask", () => {
   const s = createStore(dir);
   s.markDone("hvac|Liberty, MO|0");

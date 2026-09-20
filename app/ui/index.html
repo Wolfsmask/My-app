@@ -97,6 +97,12 @@
     padding:5px 11px;font:inherit;font-size:.76rem;cursor:pointer}
   .tiny:hover{border-color:rgba(201,173,114,.5);color:var(--text)}
   .verdict.settled{color:var(--muted)}
+  .lead__url a{color:var(--gold);text-decoration:none;border-bottom:1px solid rgba(201,173,114,.3)}
+  .lead__url a:hover{color:var(--gold-l);border-bottom-color:var(--gold-l)}
+  .pick{display:inline-flex;align-items:center;gap:7px;cursor:pointer;color:var(--soft);white-space:nowrap}
+  .pick input{width:auto;margin:0;accent-color:var(--gold)}
+  .saverow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
+  .saverow .note{color:var(--muted);font-size:.79rem;flex:1 1 18rem}
   .panel.start{text-align:center;padding:30px 22px 24px}
   .big{width:100%;max-width:360px;font-size:1.22rem;font-weight:700;padding:19px 24px;border-radius:14px;
     border:none;cursor:pointer;color:#14100a;background:linear-gradient(135deg,var(--gold-l),var(--gold));
@@ -143,6 +149,11 @@
       come back to it &mdash; it remembers what it has already done, so closing the tab or restarting never repeats work.
       Closing the tab stops it.</p>
     <p class="state" id="state"></p>
+    <div class="saverow">
+      <button class="ghost" id="save">Save now</button>
+      <span class="note">Keeps every A and B, plus any low ones you ticked. Everything else is closed for good and
+        never checked again — so tomorrow night is not spent on sites you already passed over.</span>
+    </div>
   </div>
 
   <details class="panel narrow">
@@ -278,6 +289,7 @@ Tier D  under 12 — the site is fine, drop it</pre>
     } catch { $('state').textContent = ''; }
   }
   showState();
+  loadSaved();
 
   // Start is Find with nothing chosen: every trade, every town.
   /** Reads an NDJSON stream, handing each event to `onEvent`. */
@@ -313,7 +325,16 @@ Tier D  under 12 — the site is fine, drop it</pre>
     // every moment during a run - not only once it finishes. Sites that could
     // not be checked sink to the bottom.
     const rank = dropped ? -1 : (e.score ?? -1);
+
+    // One card per site. Re-checking a business, or loading what is on disk
+    // and then checking more, used to leave the same company listed twice.
+    if (e.website) {
+      const already = [...$('results').children].find(c => c.dataset.site === e.website);
+      already?.remove();
+    }
+
     const card = document.createElement('div');
+    if (e.website) card.dataset.site = e.website;
     card.className = `lead ${dropped ? 'drop' : esc(e.tier)}`;
     card.dataset.rank = rank;
     const below = [...$('results').children].find(c => Number(c.dataset.rank) < rank);
@@ -325,22 +346,25 @@ Tier D  under 12 — the site is fine, drop it</pre>
           <span class="lead__name">${esc(e.name)}</span>
           <span class="pill">${dropped ? esc(e.note ?? 'skipped') : 'Tier ' + esc(e.tier)}</span>
         </div>
-        ${e.website ? `<div class="lead__url">${esc(e.website)}</div>` : ''}
+        ${e.website ? `<div class="lead__url"><a href="${esc(e.website)}" target="_blank" rel="noopener noreferrer">${esc(e.website)}</a></div>` : ''}
         ${!dropped && e.confidence != null && e.confidence < 100
           ? `<div class="lead__thin">Only ${esc(e.confidence)}% of the usual checks could be run on this page \u2014 the score is less certain than the others.</div>`
           : ''}
         ${findings}
         ${!dropped && e.tier !== 'A' && e.tier !== 'B' && e.website ? `
           <div class="verdict" data-site="${esc(e.website)}">
-            <span>Scored low. Have a quick look \u2014 until you say, it gets checked again next time.</span>
-            <button class="tiny" data-decision="confirmed">Agreed, drop it</button>
-            <button class="tiny" data-decision="keep">Actually worth it</button>
+            <label class="pick"><input type="checkbox" class="keepbox"> Keep this one</label>
+            <span>Scored low. Tick it to keep, or leave it \u2014 Save now closes the rest for good.</span>
+            <button class="tiny" data-decision="confirmed">Drop it now</button>
           </div>` : ''}`;
 
     // Looked up inside the card just made, not at the end of the list: once
     // the list is sorted, the newest card is rarely last.
     const verdict = card.querySelector('.verdict');
-    if (verdict) {
+    if (verdict && e.review) {
+      verdict.classList.add('settled');
+      verdict.innerHTML = `<span>${e.review === 'keep' ? 'Kept.' : 'Closed \u2014 it will not be checked again.'}</span>`;
+    } else if (verdict) {
       for (const btn of verdict.querySelectorAll('.tiny')) {
         btn.onclick = async () => {
           const decision = btn.dataset.decision;
@@ -357,6 +381,51 @@ Tier D  under 12 — the site is fine, drop it</pre>
         };
       }
     }
+  }
+
+  $('save').onclick = async () => {
+    $('save').disabled = true;
+    const keep = [...document.querySelectorAll('.verdict')]
+      .filter(v => v.querySelector('.keepbox')?.checked)
+      .map(v => v.dataset.site);
+    try {
+      const r = await (await fetch('/api/save-now', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keep }),
+      })).json();
+      if (r.error) throw new Error(r.error);
+      $('status').textContent = `Saved. ${r.kept} kept, ${r.closed} closed for good \u2014 those will not be checked again.`;
+      // The closed ones are settled now, so their cards should stop asking.
+      for (const v of document.querySelectorAll('.verdict')) {
+        const box = v.querySelector('.keepbox');
+        v.classList.add('settled');
+        v.innerHTML = `<span>${box?.checked ? 'Kept.' : 'Closed \u2014 it will not be checked again.'}</span>`;
+      }
+      showState();
+    } catch (err) {
+      $('status').innerHTML = `<span class="err">${esc(err.message)}</span>`;
+    } finally {
+      $('save').disabled = false;
+    }
+  };
+
+  /**
+   * Puts back what is already on disk.
+   *
+   * Results used to live only in the window, so pressing Start wiped them and
+   * a night's work looked lost - it had been saved the whole time, but there
+   * was no way to see it.
+   */
+  async function loadSaved() {
+    try {
+      const rows = await (await fetch('/api/leads')).json();
+      if (!rows.length) return;
+      const counts = { A: 0, B: 0, C: 0, D: 0, dropped: 0 };
+      $('results').innerHTML = '';
+      for (const r of rows) addLead({ ...r, tier: r.tier ?? '-' }, counts);
+      showTotals(counts);
+      $('status').textContent = `${rows.length} checked so far. ${counts.A} Tier A, ${counts.B} Tier B.`;
+    } catch { /* nothing saved yet */ }
   }
 
   function showTotals(counts) {
@@ -382,7 +451,8 @@ Tier D  under 12 — the site is fine, drop it</pre>
     $('start').classList.add('stop');
     $('find').disabled = true;
     $('run').disabled = true;
-    $('results').innerHTML = '';
+    // Not cleared. New results are placed among what is already there by
+    // score, so a run adds to the picture rather than replacing it.
 
     let round = 0, phase = '', found = 0;
     const counts = { A: 0, B: 0, C: 0, D: 0, dropped: 0 };
@@ -606,11 +676,13 @@ Tier D  under 12 — the site is fine, drop it</pre>
   };
 
   $('run').onclick = async () => {
+    // An empty box is not a mistake - it means "work through everything found
+    // and not yet checked", which is the whole point of coming home and
+    // pressing Check. Refusing it here made that flow impossible from the
+    // page, though the server had supported it all along.
     const list = $('list').value.trim();
-    if (!list) { $('status').textContent = 'Paste at least one business first.'; return; }
 
     $('run').disabled = true;
-    $('results').innerHTML = '';
     $('done').classList.remove('on');
     $('totals').classList.remove('on');
     $('bar').classList.add('on');

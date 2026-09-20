@@ -38,6 +38,11 @@ or search one trade in one town.
 nothing keeps running against other people's servers once nobody is watching. Leave the tab
 open while you are at school; close it and it stops.
 
+**Save now** keeps every A and B, plus any low-ranked ones you ticked, and closes the book on
+everything else — those are never checked again, so a later night is not spent re-doing sites
+you already passed over. Results are loaded back from disk every time you open the page, so
+they survive Stop, Start, a reload and a restart.
+
 **Best first.** Results are ordered by score as they arrive — highest at the top, sites that
 could not be reached at the bottom — and the report and spreadsheet come out the same way.
 

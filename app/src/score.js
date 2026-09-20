@@ -17,7 +17,7 @@
 export const EMBARRASSMENT = [
   {
     id: "not_responsive",
-    points: 25,
+    points: 40,
     label: "Not readable on a phone",
     // The single strongest signal. Over half of local searches are mobile, so
     // this is lost revenue the owner can feel, not an abstract metric.
@@ -26,7 +26,7 @@ export const EMBARRASSMENT = [
   },
   {
     id: "ssl_broken",
-    points: 15,
+    points: 10,
     label: "Security warning in the browser",
     test: a => a.sslValid === false,
     evidence: a =>
@@ -36,28 +36,28 @@ export const EMBARRASSMENT = [
   },
   {
     id: "stale_copyright",
-    points: 10,
+    points: 8,
     label: "Footer looks abandoned",
     test: a => a.copyrightYear != null && new Date().getFullYear() - a.copyrightYear >= 3,
     evidence: a => `Footer still says © ${a.copyrightYear}. To a first-time visitor that reads as "this business may have closed".`,
   },
   {
     id: "dead_platform",
-    points: 10,
+    points: 12,
     label: "Built on obsolete technology",
     test: a => a.platformIsObsolete === true,
     evidence: a => `Running on ${a.platform}, which stopped being maintained. It is a security risk and it cannot be made fast.`,
   },
   {
     id: "broken_assets",
-    points: 5,
+    points: 4,
     label: "Broken links or missing images",
     test: a => (a.brokenLinks || 0) + (a.brokenImages || 0) > 0,
     evidence: a => `${a.brokenLinks} broken link(s) and ${a.brokenImages} missing image(s) on the homepage alone.`,
   },
   {
     id: "no_contact",
-    points: 5,
+    points: 8,
     label: "No way to make contact without scrolling",
     test: a => a.hasContactAboveFold === false,
     evidence: () => `No phone number, email or form visible without scrolling. Every extra scroll loses callers.`,
@@ -72,13 +72,22 @@ export const EMBARRASSMENT = [
 export const DESIGN = [
   {
     id: "looks_dated",
-    points: 12,
+    // The heaviest thing after the phone test. People judge a business on how
+    // its site looks long before they notice anything technical about it.
+    points: 35,
     label: "Looks a decade out of date",
     test: a => a.looksDated === true,
-    evidence: a =>
-      a.visualDecade
+    // Five markers of a pre-2013 build: system-only fonts, no flex or grid,
+    // table layout, no semantic tags, inline styles everywhere. How many are
+    // present is how old it looks, so it scores in proportion rather than
+    // all-or-nothing.
+    scale: a => (a.datedSignals ?? 3) / 5,
+    evidence: a => {
+      const pct = Math.round(((a.datedSignals ?? 3) / 5) * 100);
+      return a.visualDecade
         ? `The design reads as ${a.visualDecade} — system-only fonts, no modern layout, built before responsive design was standard.`
-        : `Built with pre-2013 techniques: ${a.datedSignals} of 5 dated-design markers present.`,
+        : `Built ${pct}% the way a site was built before 2013 (${a.datedSignals} of 5 markers: system-only fonts, no modern layout, table-based structure).`;
+    },
   },
   {
     id: "poor_first_impression",
@@ -95,21 +104,21 @@ export const DESIGN = [
   },
   {
     id: "text_too_small",
-    points: 4,
+    points: 6,
     label: "Body text too small to read on a phone",
     test: a => a.textTooSmall === true,
     evidence: a => `Body text is ${a.bodyFontSize}px. Below 14px is uncomfortable on a phone and readers give up.`,
   },
   {
     id: "tiny_tap_targets",
-    points: 3,
+    points: 5,
     label: "Buttons and links too small to tap",
     test: a => a.tapTargetsTooSmall === true,
     evidence: a => `${a.tinyTapTargets} of ${a.tappableCount} links and buttons are under 32px tall — hard to hit with a thumb.`,
   },
   {
     id: "weak_structure",
-    points: 3,
+    points: 2,
     label: "Page structure works against Google",
     test: a => a.hasStructureProblems === true,
     evidence: a => `Structural issues: ${(a.structureProblems || []).slice(0, 3).join("; ")}.`,
@@ -140,14 +149,14 @@ export const PERFORMANCE = [
   },
   {
     id: "heavy_page",
-    points: 4,
+    points: 1,
     label: "Very heavy page",
     test: a => a.pageWeightBytes != null && a.pageWeightBytes > 5_000_000,
     evidence: a => `Homepage downloads ${(a.pageWeightBytes / 1e6).toFixed(1)}MB — punishing on phone data.`,
   },
   {
     id: "unoptimised_images",
-    points: 3,
+    points: 1,
     label: "Images not compressed",
     test: a => a.usesModernImages === false,
     evidence: () => `No modern image formats (WebP/AVIF). Images are several times larger than they need to be.`,
@@ -220,10 +229,15 @@ export function score(audit) {
 
     possible += check.points;
     if (ran && check.test(audit)) {
-      earned += check.points;
+      // Some faults are a matter of degree. A site with two dated markers and
+      // a site built entirely like 2005 are both "dated", and scoring them the
+      // same buries the second one among the first.
+      const share = check.scale ? Math.max(0, Math.min(1, check.scale(audit))) : 1;
+      const worth = Math.round(check.points * share);
+      earned += worth;
       hits.push({
         id: check.id,
-        points: check.points,
+        points: worth,
         label: check.label,
         evidence: safeEvidence(check, audit),
         group: EMBARRASSMENT.includes(check) ? "embarrassment"

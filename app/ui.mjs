@@ -457,6 +457,38 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && url.pathname === '/api/leads') {
+    // So the page can show what is already on disk. Results used to live only
+    // in the window, and pressing Start wiped them - a night's work looked
+    // lost, though it was saved the whole time.
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    const rows = [...store.leads]
+      .sort((a, z) => (z.score ?? -1) - (a.score ?? -1))
+      .map(l => ({
+        name: l.business?.name, website: l.business?.website,
+        tier: l.tier, score: l.score, confidence: l.confidence,
+        review: l.review ?? null, note: l.dropReason ?? null,
+        findings: (l.hits ?? []).map(h => ({ label: h.label, points: h.points, evidence: h.evidence })),
+      }));
+    res.end(JSON.stringify(rows));
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/save-now') {
+    let body = '';
+    req.on('data', c => { body += c; if (body.length > 1e6) req.destroy(); });
+    await new Promise(r => req.on('end', r));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    try {
+      const { keep } = JSON.parse(body || '{}');
+      const result = store.saveNow(Array.isArray(keep) ? keep : []);
+      res.end(JSON.stringify({ ...result, ...store.summary() }));
+    } catch (e) {
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/state') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(store.summary()));

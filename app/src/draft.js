@@ -85,6 +85,41 @@ const CONSEQUENCE = {
 // Named parameters, because a shared "b" slot meant one opener wanted the
 // trade and the next wanted the business, and the wrong one read
 // "I came across HVAC while looking through Kearney".
+/**
+ * Each fault as a short phrase, so an email can name two or three things
+ * without turning into a report. An owner wants to know what is wrong, not
+ * to read an audit - so these are the plain-words version, no numbers and no
+ * jargon, and the email carries at most three.
+ */
+const SHORT_FIX = {
+  not_responsive: "make it fit a phone screen properly",
+  looks_dated: "bring the look up to date",
+  dead_platform: "rebuild it on something current",
+  stale_copyright: "freshen up the footer",
+  ssl_broken: "sort out the security certificate",
+  broken_assets: "fix the links and images that do not load",
+  no_contact: "put your phone number where people see it first",
+  text_too_small: "make the text readable without zooming",
+  tiny_tap_targets: "make the buttons easier to tap",
+  slow_lcp: "speed up how fast it loads",
+  structure: "tidy up the headings so Google reads it properly",
+  weak_structure: "tidy up the headings so Google reads it properly",
+  heavy_page: "slim the page down",
+  unoptimised_images: "compress the images",
+};
+
+/** Two or three things, as a sentence rather than a list. */
+function whatNeedsDoing(findings) {
+  const bits = [...findings]
+    .sort((a, b) => b.points - a.points)
+    .map(f => SHORT_FIX[f.id])
+    .filter(Boolean)
+    .slice(0, 3);
+  if (bits.length < 2) return null;
+  const last = bits.pop();
+  return `The main things would be to ${bits.join(", ")} and ${last}.`;
+}
+
 const OPENERS = [
   ({ trade, town }) => `I was looking at ${trade} websites around ${town} and yours came up.`,
   ({ name, town }) => `I came across ${name} while looking through ${town} businesses online.`,
@@ -163,8 +198,11 @@ export function draftEmail(lead, sender = {}) {
   // business and is held to the measurements; the sign-off is contact details
   // and a legal requirement, and its house number is not a claim about
   // anyone's website.
+  const summary = whatNeedsDoing(findings);
+
   const claims = [
     [opener, observation, consequence].filter(Boolean).join(" "),
+    ...(summary ? [``, summary] : []),
     ``,
     `I build websites for local businesses - I am based in Liberty, so I am nearby rather than a company in another state. You can see some of my work at ${site}.`,
     ``,
