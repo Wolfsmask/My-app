@@ -60,7 +60,7 @@ async function runFind(category, city, res, signal) {
 
     let batch;
     try {
-      batch = await discoverOsm({ category, city, radiusKm, limit: 200 });
+      batch = await discoverOsm({ category, city, radiusKm, limit: 200, signal });
     } catch (e) {
       // A ring failing is worth saying, but the rings already searched still
       // count - reporting nothing would throw away real results.
@@ -78,13 +78,24 @@ async function runFind(category, city, res, signal) {
     for (let i = 0; i < fresh.length; i += 4) {
       if (signal.aborted) break;
       const slice = fresh.slice(i, i + 4);
-      const hits = await Promise.all(slice.map(b =>
-        resolveWebsite(b, { allowLocal: ALLOW_LOCAL, signal }).catch(() => null)));
+      send(res, { type: 'looking', names: slice.map(b => b.name), done: i, total: fresh.length });
+
+      const hits = await Promise.all(slice.map(async b => {
+        try {
+          return await resolveWebsite(b, { allowLocal: ALLOW_LOCAL, signal });
+        } catch (e) {
+          // A miss is already a null from resolveWebsite. Reaching here means
+          // the lookup itself is broken, and reporting that as "no website"
+          // is how every business in town came back empty with nothing said.
+          if (!signal.aborted) send(res, { type: 'error', message: `The website lookup failed: ${e.message}` });
+          throw e;
+        }
+      }));
 
       for (const [n, b] of slice.entries()) {
         if (signal.aborted) break;
         const hit = hits[n];
-        if (hit) withSite++; else noSite++;
+        if (hit?.website) withSite++; else noSite++;
         send(res, {
           type: 'business',
           name: b.name,
@@ -92,6 +103,9 @@ async function runFind(category, city, res, signal) {
           website: hit?.website ?? null,
           via: hit?.via ?? null,
           why: hit?.why ?? null,
+          // What was tried and what each one said, so "found nothing" can be
+          // read rather than guessed at.
+          tried: hit?.website ? null : (hit?.tried ?? null),
           withSite, noSite,
         });
       }
@@ -223,7 +237,14 @@ const server = http.createServer(async (req, res) => {
     // give up, so without this it would keep hitting other people's servers
     // for a search nobody is watching any more.
     const stop = new AbortController();
-    res.on('close', () => stop.abort());
+    res.on('close', () => {
+      stop.abort();
+      // Released here as well as in the finally below. The finally cannot run
+      // until runFind returns, and runFind can still be inside a request that
+      // has seconds to go - during which a new search was refused as "already
+      // running in another tab". Stop must free the tool immediately.
+      finding = false;
+    });
 
     res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' });
     try {

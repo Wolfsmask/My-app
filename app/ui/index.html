@@ -235,10 +235,21 @@ Tier D  under 25 — the site is fine, drop it</pre>
           if (e.type === 'error') throw new Error(e.message);
           if (e.type === 'note') { stage = e.message; continue; }
           if (e.type === 'stage') { stage = `searching ${e.radiusKm}km out`; }
+          // Naming the business being looked up turns a stalled-looking window
+          // into one that is visibly working.
+          if (e.type === 'looking') stage = `looking up ${e.names[0]}${e.names.length > 1 ? ` and ${e.names.length - 1} more` : ''}`;
 
           if (e.type === 'business') {
-            if (e.website) withSite.push([e.name, e.website, e.phone].filter(Boolean).join(', '));
-            else noSite.push(`# no website found: ${[e.name, e.phone].filter(Boolean).join(' - ')}`);
+            if (e.website) {
+              withSite.push([e.name, e.website, e.phone].filter(Boolean).join(', '));
+            } else {
+              // Carrying the reasons through means "found nothing" can be read
+              // instead of guessed at - and a lookup that is broken rather
+              // than empty shows up immediately.
+              const why = (e.tried ?? []).slice(0, 3).join('; ');
+              noSite.push(`# no website found: ${[e.name, e.phone].filter(Boolean).join(' - ')}`
+                + (why ? `\n#    tried ${why}` : ''));
+            }
             repaint();
           }
 

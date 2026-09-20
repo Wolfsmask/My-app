@@ -130,13 +130,13 @@ export const OSM_CATEGORIES = Object.keys(OSM_TAGS)
   .map(key => ({ key, label: OSM_LABELS[key] ?? key }))
   .sort((a, b) => a.label.localeCompare(b.label));
 
-export async function discoverOsm({ category, city, limit = 60, radiusKm = 25 }) {
+export async function discoverOsm({ category, city, limit = 60, radiusKm = 25, signal }) {
   const tags = OSM_TAGS[category];
   if (!tags) {
     throw new Error(`No OSM mapping for "${category}". Known: ${Object.keys(OSM_TAGS).join(", ")}`);
   }
 
-  const geo = await geocode(city);
+  const geo = await geocode(city, signal);
   if (!geo) throw new Error(`Could not find "${city}" on the map.`);
 
   const radius = Math.round(radiusKm * 1000);
@@ -148,7 +148,7 @@ export async function discoverOsm({ category, city, limit = 60, radiusKm = 25 })
   // This read "out center tags N", which is the wrong way round.
   const query = `[out:json][timeout:60];\n(\n  ${parts}\n);\nout tags center ${limit * 3};`;
 
-  const data = await askOverpass(query);
+  const data = await askOverpass(query, signal);
   const seen = new Set();
   const out = [];
 
@@ -199,17 +199,38 @@ export async function discoverOsm({ category, city, limit = 60, radiusKm = 25 })
  * code, as this used to, turned an explanation the server had already written
  * into an unactionable number.
  */
-async function askOverpass(query) {
+/**
+ * A deadline that also gives up when the caller does. Written out rather than
+ * using AbortSignal.any, which only exists from Node 20.3 and would otherwise
+ * throw on a version this tool claims to support.
+ */
+function bounded(signal, timeoutMs) {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  if (!signal) return timeout;
+  if (typeof AbortSignal.any === "function") return AbortSignal.any([signal, timeout]);
+  const controller = new AbortController();
+  const stop = () => controller.abort();
+  if (signal.aborted || timeout.aborted) stop();
+  signal.addEventListener("abort", stop, { once: true });
+  timeout.addEventListener("abort", stop, { once: true });
+  return controller.signal;
+}
+
+async function askOverpass(query, signal) {
   const tried = [];
 
   for (const url of overpassUrls()) {
+    if (signal?.aborted) break;
     let res;
     try {
       res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "text/plain; charset=utf-8", "Accept": "application/json", "User-Agent": UA },
         body: query,
-        signal: AbortSignal.timeout(90000),
+        // 90 seconds was far too long: three instances in turn meant a search
+        // could sit unresponsive for four minutes per ring, and Stop could not
+        // be heard until it finished. A healthy instance answers in seconds.
+        signal: bounded(signal, 25000),
       });
     } catch (e) {
       tried.push(`${host(url)}: ${e.name === "TimeoutError" ? "timed out" : e.message}`);
@@ -239,9 +260,9 @@ async function askOverpass(query) {
 
 const host = url => { try { return new URL(url).host; } catch { return url; } };
 
-async function geocode(place) {
+async function geocode(place, signal) {
   const url = `${nominatimUrl()}?q=${encodeURIComponent(place)}&format=json&limit=1`;
-  const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20000) });
+  const res = await fetch(url, { headers: { "User-Agent": UA }, signal: bounded(signal, 15000) });
   if (!res.ok) return null;
   const [hit] = await res.json();
   return hit ? { lat: parseFloat(hit.lat), lon: parseFloat(hit.lon) } : null;

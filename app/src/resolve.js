@@ -148,6 +148,36 @@ export function pageProvesBusiness(html, name, { city = "" } = {}) {
 }
 
 /**
+ * One signal that fires when either the caller gives up or the request runs
+ * out of time. AbortSignal.any only arrived in Node 20.3, and this tool asks
+ * for Node 20, so it cannot be assumed - and its absence must not be able to
+ * pass for a website that isn't there.
+ */
+function eitherSignal(signal, timeoutMs) {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  if (!signal) return timeout;
+  if (typeof AbortSignal.any === "function") return AbortSignal.any([signal, timeout]);
+
+  const controller = new AbortController();
+  const stop = () => controller.abort();
+  if (signal.aborted || timeout.aborted) stop();
+  signal.addEventListener("abort", stop, { once: true });
+  timeout.addEventListener("abort", stop, { once: true });
+  return controller.signal;
+}
+
+/** Why a candidate did not work, in words rather than a stack trace. */
+function describe(e) {
+  const code = e?.cause?.code ?? e?.code;
+  if (e?.name === "TimeoutError" || code === "UND_ERR_HEADERS_TIMEOUT") return "took too long to answer";
+  if (e?.name === "AbortError") return "stopped";
+  if (code === "ENOTFOUND" || code === "EAI_AGAIN") return "no such domain";
+  if (code === "ECONNREFUSED") return "refused the connection";
+  if (code === "CERT_HAS_EXPIRED" || code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE") return "bad certificate";
+  return e?.message ? `${e.message}`.slice(0, 80) : "did not answer";
+}
+
+/**
  * Where a guessed domain is actually fetched from. Overridable so the search
  * can be driven against a local stand-in; nothing but tests should set it.
  */
@@ -157,9 +187,12 @@ const defaultUrlFor = domain => {
 };
 
 /**
- * Tries the candidates for one business and returns the first that proves
- * itself, or null. Never throws for an ordinary miss - a business with no
- * findable site is a normal outcome, not an error.
+ * Tries the candidates for one business.
+ *
+ * Always returns { website, via, why, tried }. On a miss `website` is null and
+ * `tried` says what each guess did, because "found nothing" and "every lookup
+ * is broken" look identical without it. Never throws for an ordinary miss; a
+ * business with no findable site is a normal outcome, not an error.
  */
 export async function resolveWebsite(business, {
   allowLocal = false,
@@ -169,7 +202,7 @@ export async function resolveWebsite(business, {
   fetchImpl = fetch,
   signal,
 } = {}) {
-  if (business.website) return { website: business.website, via: "listed", why: "OpenStreetMap had it" };
+  if (business.website) return { website: business.website, via: "listed", why: "OpenStreetMap had it", tried: [] };
 
   const tried = [];
   for (const domain of candidateDomains(business.name, { limit })) {
@@ -183,18 +216,25 @@ export async function resolveWebsite(business, {
       continue;
     }
 
+    // Built before the request, not inside its argument list. Composing the
+    // signals used to happen inline, so when AbortSignal.any was missing the
+    // TypeError landed in the catch below and was filed as "did not answer" -
+    // every candidate, every business, silently finding nothing.
+    const deadline = eitherSignal(signal, timeoutMs);
+
     let res;
     try {
       res = await fetchImpl(url, {
         redirect: "follow",
         headers: { "User-Agent": "Mozilla/5.0 (compatible; MBOnyx lead checker)" },
-        // Both, not either: the caller's signal says "the user pressed Stop",
-        // the timeout says "this server is not answering". Using the caller's
-        // signal alone leaves a hung request with nothing to end it.
-        signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
+        signal: deadline,
       });
-    } catch {
-      tried.push(`${domain}: did not answer`);
+    } catch (e) {
+      // A domain that does not exist, or a server that will not talk, is an
+      // ordinary miss. A TypeError is a bug in this file, and filing it as a
+      // miss is how a total failure disguises itself as an empty town.
+      if (e instanceof TypeError || e instanceof ReferenceError) throw e;
+      tried.push(`${domain}: ${describe(e)}`);
       continue;
     }
 
@@ -209,5 +249,7 @@ export async function resolveWebsite(business, {
     return { website: res.url || url, via: "found", why: proof.why, tried };
   }
 
-  return null;
+  // Always an object, never a bare null: a miss has a reason, and throwing
+  // that reason away is what made "no website found" unreadable.
+  return { website: null, via: null, why: null, tried };
 }

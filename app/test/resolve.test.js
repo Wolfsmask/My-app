@@ -119,11 +119,51 @@ test("walks past a parked domain to the real one", async () => {
 
 test("returns nothing rather than the wrong company", async () => {
   // wilsonmechanical.com answers, but it is Wilson Sporting Goods.
-  assert.equal(await find("Wilson Mechanical, INC"), null);
+  const miss = await find("Wilson Mechanical, INC");
+  assert.equal(miss.website, null);
+  // The reason has to survive. "No website found" and "the lookup is broken"
+  // are indistinguishable without it, which is exactly how a total failure
+  // passed for an empty town.
+  assert.ok(miss.tried.some(t => /wilsonmechanical\.com/.test(t)), "says it tried the real guess");
+  assert.ok(miss.tried.some(t => /nothing else about this business/.test(t)), "says why it refused");
 });
 
 test("returns nothing when no guess answers at all", async () => {
-  assert.equal(await find("Nonexistent Heating and Cooling"), null);
+  const miss = await find("Nonexistent Heating and Cooling");
+  assert.equal(miss.website, null);
+  assert.ok(miss.tried.length, "still says what it tried");
+});
+
+test("a broken lookup is raised, not filed as no website", async () => {
+  // The whole bug: AbortSignal.any is missing on Node before 20.3, the
+  // TypeError landed in the catch, and every business in town came back
+  // empty with nothing said.
+  const real = AbortSignal.any;
+  AbortSignal.any = undefined;
+  try {
+    const hit = await resolveWebsite(
+      { name: "Buckner's Heating & Cooling", city: "Liberty, MO", website: null },
+      {
+        allowLocal: true,
+        signal: new AbortController().signal,
+        fetchImpl: () => Promise.resolve(new Response(page("<p>Buckner's Heating of Liberty.</p>"), { status: 200 })),
+      },
+    );
+    assert.ok(hit.website, "a working lookup must not depend on AbortSignal.any");
+  } finally {
+    AbortSignal.any = real;
+  }
+});
+
+test("a bug in the lookup is thrown rather than swallowed", async () => {
+  await assert.rejects(
+    () => resolveWebsite(
+      { name: "Buckner's Heating & Cooling", city: "Liberty, MO", website: null },
+      { allowLocal: true, fetchImpl: () => { throw new TypeError("undefined is not a function"); } },
+    ),
+    TypeError,
+    "a programming error must not look like a business with no website",
+  );
 });
 
 test("keeps a website OpenStreetMap already had, without guessing", async () => {
