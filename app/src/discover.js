@@ -130,13 +130,15 @@ export const OSM_CATEGORIES = Object.keys(OSM_TAGS)
   .map(key => ({ key, label: OSM_LABELS[key] ?? key }))
   .sort((a, b) => a.label.localeCompare(b.label));
 
-export async function discoverOsm({ category, city, limit = 60, radiusKm = 25, signal }) {
+export async function discoverOsm({ category, city, limit = 60, radiusKm = 25, signal, at = null }) {
   const tags = OSM_TAGS[category];
   if (!tags) {
     throw new Error(`No OSM mapping for "${category}". Known: ${Object.keys(OSM_TAGS).join(", ")}`);
   }
 
-  const geo = await geocode(city, signal);
+  // Nominatim asks for no more than one request a second, and a widening
+  // search would otherwise geocode the same town once per ring.
+  const geo = at ?? await geocode(city, signal);
   if (!geo) throw new Error(`Could not find "${city}" on the map.`);
 
   const radius = Math.round(radiusKm * 1000);
@@ -260,12 +262,49 @@ async function askOverpass(query, signal) {
 
 const host = url => { try { return new URL(url).host; } catch { return url; } };
 
-async function geocode(place, signal) {
+/**
+ * Where a place is, and how big it is.
+ *
+ * The size matters. Searching a fixed radius around a point means "Kansas
+ * City" is searched as a circle around downtown, which is a fraction of the
+ * metro, while a village gets a circle eighty times its own size. Nominatim
+ * returns the bounding box of whatever it matched, so the place's own extent
+ * sets the radius and the search starts by covering the area asked for.
+ */
+export async function locate(place, signal) {
   const url = `${nominatimUrl()}?q=${encodeURIComponent(place)}&format=json&limit=1`;
   const res = await fetch(url, { headers: { "User-Agent": UA }, signal: bounded(signal, 15000) });
   if (!res.ok) return null;
   const [hit] = await res.json();
-  return hit ? { lat: parseFloat(hit.lat), lon: parseFloat(hit.lon) } : null;
+  if (!hit) return null;
+
+  const lat = parseFloat(hit.lat);
+  const lon = parseFloat(hit.lon);
+  return { lat, lon, radiusKm: boxRadiusKm(hit.boundingbox, lat), label: hit.display_name ?? place };
+}
+
+/**
+ * Half the diagonal of a bounding box, in km - the radius of a circle that
+ * covers the whole place. Clamped at both ends: a point result would otherwise
+ * give a zero-radius search, and a state-sized match would give one far too
+ * large to be a local search.
+ */
+export function boxRadiusKm(box, lat = 0) {
+  const nums = (box ?? []).map(Number);
+  if (nums.length !== 4 || nums.some(n => !Number.isFinite(n))) return 15;
+
+  const [south, north, west, east] = nums;
+  const kmPerDegLat = 111.32;
+  const kmPerDegLon = kmPerDegLat * Math.max(Math.cos((lat * Math.PI) / 180), 0.01);
+  const tall = Math.abs(north - south) * kmPerDegLat;
+  const wide = Math.abs(east - west) * kmPerDegLon;
+  const radius = Math.hypot(tall, wide) / 2;
+
+  return Math.min(Math.max(Math.round(radius), 8), 90);
+}
+
+async function geocode(place, signal) {
+  return locate(place, signal);
 }
 
 /* -------------------------------------------------------------------- File */

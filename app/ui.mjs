@@ -15,7 +15,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
-import { discoverFile, discoverOsm, OSM_CATEGORIES } from './src/discover.js';
+import { discoverFile, discoverOsm, locate, OSM_CATEGORIES } from './src/discover.js';
 import { resolveWebsite } from './src/resolve.js';
 import { auditSite, launchBrowser } from './src/audit.js';
 import { score, disqualify, qualifies } from './src/score.js';
@@ -50,7 +50,20 @@ const send = (res, event) => res.write(JSON.stringify(event) + '\n');
  * business's server.
  */
 async function runFind(category, city, res, signal) {
-  const RINGS = [10, 25, 50, 80, 120];
+  // Located once, not once per ring: Nominatim asks for at most a request a
+  // second, and the answer does not change between rings.
+  const place = await locate(city, signal);
+  if (!place) throw new Error(`Could not find "${city}" on the map. Try adding the state, like "Liberty, MO".`);
+
+  // The first ring covers the place asked for, whatever size it is, and the
+  // rest reach into the surrounding area. A fixed 10km first ring searched
+  // "Kansas City" as a circle around downtown.
+  const RINGS = [1, 1.6, 2.6, 4, 6]
+    .map(factor => Math.min(Math.round(place.radiusKm * factor), 160))
+    .filter((km, i, all) => all.indexOf(km) === i);
+
+  send(res, { type: 'place', label: place.label, radiusKm: place.radiusKm, rings: RINGS });
+
   const seen = new Set();
   let withSite = 0, noSite = 0;
 
@@ -60,7 +73,7 @@ async function runFind(category, city, res, signal) {
 
     let batch;
     try {
-      batch = await discoverOsm({ category, city, radiusKm, limit: 200, signal });
+      batch = await discoverOsm({ category, city, radiusKm, limit: 200, signal, at: place });
     } catch (e) {
       // A ring failing is worth saying, but the rings already searched still
       // count - reporting nothing would throw away real results.

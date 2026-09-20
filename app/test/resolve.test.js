@@ -155,6 +155,24 @@ test("a broken lookup is raised, not filed as no website", async () => {
   }
 });
 
+test("a domain that does not exist is a miss, not a failed search", async () => {
+  // Node reports every network failure as "TypeError: fetch failed", so a
+  // guessed domain that simply does not resolve looks exactly like a bug in
+  // this file. Treating it as one ended the whole search on the first dead
+  // guess - which is the ordinary case, since most guesses are wrong.
+  const dead = () => {
+    const e = new TypeError("fetch failed");
+    e.cause = Object.assign(new Error("getaddrinfo ENOTFOUND"), { code: "ENOTFOUND" });
+    throw e;
+  };
+  const miss = await resolveWebsite(
+    { name: "Buckner's Heating & Cooling", city: "Liberty, MO", website: null },
+    { allowLocal: true, fetchImpl: dead },
+  );
+  assert.equal(miss.website, null);
+  assert.ok(miss.tried.every(t => /no such domain/.test(t)), "reported in words, per guess");
+});
+
 test("a bug in the lookup is thrown rather than swallowed", async () => {
   await assert.rejects(
     () => resolveWebsite(

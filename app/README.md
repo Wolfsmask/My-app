@@ -26,8 +26,10 @@ town and click **Find them for me**. That does two things:
    US small business, so the search guesses the addresses a business is likely to be at and
    loads them. A guess is only accepted when the page proves it belongs to that business.
 
-It searches further out the longer you leave it, filling the box as it goes. Press **Stop**
-when you have enough, then **Check these websites**.
+It searches the **area**, not just the city limits. The first pass covers whatever you typed
+at its real size — "Kansas City MO" starts at about 35km, "Liberty MO" at about 8km — and each
+pass after that reaches further out. Fills the box as it goes; press **Stop** when you have
+enough, then **Check these websites**.
 
 ### What it will not do
 

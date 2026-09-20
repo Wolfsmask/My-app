@@ -26,7 +26,13 @@ before(async () => {
     const u = new URL(req.url, "http://x");
     if (u.pathname === "/search") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      return res.end(u.searchParams.get("q") === "Atlantis" ? "[]" : JSON.stringify([{ lat: "39.2", lon: "-94.4" }]));
+      if (u.searchParams.get("q") === "Atlantis") return res.end("[]");
+      const big = /kansas/i.test(u.searchParams.get("q") ?? "");
+      return res.end(JSON.stringify([{
+        lat: "39.2", lon: "-94.4",
+        boundingbox: big ? ["38.82", "39.35", "-94.78", "-94.34"] : ["39.20", "39.29", "-94.49", "-94.36"],
+        display_name: big ? "Kansas City, Missouri" : "Liberty, Missouri",
+      }]));
     }
     // Stands in for an instance that refuses everything, the way the real one
     // was refusing with a bare 406.
@@ -58,7 +64,7 @@ before(async () => {
 after(() => server?.close());
 
 // Imported after the env vars are set, since the module reads them on load.
-const { discoverOsm, OSM_CATEGORIES } = await import("../src/discover.js");
+const { discoverOsm, OSM_CATEGORIES, locate, boxRadiusKm } = await import("../src/discover.js");
 
 test("keeps the usable entries and drops the rest", async () => {
   const found = await discoverOsm({ category: "hvac", city: "Liberty, MO" });
@@ -157,4 +163,39 @@ test("when every server refuses, the error repeats what they said", async () => 
   } finally {
     process.env.MBONYX_OVERPASS_URL = OVERPASS.good;
   }
+});
+
+/* ------------------------------------------------------------------- area */
+
+test("a search is sized to the place, not to a fixed circle", async () => {
+  const metro = await locate("Kansas City, MO");
+  const town = await locate("Liberty, MO");
+
+  // A fixed radius searches a metro as a circle around downtown, and a village
+  // as a circle eighty times its own size. The place's own extent decides.
+  assert.ok(metro.radiusKm > town.radiusKm * 2,
+    `a metro should span further than a town (${metro.radiusKm}km vs ${town.radiusKm}km)`);
+  assert.match(metro.label, /Kansas City/);
+});
+
+test("a bounding box becomes a radius that covers it", () => {
+  // Half the diagonal, so the circle contains the whole box.
+  assert.ok(boxRadiusKm(["38.82", "39.35", "-94.78", "-94.34"], 39.1) > 25);
+  // Clamped at both ends: a point result must not produce a zero-radius
+  // search, and a state-sized match must not produce a country-sized one.
+  assert.equal(boxRadiusKm(["39.24", "39.24", "-94.41", "-94.41"], 39.24), 8);
+  assert.equal(boxRadiusKm(["30.0", "45.0", "-100.0", "-85.0"], 38), 90);
+  // Missing or broken input still yields something usable.
+  assert.equal(boxRadiusKm(undefined), 15);
+  assert.equal(boxRadiusKm(["x", "y", "z", "w"]), 15);
+});
+
+test("a caller that already knows where the place is does not geocode again", async () => {
+  // Nominatim asks for at most one request a second; a five-ring search that
+  // re-geocoded each time would make five.
+  const found = await discoverOsm({
+    category: "hvac", city: "nowhere that resolves", radiusKm: 20,
+    at: { lat: 39.2, lon: -94.4, radiusKm: 20 },
+  });
+  assert.equal(found.length, 3, "searched from the supplied point");
 });

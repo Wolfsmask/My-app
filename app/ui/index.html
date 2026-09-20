@@ -234,6 +234,7 @@ Tier D  under 25 — the site is fine, drop it</pre>
 
           if (e.type === 'error') throw new Error(e.message);
           if (e.type === 'note') { stage = e.message; continue; }
+          if (e.type === 'place') { stage = `covering ${e.radiusKm}km around ${e.label.split(',').slice(0, 2).join(',')}`; }
           if (e.type === 'stage') { stage = `searching ${e.radiusKm}km out`; }
           // Naming the business being looked up turns a stalled-looking window
           // into one that is visibly working.

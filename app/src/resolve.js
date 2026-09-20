@@ -166,6 +166,17 @@ function eitherSignal(signal, timeoutMs) {
   return controller.signal;
 }
 
+/**
+ * A mistake in this code, as opposed to a website that is simply not there.
+ * Network failures arrive wrapped with the underlying error as `cause`;
+ * "x is not a function" arrives bare.
+ */
+function isProgrammingError(e) {
+  if (e?.cause || e?.code) return false;
+  if (e?.name === "AbortError" || e?.name === "TimeoutError") return false;
+  return e instanceof TypeError || e instanceof ReferenceError;
+}
+
 /** Why a candidate did not work, in words rather than a stack trace. */
 function describe(e) {
   const code = e?.cause?.code ?? e?.code;
@@ -231,9 +242,15 @@ export async function resolveWebsite(business, {
       });
     } catch (e) {
       // A domain that does not exist, or a server that will not talk, is an
-      // ordinary miss. A TypeError is a bug in this file, and filing it as a
-      // miss is how a total failure disguises itself as an empty town.
-      if (e instanceof TypeError || e instanceof ReferenceError) throw e;
+      // ordinary miss, and a bug in this file is not - but the two cannot be
+      // told apart by type. Node's fetch reports every network failure as
+      // "TypeError: fetch failed", so treating TypeError as a bug killed the
+      // whole search on the first guessed domain that did not resolve, which
+      // is the ordinary case.
+      //
+      // What separates them is `cause`: a network failure carries the real
+      // error underneath, a programming mistake has nothing under it.
+      if (isProgrammingError(e)) throw e;
       tried.push(`${domain}: ${describe(e)}`);
       continue;
     }
