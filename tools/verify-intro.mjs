@@ -20,7 +20,7 @@ const sampler = () => {
   requestAnimationFrame(tick);
 };
 
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 
 for (const [label, url] of [['LIVE SITE', 'http://127.0.0.1:8899/'],
                             ['PREVIEW FILE', 'file:///home/user/My-app/mbonyx-preview.html']]) {

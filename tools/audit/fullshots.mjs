@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import sharp from 'sharp';
 const SITES = ['lumen-dental','northpoint-hvac','ember-oak','meridian-law','forge-athletics'];
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const strips = [];
 for (const s of SITES) {
   const p = await b.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });

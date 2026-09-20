@@ -9,7 +9,7 @@ import { chromium } from 'playwright';
 const BASE = 'http://127.0.0.1:8899/work';
 const SITES = ['lumen-dental', 'northpoint-hvac', 'ember-oak', 'meridian-law', 'forge-athletics'];
 
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const prints = {};
 
 for (const slug of SITES) {

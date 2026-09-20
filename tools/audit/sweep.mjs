@@ -9,7 +9,7 @@ const PAGES = ['/', '/privacy.html', '/terms.html', '/success.html', '/404.html'
   '/work/lumen-dental.html', '/work/northpoint-hvac.html', '/work/ember-oak.html',
   '/work/meridian-law.html', '/work/forge-athletics.html'];
 
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const findings = [];
 const seenLinks = new Map();
 

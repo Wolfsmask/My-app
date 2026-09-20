@@ -11,7 +11,7 @@ const BASE = 'http://127.0.0.1:8899';
 const PAGES = ['/', '/privacy.html', '/work/lumen-dental.html', '/work/northpoint-hvac.html',
                '/work/ember-oak.html', '/work/meridian-law.html', '/work/forge-athletics.html'];
 
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const ctx = await b.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } });
 const found = [];
 

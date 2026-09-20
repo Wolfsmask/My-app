@@ -6,7 +6,7 @@ import { chromium } from 'playwright';
 const PAGES = ['/', '/privacy.html', '/terms.html', '/success.html', '/404.html',
   '/work/lumen-dental.html', '/work/northpoint-hvac.html', '/work/ember-oak.html',
   '/work/meridian-law.html', '/work/forge-athletics.html'];
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 let bad = 0;
 for (const path of PAGES) {
   const p = await b.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });

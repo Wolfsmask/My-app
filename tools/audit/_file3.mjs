@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const BASE = 'file:///tmp/claude-0/unzipped';
 let bad = 0;
 for (const page of ['index.html','privacy.html','terms.html','success.html','404.html',

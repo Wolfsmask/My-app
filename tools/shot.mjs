@@ -9,7 +9,7 @@ const shots = [
   ['forge-athletics',  'Forge Athletics'],
 ];
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 
 for (const [slug] of shots) {
   // Desktop thumbnail — hide the concept bar so the shot reads as a real site.

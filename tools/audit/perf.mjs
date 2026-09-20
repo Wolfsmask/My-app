@@ -12,7 +12,7 @@
 import { chromium } from 'playwright';
 const PAGES = ['/', '/privacy.html', '/work/lumen-dental.html', '/work/northpoint-hvac.html',
                '/work/ember-oak.html', '/work/meridian-law.html', '/work/forge-athletics.html'];
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 console.log('\n  page                            FCP     LCP    load   transfer   (4G + 2x CPU throttle)');
 console.log('  ' + '─'.repeat(82));
 let worstLcp = 0;

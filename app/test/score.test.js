@@ -23,6 +23,8 @@ const awful = {
   textTooSmall: true, bodyFontSize: 11,
   tapTargetsTooSmall: true, tinyTapTargets: 9,
   hasStructureProblems: true, structureProblems: ["no h1"],
+  poorLayout: true, poorLayoutSignals: 4, emptyFirstScreen: 78, contentWidthPct: 40,
+  hasCarousel: true, pipeNav: true,
 };
 
 /** A site with nothing wrong. */
@@ -39,6 +41,8 @@ const fine = {
   textTooSmall: false,
   tapTargetsTooSmall: false,
   hasStructureProblems: false,
+  poorLayout: false, poorLayoutSignals: 0, emptyFirstScreen: 10, contentWidthPct: 92,
+  hasCarousel: false, pipeNav: false,
 };
 
 test("a site with every problem scores 100 and lands in tier A", () => {
@@ -136,6 +140,42 @@ test("how it looks and whether it works on a phone outweigh the plumbing", () =>
   const looks = score({ ...fine, looksDated: true, datedSignals: 5 });
   assert.ok(phone.score > plumbingOnly.score * 3, "the phone test dominates");
   assert.ok(looks.score > plumbingOnly.score * 3, "so does how it looks");
+});
+
+test("a site with modern code can still be badly laid out", () => {
+  // The case that prompted this: a real Liberty restaurant, built on current
+  // software with web fonts and a responsive layout, scored 8 out of 100 -
+  // while being, at a glance, plainly bad. Nothing in the checker was looking
+  // at how the page was arranged, only at how old its code was.
+  const laCosta = score({
+    ...fine,
+    poorLayout: true, poorLayoutSignals: 3,
+    emptyFirstScreen: 75, contentWidthPct: 38, hasCarousel: true, pipeNav: true,
+  });
+  assert.ok(laCosta.tier === "A" || laCosta.tier === "B",
+    `a badly laid out site scored ${laCosta.score} (${laCosta.tier})`);
+  assert.match(laCosta.hits.find(h => h.id === "poor_layout").evidence, /empty space|page width|banner|pipes/);
+});
+
+test("a well laid out site is never called badly laid out", () => {
+  // The cost of getting this wrong is telling somebody their good website is
+  // bad, so it has to stay silent on every site that does not deserve it.
+  assert.equal(score(fine).hits.find(h => h.id === "poor_layout"), undefined);
+  // One signal on its own is not evidence - plenty of good pages have a
+  // carousel, or a quiet first screen.
+  const oneSignal = score({ ...fine, poorLayout: false, poorLayoutSignals: 1, hasCarousel: true });
+  assert.equal(oneSignal.tier, "D");
+});
+
+test("adding a check does not quietly lower every other score", () => {
+  // Scores used to be a share of every check there was, so the same site
+  // scored lower today than yesterday purely because the checker had learnt
+  // to look at one more thing. They are measured against a fixed bar now.
+  const phoneOnly = score({ ...fine, isResponsive: false, mobileScrollWidth: 980 });
+  assert.equal(phoneOnly.score, 40, "the phone test is worth 40 points, whatever else exists");
+
+  const withNewCheck = score({ ...fine, isResponsive: false, mobileScrollWidth: 980, poorLayout: false, poorLayoutSignals: 0 });
+  assert.equal(withNewCheck.score, phoneOnly.score, "a check that passes changes nothing");
 });
 
 test("tier boundaries", () => {

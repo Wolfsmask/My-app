@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const errs = [];
 const p = await b.newPage({ viewport: { width: 1440, height: 950 } });
 p.on('pageerror', e => errs.push('pageerror: ' + e.message));

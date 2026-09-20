@@ -90,6 +90,26 @@ export const DESIGN = [
     },
   },
   {
+    id: "poor_layout",
+    // Nearly as heavy as looking dated, because it is the same thing to a
+    // visitor: a site can be built this year, on current software, with web
+    // fonts and a grid, and still be a near-empty screen with a narrow column
+    // of text and a stock-photo carousel. Nothing about the code being modern
+    // makes that look like a business worth calling.
+    points: 40,
+    label: "Badly laid out",
+    test: a => a.poorLayout === true,
+    scale: a => (a.poorLayoutSignals ?? 2) / 4,
+    evidence: a => {
+      const bits = [];
+      if (a.emptyFirstScreen >= 60) bits.push(`${a.emptyFirstScreen}% of the first screen is empty space`);
+      if (a.contentWidthPct <= 55) bits.push(`the content only fills ${a.contentWidthPct}% of the page width`);
+      if (a.hasCarousel) bits.push("a rotating photo banner, which visitors skip past");
+      if (a.pipeNav) bits.push("navigation written as text separated by pipes");
+      return bits.length ? `Laid out poorly: ${bits.join("; ")}.` : "Laid out poorly.";
+    },
+  },
+  {
     id: "poor_first_impression",
     // Needs a measurement a plain page load does not produce, so it only
     // counts against a site when it was actually taken.
@@ -247,7 +267,22 @@ export function score(audit) {
     }
   }
 
-  const value = possible === 0 ? 0 : Math.round((earned / possible) * 100);
+  /*
+    Scored against a fixed bar, not against the sum of every check.
+
+    Dividing by the total available made the score shrink every time a check
+    was added: the same site scored lower today than yesterday because the
+    checker had learnt to look at one more thing. It also meant a site had to
+    be wrong in nearly every way at once to rank high, when being wrong in two
+    heavy ways is already a rebuild.
+
+    A hundred points of findings is the bar. A site not readable on a phone is
+    40 of them; badly laid out is up to 30; a decade out of date is up to 35.
+    Any two of those together is a site worth writing to, which is what it
+    should be.
+  */
+  const REBUILD = 100;
+  const value = Math.min(100, Math.round((earned / REBUILD) * 100));
   hits.sort((a, b) => b.points - a.points);
 
   // How much of the page could actually be examined. A score built on half an
@@ -272,6 +307,7 @@ function didCheckRun(check, a) {
     case "heavy_page":       return a.pageWeightBytes != null;
     case "unoptimised_images": return a.usesModernImages !== undefined && a.usesModernImages !== null;
     case "looks_dated":            return a.looksDated !== undefined && a.looksDated !== null;
+    case "poor_layout":            return a.poorLayout !== undefined && a.poorLayout !== null;
     case "poor_first_impression":  return a.visualDesignScore != null;
     case "text_too_small":         return a.textTooSmall !== undefined && a.textTooSmall !== null;
     case "tiny_tap_targets":       return a.tapTargetsTooSmall !== undefined && a.tapTargetsTooSmall !== null;

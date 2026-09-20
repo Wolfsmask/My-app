@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La Playa Mexicana</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>
+  /* Deliberately modern code: web font, flexbox, responsive. The problem is
+     the layout, not the technique - which is the case the checker missed. */
+  body{margin:0;font-family:"Helvetica Neue",Inter,system-ui,sans-serif;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:flex-start;padding:24px 40px}
+  .logo{font-weight:700;font-size:20px}
+  nav{font-size:14px;color:#1a5ac0}
+  .addr{text-align:right;font-size:13px;color:#c2185b}
+  /* A very tall, almost entirely empty first screen. */
+  .gap{height:560px}
+  /* A narrow column marooned in a wide page. */
+  .col{max-width:300px;margin:0 auto;text-align:center}
+  .carousel{max-width:620px;margin:0 auto}
+  .carousel img{width:100%;height:auto;display:block}
+  @media(max-width:700px){.col,.carousel{max-width:100%}header{flex-direction:column}}
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">La Playa Mexicana</div>
+    <nav>Home | Menu | Our Story | Contact Us</nav>
+    <div class="addr">5 E Kansas St,<br>Liberty, MO 64068<br>(816) 555-0199</div>
+  </header>
+
+  <div class="gap"></div>
+
+  <div class="carousel" data-slick="true">
+    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='620' height='320'%3E%3Crect width='620' height='320' fill='%23f0c060'/%3E%3C/svg%3E" alt="Cocktails">
+  </div>
+
+  <div class="col">
+    <h1>Welcome</h1>
+    <p>Authentic Mexican food in Liberty. Open daily.</p>
+    <p>Come and see us.</p>
+  </div>
+</body>
+</html>

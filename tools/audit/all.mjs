@@ -4,6 +4,11 @@
  *   python3 -m http.server 8899 &
  *   node tools/audit/all.mjs
  */
+// Every tool here launches Chromium through Playwright, which finds the copy
+// it downloaded itself. CHROMIUM_PATH overrides that for a machine with one
+// already installed elsewhere. These used to name a path that only existed on
+// one machine, so `npm run audit` failed for anyone else.
+
 import { spawn } from 'node:child_process';
 
 const CHECKS = [

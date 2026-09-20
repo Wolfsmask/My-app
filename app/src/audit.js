@@ -325,6 +325,75 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
           .filter(h => h.startsWith("http"))
           .slice(0, 25),
         title: document.title,
+
+        /*
+          How the page is laid out, as opposed to how old its code is.
+
+          A site built this year on a modern builder can still be badly put
+          together: a first screen that is nearly all empty, a narrow column of
+          text marooned in a wide white page, a stock-photo carousel, a row of
+          links separated by pipes. None of that shows up in fonts or flexbox,
+          and a real Liberty restaurant scoring 8 out of 100 is what that miss
+          looks like.
+        */
+
+        // Coverage of the first screen, sampled rather than computed from
+        // boxes: overlapping elements make area arithmetic wrong, and asking
+        // "is there anything at this point" is exactly the question.
+        emptyFirstScreen: (() => {
+          const cols = 12, rows = 8;
+          let empty = 0, total = 0;
+          for (let c = 0; c < cols; c++) {
+            for (let r = 0; r < rows; r++) {
+              const x = ((c + 0.5) / cols) * window.innerWidth;
+              const y = ((r + 0.5) / rows) * fold;
+              total++;
+              const el = document.elementFromPoint(x, y);
+              if (!el || el === document.body || el === doc) { empty++; continue; }
+              // An element with no text, no background and no picture is a
+              // spacer, not content.
+              const st = getComputedStyle(el);
+              const hasInk = (el.innerText || "").trim().length > 0
+                || (st.backgroundImage && st.backgroundImage !== "none")
+                || /IMG|SVG|VIDEO|CANVAS/.test(el.tagName)
+                || (st.backgroundColor && !/rgba\(0, 0, 0, 0\)|transparent/.test(st.backgroundColor)
+                    && el !== document.body);
+              if (!hasInk) empty++;
+            }
+          }
+          return total ? Math.round((empty / total) * 100) : null;
+        })(),
+
+        // How much of the width the content actually uses. A column taking a
+        // third of a wide page is the "marooned in white" look.
+        contentWidthPct: (() => {
+          const w = window.innerWidth;
+          if (!w) return null;
+          let left = Infinity, right = -Infinity;
+          for (const el of document.querySelectorAll("p,h1,h2,h3,li,img,table,section,article")) {
+            const t = (el.innerText || "").trim();
+            if (!t && el.tagName !== "IMG") continue;
+            const r = el.getBoundingClientRect();
+            if (r.width < 12 || r.height < 8 || r.width > w * 1.5) continue;
+            if (r.top > fold * 3) continue;
+            left = Math.min(left, r.left);
+            right = Math.max(right, r.right);
+          }
+          if (!isFinite(left) || right <= left) return null;
+          return Math.round(Math.min(100, ((right - left) / w) * 100));
+        })(),
+
+        // A rotating banner of pictures. Fashionable around 2012, and every
+        // study since says people ignore them.
+        hasCarousel: !!document.querySelector(
+          '.carousel,.slider,.slideshow,.swiper,.slick-slider,.owl-carousel,.flexslider,' +
+          '[class*="carousel" i],[class*="slideshow" i],[data-slick],[data-swiper]'),
+
+        // "Home | Menu | Our Story | Contact Us" - a text row with pipes
+        // between it, which is how navigation was written before menus.
+        pipeNav: [...document.querySelectorAll("nav,header,#nav,.nav,.menu")]
+          .some(n => /\S\s*\|\s*\S/.test((n.innerText || "").slice(0, 400))),
+
         // Every address on the page, in the order found, plus the ones written
         // as mailto: links first. Sorting out which one is the business's is
         // done outside the page, where it can be tested.
@@ -373,6 +442,20 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
     // or might be their web designer's, and the page says which it is rather
     // than quietly picking one.
     out.emailCandidates = found.candidates.slice(0, 5);
+
+    // Layout, as opposed to code age. Carried through so the scorer can weigh
+    // a site that is new but badly put together.
+    out.emptyFirstScreen = measured.emptyFirstScreen;
+    out.contentWidthPct = measured.contentWidthPct;
+    out.hasCarousel = measured.hasCarousel;
+    out.pipeNav = measured.pipeNav;
+    out.poorLayoutSignals = [
+      measured.emptyFirstScreen != null && measured.emptyFirstScreen >= 60,
+      measured.contentWidthPct != null && measured.contentWidthPct <= 55,
+      measured.hasCarousel === true,
+      measured.pipeNav === true,
+    ].filter(Boolean).length;
+    out.poorLayout = out.poorLayoutSignals >= 2;
 
     out.copyrightYear = findCopyrightYear(measured.text + " " + html);
 

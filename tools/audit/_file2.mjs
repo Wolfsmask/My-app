@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const p = await b.newPage({ viewport: { width: 1280, height: 900 } });
 const failed = [];
 p.on('requestfailed', r => failed.push(r.url().split('/').pop()));

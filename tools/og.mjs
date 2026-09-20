@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import sharp from 'sharp';
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const p = await b.newPage({ viewport: { width: 1200, height: 630 } });
 await p.goto('file:///tmp/claude-0/og.html', { waitUntil: 'networkidle' });
 await p.waitForTimeout(500);
