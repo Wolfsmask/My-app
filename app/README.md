@@ -95,8 +95,15 @@ milliseconds, no "viewport". A number only appears where a person would use one 
 the year in the footer, how many links are broken. And every part is drawn from several
 phrasings, so a town's worth of these do not read as the same letter with the name swapped.
 
-The drafts are meant to be read and edited before they go. Copy one at a time into Gmail;
-that friction is deliberate.
+**Open in Gmail** opens a compose tab with the business's address, the subject and the whole
+letter already filled in. You read it, change anything you want, and press Send. Nothing is
+ever sent for you.
+
+The address comes off their own website, and only when it is on their own domain. A page
+usually carries the web designer's address too, and a `noreply@`, and whatever the template
+shipped with — writing to one of those is worse than writing to none. When nothing on their
+domain is found, the button still opens the draft with the To field empty and the page shows
+what it did find, for you to check.
 
 ### What it will not do
 

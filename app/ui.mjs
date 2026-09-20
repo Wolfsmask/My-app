@@ -430,6 +430,10 @@ const server = http.createServer(async (req, res) => {
         return {
           name: lead.business?.name, website: lead.business?.website,
           tier: lead.tier, score: lead.score,
+          // The address off their own site, and the ones that might be theirs
+          // but might be their web designer's.
+          to: lead.audit?.contactEmail ?? null,
+          maybe: lead.audit?.emailCandidates ?? [],
           subject: draft.subject, body: draft.body,
           // A draft that cites a number nobody measured is never presentable
           // as ready, whatever else is right about it.

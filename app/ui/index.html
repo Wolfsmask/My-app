@@ -69,7 +69,12 @@
   .draft .subj{font-size:.87rem;margin:0 0 9px;color:var(--text)}
   .warn{border-left:2px solid var(--b);background:rgba(250,204,21,.06);border-radius:8px;
     padding:10px 14px;margin:0 0 12px;font-size:.82rem;color:#fde68a}
-  .copy{margin-top:10px}
+  .copy{margin-top:0}
+  .sendrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px}
+  .sendrow .go{padding:10px 20px;font-size:.88rem}
+  .sendrow .ghost{padding:10px 18px;font-size:.88rem}
+  .to{color:var(--muted);font-size:.78rem;flex:1 1 16rem}
+  .to strong{color:var(--soft);font-weight:600}
 
   .totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;margin:22px 0 4px;display:none}
   .totals.on{display:grid}
@@ -442,8 +447,30 @@ Tier D  under 12 — the site is fine, drop it</pre>
           ${d.warnings.length ? `<div class="warn">${d.warnings.map(esc).join('<br>')}</div>` : ''}
           <p class="subj"><strong>Subject:</strong> ${esc(d.subject)}</p>
           <pre>${esc(d.body)}</pre>
-          <button class="ghost copy" data-i="${esc(d.name)}">Copy this one</button>
+          <div class="sendrow">
+            <button class="go send" data-i="${esc(d.name)}">${d.to ? 'Open in Gmail' : 'Open in Gmail (no address)'}</button>
+            <button class="ghost copy" data-i="${esc(d.name)}">Copy this one</button>
+            <span class="to">${d.to
+              ? `To: <strong>${esc(d.to)}</strong>`
+              : d.maybe.length
+                ? `No address on their own domain. Found on the page: ${d.maybe.map(esc).join(', ')} \u2014 check one is theirs before sending.`
+                : `No email address on their site. Their contact form, or the phone number, may be the only way in.`}</span>
+          </div>
         </div>`).join('');
+
+      for (const btn of $('drafts').querySelectorAll('.send')) {
+        btn.onclick = () => {
+          const d = data.drafts.find(x => x.name === btn.dataset.i);
+          // Gmail's compose link. It opens a draft with everything filled in
+          // and sends nothing - the last action is always a person pressing
+          // Send, having read it.
+          const url = 'https://mail.google.com/mail/?view=cm&fs=1'
+            + (d.to ? `&to=${encodeURIComponent(d.to)}` : '')
+            + `&su=${encodeURIComponent(d.subject)}`
+            + `&body=${encodeURIComponent(d.body)}`;
+          window.open(url, '_blank', 'noopener');
+        };
+      }
 
       for (const btn of $('drafts').querySelectorAll('.copy')) {
         btn.onclick = async () => {
