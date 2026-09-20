@@ -20,13 +20,19 @@ a few minutes, once. After that it opens straight to a window in your browser.
 
 ## A day of it
 
-Three buttons, in order. Each one runs for a long time; leave it and come back.
+**Start** runs the whole thing on a loop and does not stop until you tell it to:
 
-1. **Start** — no setting up. Finds every kind of business it knows, in every town it knows,
-   and looks for each one's website. Leave it running while you're at school.
-2. **Check these websites** — leave the box empty and it works through everything Start found
-   and hasn't checked yet, scoring each one.
-3. **Write the emails** — drafts one for every Tier A and B lead.
+    find 100 websites  ->  check them  ->  save every A and B  ->  find the next 100  ->  ...
+
+Every kind of business it knows, in every town it knows. Leave it running while you are at
+school. When you come back, press **Write the emails** for a draft per Tier A and B lead.
+
+A round hands over after 100 sites **or five minutes**, whichever comes first — otherwise,
+once the easy finds are used up, a batch that never fills would mean sweeping every town
+before checking a single site.
+
+The two buttons under the box still work on their own if you want to check a list you pasted,
+or search one trade in one town.
 
 **Closing the tab stops it.** Both the search and the check watch for the tab going away, so
 nothing keeps running against other people's servers once nobody is watching. Leave the tab

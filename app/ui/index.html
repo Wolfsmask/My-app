@@ -138,9 +138,10 @@
 
   <div class="panel start">
     <button class="big" id="start">Start</button>
-    <p class="hint big-hint">Finds every kind of business it knows, in every town it knows, and looks for each one&rsquo;s
-      website. Leave it running and come back to it &mdash; it remembers what it has already done, so closing the window
-      or restarting never repeats work.</p>
+    <p class="hint big-hint">Runs the whole thing on a loop: finds 100 websites, checks them, saves every A and B,
+      then goes looking for the next 100. Every kind of business it knows, in every town it knows. Leave it running and
+      come back to it &mdash; it remembers what it has already done, so closing the tab or restarting never repeats work.
+      Closing the tab stops it.</p>
     <p class="state" id="state"></p>
   </div>
 
@@ -279,9 +280,165 @@ Tier D  under 12 — the site is fine, drop it</pre>
   showState();
 
   // Start is Find with nothing chosen: every trade, every town.
-  $('start').onclick = () => {
-    if (!searching) { $('cat').value = ''; $('region').value = ''; $('city').value = ''; }
-    $('find').click();
+  /** Reads an NDJSON stream, handing each event to `onEvent`. */
+  async function readStream(res, onEvent) {
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines.filter(Boolean)) onEvent(JSON.parse(line));
+    }
+  }
+
+  /**
+   * Builds one result card and puts it in the right place.
+   *
+   * Shared by the manual check and the continuous run, so a lead looks and
+   * behaves the same however it arrived - including the review buttons, which
+   * are the thing that keeps a low score from becoming permanent unread.
+   */
+  function addLead(e, counts) {
+    const dropped = e.tier === '-';
+    if (dropped) counts.dropped++; else counts[e.tier] = (counts[e.tier] ?? 0) + 1;
+
+    const findings = (e.findings ?? []).map(f =>
+      `<div class="finding"><b>+${f.points}</b><span><strong>${esc(f.label)}</strong><br><span>${esc(f.evidence)}</span></span></div>`).join('');
+
+    // Placed by score rather than appended, so the list reads best first at
+    // every moment during a run - not only once it finishes. Sites that could
+    // not be checked sink to the bottom.
+    const rank = dropped ? -1 : (e.score ?? -1);
+    const card = document.createElement('div');
+    card.className = `lead ${dropped ? 'drop' : esc(e.tier)}`;
+    card.dataset.rank = rank;
+    const below = [...$('results').children].find(c => Number(c.dataset.rank) < rank);
+    $('results').insertBefore(card, below ?? null);
+
+    card.innerHTML = `
+        <div class="lead__top">
+          <span class="lead__score">${dropped ? 'skip' : e.score}</span>
+          <span class="lead__name">${esc(e.name)}</span>
+          <span class="pill">${dropped ? esc(e.note ?? 'skipped') : 'Tier ' + esc(e.tier)}</span>
+        </div>
+        ${e.website ? `<div class="lead__url">${esc(e.website)}</div>` : ''}
+        ${!dropped && e.confidence != null && e.confidence < 100
+          ? `<div class="lead__thin">Only ${esc(e.confidence)}% of the usual checks could be run on this page \u2014 the score is less certain than the others.</div>`
+          : ''}
+        ${findings}
+        ${!dropped && e.tier !== 'A' && e.tier !== 'B' && e.website ? `
+          <div class="verdict" data-site="${esc(e.website)}">
+            <span>Scored low. Have a quick look \u2014 until you say, it gets checked again next time.</span>
+            <button class="tiny" data-decision="confirmed">Agreed, drop it</button>
+            <button class="tiny" data-decision="keep">Actually worth it</button>
+          </div>` : ''}`;
+
+    // Looked up inside the card just made, not at the end of the list: once
+    // the list is sorted, the newest card is rarely last.
+    const verdict = card.querySelector('.verdict');
+    if (verdict) {
+      for (const btn of verdict.querySelectorAll('.tiny')) {
+        btn.onclick = async () => {
+          const decision = btn.dataset.decision;
+          try {
+            await fetch('/api/review', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ website: verdict.dataset.site, decision }),
+            });
+            verdict.classList.add('settled');
+            verdict.innerHTML = `<span>${decision === 'confirmed' ? 'Dropped \u2014 it will not be checked again.' : 'Kept \u2014 it will not be checked again.'}</span>`;
+            showState();
+          } catch { btn.textContent = 'could not save'; }
+        };
+      }
+    }
+  }
+
+  function showTotals(counts) {
+    $('totals').classList.add('on');
+    $('totals').innerHTML = ['A', 'B', 'C', 'D'].map(t =>
+      `<div class="tot"><b style="color:var(--${t.toLowerCase()})">${counts[t] ?? 0}</b><span>Tier ${t}</span></div>`).join('')
+      + `<div class="tot"><b style="color:var(--bad)">${counts.dropped}</b><span>Skipped</span></div>`;
+  }
+
+  /**
+   * Start runs the whole thing on a loop: find a batch, check it, find the
+   * next, for as long as it is left alone. One connection carries both kinds
+   * of event, so the handlers for finding and for checking both listen here.
+   */
+  let cycling = null;
+
+  $('start').onclick = async () => {
+    if (cycling) { cycling.abort(); return; }
+    if (searching) { searching.abort(); return; }
+
+    cycling = new AbortController();
+    $('start').textContent = 'Stop';
+    $('start').classList.add('stop');
+    $('find').disabled = true;
+    $('run').disabled = true;
+    $('results').innerHTML = '';
+
+    let round = 0, phase = '', found = 0;
+    const counts = { A: 0, B: 0, C: 0, D: 0, dropped: 0 };
+
+    try {
+      const res = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batchSize: 100 }),
+        signal: cycling.signal,
+      });
+      if (res.status === 409) throw new Error('Something is already running in another tab.');
+
+      await readStream(res, e => {
+        if (e.type === 'error') throw new Error(e.message);
+
+        if (e.type === 'cycle') {
+          round = e.round; phase = e.phase;
+          $('status').textContent = phase === 'finding'
+            ? `Round ${round} — looking for the next ${e.batchSize} websites.`
+            : `Round ${round} — checking ${e.waiting} website${e.waiting === 1 ? '' : 's'}.`;
+        }
+
+        // Finding
+        if (e.type === 'town') $('status').textContent = `Round ${round} — searching ${e.name} (${e.index + 1} of ${e.of}).`;
+        if (e.type === 'business') {
+          if (e.website) found++;
+          $('status').textContent = `Round ${round} — ${found} found this round. ${e.name}.`;
+        }
+
+        // Checking: the same lead cards as a manual run.
+        if (e.type === 'lead') { addLead(e, counts); showTotals(counts); }
+        if (e.type === 'progress') $('status').textContent = `Round ${round} — checking ${e.done + 1} of ${e.total}: ${e.name}.`;
+
+        if (e.type === 'exhausted') {
+          // Totals from the ledger, so this reads the same whether it is the
+          // first round or the tenth.
+          $('status').textContent = `Searched every town and trade it knows. `
+            + `${e.totalA} Tier A and ${e.totalB} Tier B saved in total.`;
+        }
+      });
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        $('status').innerHTML = `<span class="err">${esc(err.message)}</span>`;
+      } else {
+        $('status').textContent = `Stopped after round ${round}. Everything found and checked is saved.`;
+      }
+    } finally {
+      cycling = null;
+      $('start').textContent = 'Start';
+      $('start').classList.remove('stop');
+      $('find').disabled = false;
+      $('run').disabled = false;
+      $('done').classList.add('on');
+      showState();
+    }
   };
 
   $('find').onclick = async () => {
@@ -339,7 +496,7 @@ Tier D  under 12 — the site is fine, drop it</pre>
           if (e.type === 'stage') { stage = `${e.town} \u2014 ${e.radiusKm}km`; }
           // It searched everywhere it knows, twice. Saying so beats looking
           // like it is still working.
-          if (e.type === 'exhausted') { stage = 'searched everywhere it knows and found nobody new'; }
+          if (e.type === 'sweep-exhausted') { stage = 'searched everywhere it knows and found nobody new'; }
           // Naming the business being looked up turns a stalled-looking window
           // into one that is visibly working.
           if (e.type === 'looking') stage = `looking up ${e.names[0]}${e.names.length > 1 ? ` and ${e.names.length - 1} more` : ''}`;
@@ -494,69 +651,7 @@ Tier D  under 12 — the site is fine, drop it</pre>
             $('status').textContent = `Checking ${e.name}…  (${e.done} of ${e.total})`;
           }
 
-          if (e.type === 'lead') {
-            const dropped = e.tier === '-';
-            if (dropped) counts.dropped++; else counts[e.tier] = (counts[e.tier] ?? 0) + 1;
-
-            const findings = (e.findings ?? []).map(f =>
-              `<div class="finding"><b>+${f.points}</b><span><strong>${esc(f.label)}</strong><br><span>${esc(f.evidence)}</span></span></div>`).join('');
-
-            // Placed by score rather than appended, so the list reads best
-            // first at every moment during a run - not only once it finishes.
-            // Sites that could not be checked sink to the bottom.
-            const rank = dropped ? -1 : (e.score ?? -1);
-            const card = document.createElement('div');
-            card.className = `lead ${dropped ? 'drop' : esc(e.tier)}`;
-            card.dataset.rank = rank;
-            const below = [...$('results').children].find(c => Number(c.dataset.rank) < rank);
-            $('results').insertBefore(card, below ?? null);
-
-            card.innerHTML = `
-                <div class="lead__top">
-                  <span class="lead__score">${dropped ? 'skip' : e.score}</span>
-                  <span class="lead__name">${esc(e.name)}</span>
-                  <span class="pill">${dropped ? esc(e.note ?? 'skipped') : 'Tier ' + esc(e.tier)}</span>
-                </div>
-                ${e.website ? `<div class="lead__url">${esc(e.website)}</div>` : ''}
-                ${!dropped && e.confidence != null && e.confidence < 100
-                  ? `<div class="lead__thin">Only ${esc(e.confidence)}% of the usual checks could be run on this page \u2014 the score is less certain than the others.</div>`
-                  : ''}
-                ${findings}
-                ${!dropped && e.tier !== 'A' && e.tier !== 'B' && e.website ? `
-                  <div class="verdict" data-site="${esc(e.website)}">
-                    <span>Scored low. Have a quick look \u2014 until you say, it gets checked again next time.</span>
-                    <button class="tiny" data-decision="confirmed">Agreed, drop it</button>
-                    <button class="tiny" data-decision="keep">Actually worth it</button>
-                  </div>` : ''}`;
-
-            // Wired after the card is in the page, so a decision is recorded
-            // the moment it is made rather than at the end of the run.
-            // Looked up inside the card just made, not at the end of the
-            // list: once the list is sorted, the newest card is rarely last.
-            const verdict = card.querySelector('.verdict');
-            if (verdict) {
-              for (const btn of verdict.querySelectorAll('.tiny')) {
-                btn.onclick = async () => {
-                  const decision = btn.dataset.decision;
-                  try {
-                    await fetch('/api/review', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ website: verdict.dataset.site, decision }),
-                    });
-                    verdict.classList.add('settled');
-                    verdict.innerHTML = `<span>${decision === 'confirmed' ? 'Dropped \u2014 it will not be checked again.' : 'Kept \u2014 it will not be checked again.'}</span>`;
-                    showState();
-                  } catch { btn.textContent = 'could not save'; }
-                };
-              }
-            }
-
-            $('totals').classList.add('on');
-            $('totals').innerHTML = ['A', 'B', 'C', 'D'].map(t =>
-              `<div class="tot"><b style="color:var(--${t.toLowerCase()})">${counts[t] ?? 0}</b><span>Tier ${t}</span></div>`).join('')
-              + `<div class="tot"><b style="color:var(--bad)">${counts.dropped}</b><span>Skipped</span></div>`;
-          }
+          if (e.type === 'lead') { addLead(e, counts); showTotals(counts); }
 
           if (e.type === 'done') {
             $('fill').style.width = '100%';

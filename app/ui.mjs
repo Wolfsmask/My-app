@@ -66,7 +66,18 @@ const store = createStore(OUT);
  * skips all of it, which is the difference between leaving this running for a
  * school day and having to babysit it.
  */
-async function runFind(categories, where, res, signal) {
+async function runFind(categories, where, res, signal, { harvest = Infinity, maxMs = Infinity } = {}) {
+  // How many sites to gather before handing back. In the continuous mode the
+  // search pauses every so often so the checker can work through what has
+  // piled up, rather than finding thousands and checking none.
+  //
+  // Also on time, not only on count. Once the easy finds are used up a batch
+  // may never fill, and waiting for it would mean sweeping every town and
+  // trade before checking a single site - an hour of watching a counter and
+  // no results. Whichever comes first.
+  let harvested = 0;
+  const until = Date.now() + maxMs;
+  const enough = () => harvested >= harvest || Date.now() >= until;
   const chosen = where.region ? citiesFor(where.region) : [where.city].filter(Boolean);
   // What was asked for first, then everywhere else, so it never runs out of
   // somewhere to look. Stop is the thing that ends a search.
@@ -83,11 +94,11 @@ async function runFind(categories, where, res, signal) {
   });
 
   for (const [passIndex, spread] of PASSES.entries()) {
-    if (signal.aborted) break;
+    if (signal.aborted || enough()) break;
     const foundBeforePass = store.found.length;
 
     for (const [townIndex, town] of towns.entries()) {
-      if (signal.aborted) break;
+      if (signal.aborted || enough()) break;
 
       // Towns do not move, so a town is geocoded once ever rather than once
       // per pass per category - 244 requests became 61, against a service
@@ -115,7 +126,7 @@ async function runFind(categories, where, res, signal) {
       const radiusKm = Math.min(Math.round(place.radiusKm * spread), 160);
 
       for (const category of cats) {
-        if (signal.aborted) break;
+        if (signal.aborted || enough()) break;
 
         const key = `${category}|${town}|${passIndex}`;
         if (store.isDone(key)) continue;
@@ -144,7 +155,7 @@ async function runFind(categories, where, res, signal) {
         // finishes takes the next name immediately.
         let next = 0;
         const worker = async () => {
-          while (!signal.aborted) {
+          while (!signal.aborted && !enough()) {
             const i = next++;
             if (i >= fresh.length) return;
             const b = fresh[i];
@@ -159,7 +170,7 @@ async function runFind(categories, where, res, signal) {
             }
             if (signal.aborted) return;
 
-            if (hit?.website) withSite++; else noSite++;
+            if (hit?.website) { withSite++; harvested++; } else noSite++;
 
             const found = {
               name: b.name, phone: b.phone, town, category,
@@ -183,16 +194,75 @@ async function runFind(categories, where, res, signal) {
     // means the area is worked out at this spread. Going round again would be
     // the same queries to the same free servers for the same nothing.
     if (passIndex > 0 && store.found.length === foundBeforePass) {
-      send(res, { type: 'exhausted', pass: passIndex + 1 });
+      // Named apart from the cycle's own "exhausted": one means this sweep
+      // found nobody new, the other means there is nothing left anywhere.
+      send(res, { type: 'sweep-exhausted', pass: passIndex + 1 });
       break;
     }
   }
 
-  if (!signal.aborted) send(res, { type: 'done', withSite, noSite, saved: store.found.length });
+  if (!signal.aborted && harvest === Infinity) {
+    send(res, { type: 'done', withSite, noSite, saved: store.found.length });
+  }
+  return harvested;
 }
 
 
-async function runAudit(listText, opts, res, signal) {
+/**
+ * Find some, check them, repeat, until told to stop.
+ *
+ * Searching is cheap and checking is not: a site is loaded in a real browser
+ * and measured. Doing all the finding first would mean thousands of sites
+ * discovered and none of them ranked, so the two alternate - gather a batch,
+ * work through it, gather the next.
+ *
+ * Nothing new is needed to make this survive being interrupted. The ledger
+ * already records which searches are finished and which sites are checked, so
+ * a round that stops half way simply resumes where it was.
+ */
+async function runCycle(res, signal, batchSize, gatherMs = 5 * 60_000) {
+  let round = 0;
+
+  while (!signal.aborted) {
+    round++;
+
+    send(res, { type: 'cycle', round, phase: 'finding', batchSize });
+    const gathered = await runFind([], {}, res, signal, { harvest: batchSize, maxMs: gatherMs });
+    if (signal.aborted) break;
+
+    const waiting = store.pendingAudit().length;
+    if (waiting) {
+      send(res, { type: 'cycle', round, phase: 'checking', waiting });
+      await runAudit('', {}, res, signal, { quiet: true });
+      if (signal.aborted) break;
+    }
+
+    // Nothing new found and nothing left to check means every town and trade
+    // it knows has been worked through. Going round again would be the same
+    // queries to the same free servers for the same nothing.
+    // Nothing new found and nothing left to check. Rounds that end on the
+    // timer with something still to do carry on; this is the real end.
+    if (gathered === 0 && !waiting) {
+      // The totals off the ledger, not this round's tally. A later round
+      // finding nothing new would otherwise report "0 Tier A saved" when
+      // dozens are sitting on disk from earlier ones.
+      const worth = store.leads.filter(l => l.tier === 'A' || l.tier === 'B');
+      send(res, {
+        type: 'exhausted', round,
+        totalA: worth.filter(l => l.tier === 'A').length,
+        totalB: worth.filter(l => l.tier === 'B').length,
+      });
+      break;
+    }
+  }
+
+  if (!signal.aborted) {
+    const s = store.summary();
+    send(res, { type: 'done', withSite: s.withSite, noSite: s.found - s.withSite, saved: s.found, rounds: round });
+  }
+}
+
+async function runAudit(listText, opts, res, signal, { quiet = false } = {}) {
   // A pasted list is still honoured. With the box empty it works through
   // everything the search found and has not checked yet, which is what makes
   // "come back and press Check" a whole afternoon's work rather than a
@@ -206,6 +276,7 @@ async function runAudit(listText, opts, res, signal) {
       }));
 
   if (!businesses.length) {
+    if (quiet) return;
     send(res, { type: 'error', message: store.found.length
       ? 'Everything found has already been checked. Press Start to find more.'
       : 'Nothing to check yet. Press Start to find businesses first.' });
@@ -299,7 +370,11 @@ async function runAudit(listText, opts, res, signal) {
     .sort((a, z) => (z.score ?? -1) - (a.score ?? -1));
   fs.writeFileSync(path.join(OUT, 'leads.csv'), toCsv(all));
   fs.writeFileSync(path.join(OUT, 'report.html'), toHtml(all, meta));
-  if (!signal?.aborted) send(res, { type: 'done', reportPath: path.join(OUT, 'report.html'), csvPath: path.join(OUT, 'leads.csv') });
+  // Inside a continuous run this is the end of one round, not the end of the
+  // job, and announcing "done" every round would read as finished.
+  if (!signal?.aborted && !quiet) {
+    send(res, { type: 'done', reportPath: path.join(OUT, 'report.html'), csvPath: path.join(OUT, 'leads.csv') });
+  }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -405,6 +480,35 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/api/categories') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(OSM_CATEGORIES));
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/run') {
+    if (finding || running) { res.writeHead(409, { 'Content-Type': 'application/json' }).end('{"error":"already running"}'); return; }
+    // Both flags: a cycle searches and checks, so neither a search nor a check
+    // started from somewhere else may run alongside it. Two checks at once
+    // would mean two browsers.
+    finding = true;
+    running = true;
+
+    let body = '';
+    req.on('data', c => { body += c; if (body.length > 1e5) req.destroy(); });
+    await new Promise(r => req.on('end', r));
+
+    const stop = new AbortController();
+    res.on('close', () => { stop.abort(); finding = false; running = false; });
+
+    res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' });
+    try {
+      const { batchSize, gatherMs } = JSON.parse(body || '{}');
+      await runCycle(res, stop.signal, Math.max(1, Math.min(Number(batchSize) || 100, 1000)), Math.max(10_000, Math.min(Number(gatherMs) || 5 * 60_000, 30 * 60_000)));
+    } catch (e) {
+      if (!stop.signal.aborted) send(res, { type: 'error', message: e.message });
+    } finally {
+      finding = false;
+      running = false;
+      res.end();
+    }
     return;
   }
 
