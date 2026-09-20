@@ -17,6 +17,8 @@ import { spawn } from 'node:child_process';
 
 import { discoverFile, discoverOsm, locate, OSM_CATEGORIES } from './src/discover.js';
 import { resolveWebsite } from './src/resolve.js';
+import { REGIONS, citiesFor } from './src/places.js';
+import { draftEmail, numbersAreReal } from './src/draft.js';
 import { auditSite, launchBrowser } from './src/audit.js';
 import { score, disqualify, qualifies } from './src/score.js';
 import { toCsv, toHtml } from './src/report.js';
@@ -49,83 +51,126 @@ const send = (res, event) => res.write(JSON.stringify(event) + '\n');
  * at once - but only a few, since every one of them is a request to a small
  * business's server.
  */
-async function runFind(category, city, res, signal) {
-  // Located once, not once per ring: Nominatim asks for at most a request a
-  // second, and the answer does not change between rings.
-  const place = await locate(city, signal);
-  if (!place) throw new Error(`Could not find "${city}" on the map. Try adding the state, like "Liberty, MO".`);
+/** Where found businesses are kept, so stopping never loses the work. */
+const FOUND = path.join(OUT, 'found.json');
 
-  // The first ring covers the place asked for, whatever size it is, and the
-  // rest reach into the surrounding area. A fixed 10km first ring searched
-  // "Kansas City" as a circle around downtown.
-  const RINGS = [1, 1.6, 2.6, 4, 6]
-    .map(factor => Math.min(Math.round(place.radiusKm * factor), 160))
-    .filter((km, i, all) => all.indexOf(km) === i);
+function loadFound() {
+  try { return JSON.parse(fs.readFileSync(FOUND, 'utf8')); } catch { return []; }
+}
 
-  send(res, { type: 'place', label: place.label, radiusKm: place.radiusKm, rings: RINGS });
+function saveFound(list) {
+  try {
+    fs.mkdirSync(OUT, { recursive: true });
+    fs.writeFileSync(FOUND, JSON.stringify(list, null, 2));
+  } catch { /* a failed save must not end a search that is working */ }
+}
 
-  const seen = new Set();
-  let withSite = 0, noSite = 0;
+/**
+ * Searches one town, then the next.
+ *
+ * Given a region it works through every town in it and saves as it goes, so
+ * stopping halfway keeps everything found so far and starting again adds to
+ * it rather than replacing it.
+ *
+ * One town on its own is searched in widening rings, since that is a request
+ * to look around that place. A whole region is searched one ring per town,
+ * because the towns already overlap - widening each of sixty would search the
+ * same metro sixty times over.
+ */
+async function runFind(category, where, res, signal) {
+  const towns = where.region ? citiesFor(where.region) : [where.city];
+  if (!towns.length) throw new Error('That area has no towns listed.');
 
-  for (const radiusKm of RINGS) {
+  const kept = loadFound();
+  // Businesses already found, by name, so re-running adds rather than repeats.
+  const seen = new Set(kept.map(b => (b.name ?? '').toLowerCase()));
+  let withSite = kept.filter(b => b.website).length;
+  let noSite = kept.length - withSite;
+
+  send(res, { type: 'plan', towns, already: kept.length });
+
+  for (const [townIndex, town] of towns.entries()) {
     if (signal.aborted) break;
-    send(res, { type: 'stage', radiusKm, of: RINGS[RINGS.length - 1] });
 
-    let batch;
+    let place;
     try {
-      batch = await discoverOsm({ category, city, radiusKm, limit: 200, signal, at: place });
+      place = await locate(town, signal);
     } catch (e) {
-      // A ring failing is worth saying, but the rings already searched still
-      // count - reporting nothing would throw away real results.
-      send(res, { type: 'note', message: `${radiusKm}km: ${e.message.split('\n')[0]}` });
+      if (signal.aborted) break;
+      send(res, { type: 'note', message: `${town}: ${e.message.split('\n')[0]}` });
+      continue;
+    }
+    if (!place) {
+      // One unfindable town must not end a run through sixty of them.
+      send(res, { type: 'note', message: `${town}: not on the map` });
       continue;
     }
 
-    const fresh = batch.filter(b => {
-      const key = (b.name ?? '').toLowerCase();
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    const rings = where.region
+      ? [place.radiusKm]
+      : [1, 1.6, 2.6, 4, 6]
+          .map(f => Math.min(Math.round(place.radiusKm * f), 160))
+          .filter((km, i, all) => all.indexOf(km) === i);
 
-    for (let i = 0; i < fresh.length; i += 4) {
+    send(res, { type: 'town', name: town, label: place.label, index: townIndex, of: towns.length, radiusKm: place.radiusKm });
+
+    for (const radiusKm of rings) {
       if (signal.aborted) break;
-      const slice = fresh.slice(i, i + 4);
-      send(res, { type: 'looking', names: slice.map(b => b.name), done: i, total: fresh.length });
+      send(res, { type: 'stage', town, radiusKm, of: rings[rings.length - 1] });
 
-      const hits = await Promise.all(slice.map(async b => {
-        try {
-          return await resolveWebsite(b, { allowLocal: ALLOW_LOCAL, signal });
-        } catch (e) {
-          // A miss is already a null from resolveWebsite. Reaching here means
-          // the lookup itself is broken, and reporting that as "no website"
-          // is how every business in town came back empty with nothing said.
-          if (!signal.aborted) send(res, { type: 'error', message: `The website lookup failed: ${e.message}` });
-          throw e;
-        }
-      }));
-
-      for (const [n, b] of slice.entries()) {
+      let batch;
+      try {
+        batch = await discoverOsm({ category, city: town, radiusKm, limit: 200, signal, at: place });
+      } catch (e) {
         if (signal.aborted) break;
-        const hit = hits[n];
-        if (hit?.website) withSite++; else noSite++;
-        send(res, {
-          type: 'business',
-          name: b.name,
-          phone: b.phone,
-          website: hit?.website ?? null,
-          via: hit?.via ?? null,
-          why: hit?.why ?? null,
-          // What was tried and what each one said, so "found nothing" can be
-          // read rather than guessed at.
-          tried: hit?.website ? null : (hit?.tried ?? null),
-          withSite, noSite,
-        });
+        send(res, { type: 'note', message: `${town} ${radiusKm}km: ${e.message.split('\n')[0]}` });
+        continue;
+      }
+
+      const fresh = batch.filter(b => {
+        const key = (b.name ?? '').toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      for (let i = 0; i < fresh.length; i += 4) {
+        if (signal.aborted) break;
+        const slice = fresh.slice(i, i + 4);
+        send(res, { type: 'looking', names: slice.map(b => b.name), done: i, total: fresh.length, town });
+
+        const hits = await Promise.all(slice.map(async b => {
+          try {
+            return await resolveWebsite(b, { allowLocal: ALLOW_LOCAL, signal });
+          } catch (e) {
+            if (!signal.aborted) send(res, { type: 'error', message: `The website lookup failed: ${e.message}` });
+            throw e;
+          }
+        }));
+
+        for (const [n, b] of slice.entries()) {
+          if (signal.aborted) break;
+          const hit = hits[n];
+          if (hit?.website) withSite++; else noSite++;
+
+          const found = {
+            name: b.name, phone: b.phone, town,
+            website: hit?.website ?? null,
+            why: hit?.why ?? null,
+            tried: hit?.website ? null : (hit?.tried ?? null),
+          };
+          kept.push(found);
+          // Written per business rather than at the end: Stop, a crash or a
+          // closed window must not cost the work already done.
+          saveFound(kept);
+
+          send(res, { type: 'business', ...found, withSite, noSite, saved: kept.length });
+        }
       }
     }
   }
 
-  if (!signal.aborted) send(res, { type: 'done', withSite, noSite });
+  if (!signal.aborted) send(res, { type: 'done', withSite, noSite, saved: kept.length });
 }
 
 async function runAudit(listText, opts, res) {
@@ -196,6 +241,9 @@ async function runAudit(listText, opts, res) {
 
   leads.sort((a, z) => (z.score ?? -1) - (a.score ?? -1));
   const meta = { category: opts.category || 'your list', city: opts.city || '', source: 'the app' };
+  // Kept as data as well as as a report, so the email drafts can be built
+  // from the findings themselves rather than from anything typed back in.
+  fs.writeFileSync(path.join(OUT, 'leads.json'), JSON.stringify(leads, null, 2));
   fs.writeFileSync(path.join(OUT, 'leads.csv'), toCsv(leads));
   fs.writeFileSync(path.join(OUT, 'report.html'), toHtml(leads, meta));
   send(res, { type: 'done', reportPath: path.join(OUT, 'report.html'), csvPath: path.join(OUT, 'leads.csv') });
@@ -232,6 +280,45 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'POST' && url.pathname === '/api/emails') {
+    let body = '';
+    req.on('data', c => { body += c; if (body.length > 4e6) req.destroy(); });
+    await new Promise(r => req.on('end', r));
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    try {
+      const { sender } = JSON.parse(body || '{}');
+      // Drafts are written from the last run's leads, not from anything the
+      // page sends back, so an email can only ever cite a real measurement.
+      const leads = JSON.parse(fs.readFileSync(path.join(OUT, 'leads.json'), 'utf8'));
+      const worth = leads.filter(l => l.tier === 'A' || l.tier === 'B');
+
+      const drafts = worth.map(lead => {
+        const draft = draftEmail(lead, sender ?? {});
+        const check = numbersAreReal(draft, draft.facts);
+        return {
+          name: lead.business?.name, website: lead.business?.website,
+          tier: lead.tier, score: lead.score,
+          subject: draft.subject, body: draft.body,
+          // A draft that cites a number nobody measured is never presentable
+          // as ready, whatever else is right about it.
+          warnings: check.ok ? draft.warnings : [...draft.warnings, `Contains a number that was not measured: ${check.invented.join(', ')}`],
+        };
+      });
+
+      res.end(JSON.stringify({ drafts, total: leads.length }));
+    } catch (e) {
+      res.end(JSON.stringify({ error: /ENOENT/.test(e.message) ? 'Check some websites first — there is nothing scored yet.' : e.message }));
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/regions') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(REGIONS.map(r => ({ key: r.key, name: r.name, note: r.note, count: r.cities.length }))));
+    return;
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/categories') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(OSM_CATEGORIES));
@@ -261,10 +348,10 @@ const server = http.createServer(async (req, res) => {
 
     res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' });
     try {
-      const { category, city } = JSON.parse(body || '{}');
+      const { category, city, region } = JSON.parse(body || '{}');
       if (!category) throw new Error('Pick a type of business first.');
-      if (!String(city ?? '').trim()) throw new Error('Type a town or city first, like "Liberty, MO".');
-      await runFind(category, String(city).trim(), res, stop.signal);
+      if (!region && !String(city ?? '').trim()) throw new Error('Pick an area, or type a town like "Liberty, MO".');
+      await runFind(category, region ? { region } : { city: String(city).trim() }, res, stop.signal);
     } catch (e) {
       if (!stop.signal.aborted) send(res, { type: 'error', message: e.message });
     } finally {

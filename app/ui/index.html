@@ -37,12 +37,13 @@
   .hint{color:var(--muted);font-size:.8rem;margin:9px 0 0}
   .hint + label{margin-top:22px}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
-  .row.find{grid-template-columns:1fr 1fr auto;align-items:start;margin-top:0}
+  .row.find{grid-template-columns:1fr 1fr 1fr auto;align-items:start;margin-top:0}
+  .row.three{grid-template-columns:1fr 1fr 1.4fr}
   .row.find button{white-space:nowrap;min-width:11.5rem}
   /* Stop is a different action from Find, so it should not look like the
      same button with different words on it. */
   .row.find button.stop{border-color:rgba(248,113,113,.5);color:#fca5a5}
-  @media(max-width:620px){.row,.row.find{grid-template-columns:1fr}}
+  @media(max-width:620px){.row,.row.find,.row.three{grid-template-columns:1fr}}
 
   .actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:18px}
   button{font:inherit;cursor:pointer;border:1px solid transparent;border-radius:999px;
@@ -60,6 +61,15 @@
   /* A failure can name several servers, one per line. Without this the lines
      run together into one unreadable sentence. */
   .status .err{color:var(--bad);white-space:pre-line}
+  .draft{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:18px 20px;margin-bottom:14px}
+  .draft h4{margin:0 0 3px;font-size:.98rem}
+  .draft .meta{color:var(--muted);font-size:.78rem;margin-bottom:12px}
+  .draft pre{white-space:pre-wrap;font:inherit;font-size:.87rem;line-height:1.6;color:var(--soft);
+    background:#0b0f15;border:1px solid var(--line);border-radius:9px;padding:14px 16px;margin:0}
+  .draft .subj{font-size:.87rem;margin:0 0 9px;color:var(--text)}
+  .warn{border-left:2px solid var(--b);background:rgba(250,204,21,.06);border-radius:8px;
+    padding:10px 14px;margin:0 0 12px;font-size:.82rem;color:#fde68a}
+  .copy{margin-top:10px}
 
   .totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;margin:22px 0 4px;display:none}
   .totals.on{display:grid}
@@ -105,12 +115,18 @@
     <label for="cat">Find businesses</label>
     <div class="row find">
       <div><select id="cat"><option value="">Type of business…</option></select></div>
+      <div>
+        <select id="region">
+          <option value="">Type a town instead…</option>
+        </select>
+      </div>
       <div><input id="city" placeholder="Liberty, MO"></div>
       <button class="ghost" id="find">Find them for me</button>
     </div>
     <p class="hint">Finds who is there using OpenStreetMap, then goes and looks for each one&rsquo;s website — free, no
-      account, nothing to sign up for. It searches further out the longer you leave it, filling the box as it goes.
-      <strong>Press Stop when you have enough</strong>, then check them.</p>
+      account, nothing to sign up for. Pick an <strong>area</strong> and it works through every town in it, moving to the
+      next when one runs out and <strong>saving as it goes</strong> — so stopping never loses anything, and starting
+      again adds to what you have. <strong>Press Stop when you have enough</strong>, then check them.</p>
 
     <label for="list">Businesses to check</label>
     <textarea id="list" spellcheck="false" placeholder="Bob's Heating and Air, bobsheatingkc.com, (816) 555-0100, 4.5, 87
@@ -121,12 +137,26 @@ someothercompany.com"></textarea>
 
     <div class="actions">
       <button class="go" id="run">Check these websites</button>
+      <button class="ghost" id="emails">Write the emails</button>
       <button class="ghost" id="sample">Load an example list</button>
     </div>
 
     <div class="bar" id="bar"><i id="fill"></i></div>
     <p class="status" id="status"></p>
   </div>
+
+  <div class="panel" id="you" hidden>
+    <label>Your details — these go at the bottom of every email</label>
+    <div class="row three">
+      <div><input id="s-name" placeholder="Brennen"></div>
+      <div><input id="s-email" placeholder="mbonyxstudios@gmail.com"></div>
+      <div><input id="s-addr" placeholder="PO Box 123, Liberty, MO 64068"></div>
+    </div>
+    <p class="hint">US law requires a real postal address in a commercial email — a PO box counts, and one costs a few
+      dollars a month at the post office. Until you have one, the drafts below are for practice, not for sending.</p>
+  </div>
+
+  <div id="drafts"></div>
 
   <div class="totals" id="totals"></div>
   <div id="results"></div>
@@ -168,8 +198,18 @@ Tier D  under 25 — the site is fine, drop it</pre>
         o.value = c.key; o.textContent = c.label;
         $('cat').append(o);
       }
+      for (const r of await (await fetch('/api/regions')).json()) {
+        const o = document.createElement('option');
+        o.value = r.key; o.textContent = `${r.name} (${r.count})`; o.title = r.note;
+        $('region').append(o);
+      }
     } catch { $('find').disabled = true; }
   })();
+
+  // An area and a typed town are two ways of saying the same thing, so
+  // choosing one clears the other rather than leaving both looking active.
+  $('region').onchange = () => { if ($('region').value) $('city').value = ''; };
+  $('city').oninput = () => { if ($('city').value.trim()) $('region').value = ''; };
 
   $('sample').onclick = () => {
     $('list').value = [
@@ -212,7 +252,7 @@ Tier D  under 25 — the site is fine, drop it</pre>
       const res = await fetch('/api/find', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category: $('cat').value, city: $('city').value }),
+        body: JSON.stringify({ category: $('cat').value, city: $('city').value, region: $('region').value }),
         signal: searching.signal,
       });
       if (res.status === 409) throw new Error('A search is already running in another tab.');
@@ -234,8 +274,9 @@ Tier D  under 25 — the site is fine, drop it</pre>
 
           if (e.type === 'error') throw new Error(e.message);
           if (e.type === 'note') { stage = e.message; continue; }
-          if (e.type === 'place') { stage = `covering ${e.radiusKm}km around ${e.label.split(',').slice(0, 2).join(',')}`; }
-          if (e.type === 'stage') { stage = `searching ${e.radiusKm}km out`; }
+          if (e.type === 'plan') { stage = `${e.towns.length} town${e.towns.length === 1 ? '' : 's'} to work through`; }
+          if (e.type === 'town') { stage = `${e.name} (${e.index + 1} of ${e.of})`; }
+          if (e.type === 'stage') { stage = `${e.town} \u2014 ${e.radiusKm}km`; }
           // Naming the business being looked up turns a stalled-looking window
           // into one that is visibly working.
           if (e.type === 'looking') stage = `looking up ${e.names[0]}${e.names.length > 1 ? ` and ${e.names.length - 1} more` : ''}`;
@@ -275,6 +316,69 @@ Tier D  under 25 — the site is fine, drop it</pre>
       $('find').textContent = 'Find them for me';
       $('find').classList.remove('stop');
       repaint();
+    }
+  };
+
+  // Kept in this browser only. It is his own name and address, and it has no
+  // business being anywhere else.
+  const SENDER_KEYS = { 's-name': 'name', 's-email': 'email', 's-addr': 'address' };
+  const readSender = () => Object.fromEntries(
+    Object.entries(SENDER_KEYS).map(([id, key]) => [key, $(id).value.trim()]).filter(([, v]) => v));
+
+  for (const id of Object.keys(SENDER_KEYS)) {
+    try { $(id).value = localStorage.getItem('mbonyx.' + id) ?? ''; } catch {}
+    $(id).oninput = () => { try { localStorage.setItem('mbonyx.' + id, $(id).value); } catch {} };
+  }
+
+  $('emails').onclick = async () => {
+    $('you').hidden = false;
+    $('emails').disabled = true;
+    $('status').textContent = 'Writing the emails\u2026';
+    try {
+      const res = await fetch('/api/emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sender: readSender() }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      if (!data.drafts.length) {
+        $('status').textContent = `Nothing worth emailing yet \u2014 no Tier A or B out of ${data.total} checked.`;
+        $('drafts').innerHTML = '';
+        return;
+      }
+
+      $('drafts').innerHTML = data.drafts.map(d => `
+        <div class="draft">
+          <h4>${esc(d.name)}</h4>
+          <div class="meta">Tier ${esc(d.tier)} &middot; scored ${esc(d.score)}${d.website ? ' &middot; ' + esc(d.website) : ''}</div>
+          ${d.warnings.length ? `<div class="warn">${d.warnings.map(esc).join('<br>')}</div>` : ''}
+          <p class="subj"><strong>Subject:</strong> ${esc(d.subject)}</p>
+          <pre>${esc(d.body)}</pre>
+          <button class="ghost copy" data-i="${esc(d.name)}">Copy this one</button>
+        </div>`).join('');
+
+      // Copying is the whole point - these get pasted into Gmail by hand,
+      // which is also what keeps a person reading each one before it goes.
+      for (const btn of $('drafts').querySelectorAll('.copy')) {
+        btn.onclick = async () => {
+          const d = data.drafts.find(x => x.name === btn.dataset.i);
+          try {
+            await navigator.clipboard.writeText(`Subject: ${d.subject}\n\n${d.body}`);
+            btn.textContent = 'Copied';
+            setTimeout(() => { btn.textContent = 'Copy this one'; }, 1500);
+          } catch { btn.textContent = 'Select the text above and copy it'; }
+        };
+      }
+
+      const unready = data.drafts.filter(d => d.warnings.length).length;
+      $('status').textContent = `${data.drafts.length} draft${data.drafts.length === 1 ? '' : 's'} written`
+        + (unready ? `. ${unready} need something dealt with before sending \u2014 see the yellow notes.` : '.');
+    } catch (err) {
+      $('status').innerHTML = `<span class="err">${esc(err.message)}</span>`;
+    } finally {
+      $('emails').disabled = false;
     }
   };
 

@@ -26,10 +26,29 @@ town and click **Find them for me**. That does two things:
    US small business, so the search guesses the addresses a business is likely to be at and
    loads them. A guess is only accepted when the page proves it belongs to that business.
 
+Pick an **area** and it works through every town in it — 61 towns across four groups, nearest
+to Liberty first — moving to the next when one runs out and **saving as it goes**. Stopping
+never loses anything, and starting again adds to what you have rather than repeating it.
+
 It searches the **area**, not just the city limits. The first pass covers whatever you typed
 at its real size — "Kansas City MO" starts at about 35km, "Liberty MO" at about 8km — and each
 pass after that reaches further out. Fills the box as it goes; press **Stop** when you have
 enough, then **Check these websites**.
+
+### Writing the emails
+
+**Write the emails** takes every Tier A and B lead and drafts one each. No API key needed —
+the drafts are built from the findings the audit measured, so every number in an email is a
+number taken off that business's own page. A draft citing a figure nobody measured is flagged
+and never presented as ready.
+
+Before sending anything, fill in **your details**. US law (CAN-SPAM) requires a real postal
+address in commercial email — a PO box counts, and costs a few dollars a month. Until one is
+set, every draft carries a warning and is for practice only. Each draft also carries an
+opt-out line and names who is writing.
+
+The drafts are meant to be read and edited before they go. Copy one at a time into Gmail;
+that friction is deliberate.
 
 ### What it will not do
 
