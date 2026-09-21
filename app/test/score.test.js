@@ -208,6 +208,23 @@ test("the sites a person would actually rebuild come out worth contacting", () =
   assert.equal(score({ ...base, copyrightYear: YEAR - 4 }).tier, "D", "a stale footer alone is not a rebuild");
 });
 
+test("a domain that only forwards to a Facebook page is not a website", () => {
+  // Common for a small business: the domain exists but points at their
+  // Facebook page, or a Yelp listing. It was being audited as though the page
+  // were theirs - and then written to about a website they do not control and
+  // could not have rebuilt.
+  const business = { website: "https://bucknersheating.com" };
+  assert.equal(disqualify(business, { finalUrl: "https://www.facebook.com/buckners" }), "social_only");
+  assert.equal(disqualify(business, { finalUrl: "https://www.yelp.com/biz/buckners" }), "social_only");
+  assert.equal(disqualify(business, { finalUrl: "https://www.yellowpages.com/x" }), "social_only");
+
+  // An ordinary redirect is not that. Nearly every site forwards to www or to
+  // https, and dropping those would drop nearly every lead.
+  assert.equal(disqualify(business, { finalUrl: "https://www.bucknersheating.com/" }), null);
+  assert.equal(disqualify(business, { finalUrl: "https://bucknersheating.com/home" }), null);
+  assert.equal(disqualify(business, {}), null);
+});
+
 test("leads are dropped before any money is spent auditing them", () => {
   assert.equal(disqualify({ website: null }), "no_website");
   assert.equal(disqualify({ website: "https://facebook.com/acehvac" }), "social_only");

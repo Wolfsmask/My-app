@@ -154,7 +154,17 @@ const run = async () => {
         browser, screenshotPath: shotPath, allowLocal: Boolean(args["allow-local"]),
       });
 
-      if (audit.fetchFailed) {
+      // Asked again now the redirects have been followed: a domain that
+      // forwards to a Facebook page or a directory is not a website this
+      // business can have rebuilt.
+      const after = disqualify(business, audit);
+      const redirectedAway = !audit.fetchFailed && after === "social_only";
+
+      if (redirectedAway) {
+        const note = `redirects to ${new URL(audit.finalUrl).hostname}`;
+        leads.push({ business, audit, dropReason: note, tier: "-", score: null });
+        console.log(`  ✗ ${pad(business.name)} ${note}`);
+      } else if (audit.fetchFailed) {
         leads.push({ business, audit, dropReason: `unreachable: ${audit.error}`, tier: "-", score: null });
         // Say which kind of failure. "Refused a private address" and "the site
         // is down" both used to print the same word.

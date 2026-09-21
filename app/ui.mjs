@@ -360,9 +360,17 @@ async function runAudit(listText, opts, res, signal, { quiet = false } = {}) {
             screenshotPath: path.join(OUT, 'shots', `${slug}.jpg`),
             allowLocal: Boolean(opts.allowLocal) || ALLOW_LOCAL,
           });
+          // Asked again now the redirects have been followed: a domain that
+          // forwards to a Facebook page or a directory is not a website this
+          // business can have rebuilt.
+          const after = disqualify(business, audit);
           if (audit.fetchFailed) {
             leads.push({ business, audit, dropReason: `unreachable: ${audit.error}`, tier: '-', score: null });
             send(res, { type: 'lead', name: business.name, tier: '-', score: null, note: audit.error });
+          } else if (after) {
+            const note = after === 'social_only' ? `redirects to ${new URL(audit.finalUrl).hostname}` : after;
+            leads.push({ business, audit, dropReason: note, tier: '-', score: null });
+            send(res, { type: 'lead', name: business.name, tier: '-', score: null, note });
           } else {
             const s = score(audit);
             const q = business.reviewCount == null ? null : qualifies(business);

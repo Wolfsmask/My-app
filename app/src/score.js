@@ -188,9 +188,17 @@ export const PERFORMANCE = [
  * Checked before anything else, because the cheapest audit is the one
  * that never runs.
  */
+/** Places that are somebody's page about a business, not the business's site. */
+const NOT_THEIR_SITE = /facebook\.com|instagram\.com|linktr\.ee|twitter\.com|x\.com|linkedin\.com|yelp\.|yellowpages\.|bbb\.org|tripadvisor\.|nextdoor\.com|angi\.com|thumbtack\.com|houzz\.com|google\.com\/maps/i;
+
 export function disqualify(business, audit = {}) {
   if (!business.website) return "no_website";
-  if (/facebook\.com|instagram\.com|linktr\.ee/i.test(business.website)) return "social_only";
+  if (NOT_THEIR_SITE.test(business.website)) return "social_only";
+  // Checked after the redirects too. A domain that forwards to a Facebook
+  // page or a directory listing was being audited as though the page were
+  // theirs - and then written to about a website they do not control and
+  // cannot change.
+  if (audit.finalUrl && NOT_THEIR_SITE.test(audit.finalUrl)) return "social_only";
   if (business.status && business.status !== "OPERATIONAL") return "closed";
   if (business.suppressed) return "suppressed";
   if (audit.fetchFailed) return "unreachable";
