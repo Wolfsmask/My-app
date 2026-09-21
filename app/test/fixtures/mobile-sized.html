@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mobile Sized Co</title>
+<style>
+  /* Deliberately different sizes per screen. Measured on a desktop this page
+     reads as 12px and fails "text too small to read on a phone"; measured on
+     a phone, where the question actually applies, it is 16px and fine.
+     A regression guard for the audit resizing for its layout pass and then
+     measuring everything else at the wrong width. */
+  body{margin:0;font-family:system-ui,sans-serif;font-size:12px;display:flex;flex-direction:column}
+  main{display:flex;flex-direction:column;gap:12px;padding:16px}
+  p{font-size:12px;margin:0}
+  @media (max-width: 600px) {
+    body, p { font-size: 16px; }
+  }
+  a.call{display:inline-block;padding:14px 22px;background:#123;color:#fff;border-radius:8px;text-decoration:none}
+</style>
+</head>
+<body>
+  <header><a class="call" href="tel:5551234567">Call us on 555 123 4567</a></header>
+  <main>
+    <h1>Mobile Sized Co</h1>
+    <p>We size our text properly for phones, which is where most people read it these days.</p>
+    <p>This paragraph is sixteen pixels on a phone and twelve on a desktop, on purpose.</p>
+    <p>A checker that measures phone readability on a desktop screen would get this wrong.</p>
+    <p>Plumbing and heating across the county, same-day appointments most weeks.</p>
+  </main>
+</body>
+</html>

@@ -192,6 +192,79 @@ export function pickBusinessEmail(candidates, siteUrl) {
   return { email: null, confident: false, candidates: clean };
 }
 
+/**
+ * How the page is laid out, as opposed to how old its code is.
+ *
+ * Run inside the page, and run twice: once with everything else at phone
+ * width, then again on a desktop-sized screen, because that is where a
+ * badly arranged page shows. A site built this year on a modern builder can
+ * still be a near-empty first screen with a narrow column of text and a
+ * stock-photo carousel, and none of that shows up in fonts or flexbox.
+ */
+function measureLayout() {
+  const doc = document.documentElement;
+  const fold = window.innerHeight;
+
+  return {
+    // Coverage of the first screen, sampled rather than computed from boxes:
+    // overlapping elements make area arithmetic wrong, and asking "is there
+    // anything at this point" is exactly the question.
+    emptyFirstScreen: (() => {
+      const cols = 12, rows = 8;
+      let empty = 0, total = 0;
+      for (let c = 0; c < cols; c++) {
+        for (let r = 0; r < rows; r++) {
+          const x = ((c + 0.5) / cols) * window.innerWidth;
+          const y = ((r + 0.5) / rows) * fold;
+          total++;
+          const el = document.elementFromPoint(x, y);
+          if (!el || el === document.body || el === doc) { empty++; continue; }
+          // An element with no text, no background and no picture is a
+          // spacer, not content.
+          const st = getComputedStyle(el);
+          const hasInk = (el.innerText || "").trim().length > 0
+            || (st.backgroundImage && st.backgroundImage !== "none")
+            || /IMG|SVG|VIDEO|CANVAS/.test(el.tagName)
+            || (st.backgroundColor && !/rgba\(0, 0, 0, 0\)|transparent/.test(st.backgroundColor)
+                && el !== document.body);
+          if (!hasInk) empty++;
+        }
+      }
+      return total ? Math.round((empty / total) * 100) : null;
+    })(),
+
+    // How much of the width the content actually uses. A column taking a
+    // third of a wide page is the "marooned in white" look.
+    contentWidthPct: (() => {
+      const w = window.innerWidth;
+      if (!w) return null;
+      let left = Infinity, right = -Infinity;
+      for (const el of document.querySelectorAll("p,h1,h2,h3,li,img,table,section,article")) {
+        const t = (el.innerText || "").trim();
+        if (!t && el.tagName !== "IMG") continue;
+        const r = el.getBoundingClientRect();
+        if (r.width < 12 || r.height < 8 || r.width > w * 1.5) continue;
+        if (r.top > fold * 3) continue;
+        left = Math.min(left, r.left);
+        right = Math.max(right, r.right);
+      }
+      if (!isFinite(left) || right <= left) return null;
+      return Math.round(Math.min(100, ((right - left) / w) * 100));
+    })(),
+
+    // A rotating banner of pictures. Fashionable around 2012, and every study
+    // since says people ignore them.
+    hasCarousel: !!document.querySelector(
+      '.carousel,.slider,.slideshow,.swiper,.slick-slider,.owl-carousel,.flexslider,' +
+      '[class*="carousel" i],[class*="slideshow" i],[data-slick],[data-swiper]'),
+
+    // "Home | Menu | Our Story | Contact Us" - a text row with pipes between
+    // it, which is how navigation was written before menus.
+    pipeNav: [...document.querySelectorAll("nav,header,#nav,.nav,.menu")]
+      .some(n => /\S\s*\|\s*\S/.test((n.innerText || "").slice(0, 400))),
+  };
+}
+
 export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPath = null, allowLocal = false } = {}) {
   const out = {
     url,
@@ -326,74 +399,6 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
           .slice(0, 25),
         title: document.title,
 
-        /*
-          How the page is laid out, as opposed to how old its code is.
-
-          A site built this year on a modern builder can still be badly put
-          together: a first screen that is nearly all empty, a narrow column of
-          text marooned in a wide white page, a stock-photo carousel, a row of
-          links separated by pipes. None of that shows up in fonts or flexbox,
-          and a real Liberty restaurant scoring 8 out of 100 is what that miss
-          looks like.
-        */
-
-        // Coverage of the first screen, sampled rather than computed from
-        // boxes: overlapping elements make area arithmetic wrong, and asking
-        // "is there anything at this point" is exactly the question.
-        emptyFirstScreen: (() => {
-          const cols = 12, rows = 8;
-          let empty = 0, total = 0;
-          for (let c = 0; c < cols; c++) {
-            for (let r = 0; r < rows; r++) {
-              const x = ((c + 0.5) / cols) * window.innerWidth;
-              const y = ((r + 0.5) / rows) * fold;
-              total++;
-              const el = document.elementFromPoint(x, y);
-              if (!el || el === document.body || el === doc) { empty++; continue; }
-              // An element with no text, no background and no picture is a
-              // spacer, not content.
-              const st = getComputedStyle(el);
-              const hasInk = (el.innerText || "").trim().length > 0
-                || (st.backgroundImage && st.backgroundImage !== "none")
-                || /IMG|SVG|VIDEO|CANVAS/.test(el.tagName)
-                || (st.backgroundColor && !/rgba\(0, 0, 0, 0\)|transparent/.test(st.backgroundColor)
-                    && el !== document.body);
-              if (!hasInk) empty++;
-            }
-          }
-          return total ? Math.round((empty / total) * 100) : null;
-        })(),
-
-        // How much of the width the content actually uses. A column taking a
-        // third of a wide page is the "marooned in white" look.
-        contentWidthPct: (() => {
-          const w = window.innerWidth;
-          if (!w) return null;
-          let left = Infinity, right = -Infinity;
-          for (const el of document.querySelectorAll("p,h1,h2,h3,li,img,table,section,article")) {
-            const t = (el.innerText || "").trim();
-            if (!t && el.tagName !== "IMG") continue;
-            const r = el.getBoundingClientRect();
-            if (r.width < 12 || r.height < 8 || r.width > w * 1.5) continue;
-            if (r.top > fold * 3) continue;
-            left = Math.min(left, r.left);
-            right = Math.max(right, r.right);
-          }
-          if (!isFinite(left) || right <= left) return null;
-          return Math.round(Math.min(100, ((right - left) / w) * 100));
-        })(),
-
-        // A rotating banner of pictures. Fashionable around 2012, and every
-        // study since says people ignore them.
-        hasCarousel: !!document.querySelector(
-          '.carousel,.slider,.slideshow,.swiper,.slick-slider,.owl-carousel,.flexslider,' +
-          '[class*="carousel" i],[class*="slideshow" i],[data-slick],[data-swiper]'),
-
-        // "Home | Menu | Our Story | Contact Us" - a text row with pipes
-        // between it, which is how navigation was written before menus.
-        pipeNav: [...document.querySelectorAll("nav,header,#nav,.nav,.menu")]
-          .some(n => /\S\s*\|\s*\S/.test((n.innerText || "").slice(0, 400))),
-
         // Every address on the page, in the order found, plus the ones written
         // as mailto: links first. Sorting out which one is the business's is
         // done outside the page, where it can be tested.
@@ -443,17 +448,53 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
     // than quietly picking one.
     out.emailCandidates = found.candidates.slice(0, 5);
 
-    // Layout, as opposed to code age. Carried through so the scorer can weigh
-    // a site that is new but badly put together.
-    out.emptyFirstScreen = measured.emptyFirstScreen;
-    out.contentWidthPct = measured.contentWidthPct;
-    out.hasCarousel = measured.hasCarousel;
-    out.pipeNav = measured.pipeNav;
+    /*
+      Layout is judged on a desktop screen, not the phone one everything else
+      is measured on.
+
+      The whole page is audited at 390px wide, which is right for "can you
+      read this on a phone" and wrong for "is this well laid out". A column of
+      text 300px wide fills a phone and looks fine; on a 1280px monitor the
+      same column is marooned in white space with the page two-thirds empty
+      either side. Measured at phone width the content-width signal came back
+      100% on a page that was plainly badly laid out, so it never fired at all.
+    */
+    // Nothing measured is the honest default: a page that will not resize is
+    // one whose layout was not looked at, not one that passed.
+    let layout = {};
+    try {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      // Re-measuring alone is not enough: a page that lays out on scroll or
+      // resize needs a moment to settle before it is looked at.
+      await page.waitForTimeout(250);
+      layout = await page.evaluate(measureLayout);
+    } catch {
+      // Left unmeasured rather than guessed at.
+    } finally {
+      /*
+        Back to the phone before anything else is measured.
+
+        Everything after this - font sizes, tap targets, the dated-design
+        markers - is about how the site behaves on a phone, and it reads the
+        live page. Leaving the window at 1280 measured all of it on a desktop,
+        where the mobile stylesheet does not apply: this site's own body text
+        came out at 13.9px and it was flagged for text too small to read on a
+        phone, on a page that is 16px on a phone. A measurement taken at the
+        wrong size is worse than none.
+      */
+      await page.setViewportSize({ width: 390, height: 844 }).catch(() => {});
+      await page.waitForTimeout(150);
+    }
+
+    out.emptyFirstScreen = layout.emptyFirstScreen;
+    out.contentWidthPct = layout.contentWidthPct;
+    out.hasCarousel = layout.hasCarousel;
+    out.pipeNav = layout.pipeNav;
     out.poorLayoutSignals = [
-      measured.emptyFirstScreen != null && measured.emptyFirstScreen >= 60,
-      measured.contentWidthPct != null && measured.contentWidthPct <= 55,
-      measured.hasCarousel === true,
-      measured.pipeNav === true,
+      layout.emptyFirstScreen != null && layout.emptyFirstScreen >= 60,
+      layout.contentWidthPct != null && layout.contentWidthPct <= 55,
+      layout.hasCarousel === true,
+      layout.pipeNav === true,
     ].filter(Boolean).length;
     out.poorLayout = out.poorLayoutSignals >= 2;
 

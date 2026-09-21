@@ -139,3 +139,25 @@ test("a large catalogue page does not stall the audit", { skip: !up && "no serve
   assert.equal(a.fetchFailed, false);
   assert.ok(took < 25000, `6,000 nodes took ${took}ms — the per-element style loop is too slow`);
 });
+
+test("phone-sized things are measured on a phone, not on the desktop it resized to", { skip: !up && "no server on :8899" }, async () => {
+  /*
+    The layout checks need a desktop-sized window - a narrow column marooned in
+    white space is invisible at 390px. Everything else is about phones.
+
+    When the audit resized for the layout pass and did not resize back, font
+    sizes and tap targets were read off a 1280px window: this project's own
+    site came out at 13.9px body text and was flagged for text too small to
+    read on a phone, on a page that is 16px on a phone.
+
+    This fixture is 12px on a desktop and 16px on a phone, so the number it
+    reports says which window it was measured in.
+  */
+  const a = await audit("mobile-sized");
+  assert.equal(a.bodyFontSize, 16, `measured at the wrong width: got ${a.bodyFontSize}px`);
+  assert.equal(a.textTooSmall, false);
+  assert.equal(score(a).hits.find(h => h.id === "text_too_small"), undefined);
+
+  // And the layout pass still got its desktop look in.
+  assert.ok(a.contentWidthPct != null, "layout was measured");
+});
