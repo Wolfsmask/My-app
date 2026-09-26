@@ -63,6 +63,32 @@ of repeating two thousand queries against free volunteer servers.
 Progress is shown under the Start button, so you can see where it got to. To wipe it and
 begin again, delete `app/out/ui/`.
 
+## Where your saved leads live
+
+Everything you have kept is four JSON files in **`app/out/ui/`**, right next to the app:
+
+| | |
+| --- | --- |
+| `leads.json` | every business checked and scored — this is the one that matters |
+| `found.json` | every business found, with its website |
+| `progress.json` | which searches have already been run |
+| `places.json` | where each town is |
+
+The path is relative to the app, not to your computer, and that has one consequence worth
+knowing: **a second copy of the app unzipped somewhere else starts empty.** It is not reading
+your old folder and it has not lost anything — it is a different folder. The page prints which
+folder it is reading under the Start button, so compare that against where your old copy is.
+
+To move your work to a new copy, drag the whole `out` folder from the old `app` folder into
+the new one. To update the app without touching your work, copy the new files *over* the old
+`app` folder and answer "replace" — `out/` is not in the download, so it is left alone.
+
+`leads.backup.json` is written once each time the app opens: a copy of your leads as they were
+before that session touched anything. If a run goes wrong, rename it to `leads.json`.
+
+If one of these files is ever unreadable, the app renames it to `leads.json.unreadable-<date>`
+and says so on the page rather than starting empty and writing over it.
+
 ## Searching one trade or one town
 
 Open **Search one trade or one town instead**. You can either **paste a list in yourself**, or

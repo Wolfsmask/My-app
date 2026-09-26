@@ -217,7 +217,8 @@ test("reset clears everything, and only on an explicit ask", () => {
   s.addLead({ business: { name: "Arctic Air", website: "https://a.test" }, tier: "B" });
 
   s.reset();
-  assert.deepEqual(s.summary(), { towns: 0, searches: 0, found: 0, withSite: 0, audited: 0, kept: 0, closed: 0, awaitingReview: 0, pending: 0 });
+  const { folder, damaged, ...counts } = s.summary();
+  assert.deepEqual(counts, { towns: 0, searches: 0, found: 0, withSite: 0, audited: 0, kept: 0, closed: 0, awaitingReview: 0, pending: 0 });
   assert.equal(createStore(dir).found.length, 0, "and it stays cleared after a restart");
 });
 
@@ -228,4 +229,60 @@ test("unreadable files are survivable, not fatal", () => {
   assert.deepEqual(s.found, []);
   s.addBusiness({ name: "Arctic Air", town: "Liberty, MO", website: "https://a.test" });
   assert.equal(s.found.length, 1);
+});
+
+test("a file that cannot be read is moved aside, never written over", () => {
+  /*
+    The failure this is here to stop.
+
+    The old reader answered "nothing saved" for every kind of failure, so a
+    leads.json that would not parse looked exactly like a fresh install - and
+    the first save wrote an empty list straight over a hundred real leads.
+  */
+  const leadsFile = path.join(dir, "leads.json");
+  fs.writeFileSync(leadsFile, '[{"business":{"name":"Real Lead","website":"https://kept.test"}');
+
+  const s = createStore(dir);
+  assert.deepEqual(s.leads, [], "it still starts, empty");
+
+  const [bad] = s.summary().damaged;
+  assert.equal(bad.file, "leads.json");
+  assert.match(bad.why, /JSON/);
+  assert.ok(bad.movedTo, "and it says where the original went");
+
+  // The bytes are still on disk, under the new name, untouched.
+  const saved = fs.readFileSync(path.join(dir, bad.movedTo), "utf8");
+  assert.match(saved, /Real Lead/);
+
+  // And the worst case: a save that would have flattened it.
+  s.addLead({ business: { name: "New", website: "https://new.test" }, tier: "C" });
+  s.saveNow([]);
+  assert.match(fs.readFileSync(path.join(dir, bad.movedTo), "utf8"), /Real Lead/,
+    "the rescued copy survives a full save");
+});
+
+test("the summary says which folder the numbers came from", () => {
+  /*
+    The app reads from a folder beside itself, so a second copy unzipped
+    somewhere else opens empty and looks identical to a night's work having
+    vanished. The page can only explain that if it is told the folder.
+  */
+  const s = createStore(dir);
+  assert.equal(s.summary().folder, dir);
+  assert.deepEqual(s.summary().damaged, [], "and says nothing is wrong when nothing is");
+});
+
+test("a good leads.json is copied once per launch, not once per lead", () => {
+  const s = createStore(dir);
+  s.addLead({ business: { name: "First", website: "https://one.test" }, tier: "A" });
+  // Nothing was on disk when this store opened, so there was nothing to copy.
+  assert.equal(fs.existsSync(path.join(dir, "leads.backup.json")), false);
+
+  const second = createStore(dir);
+  const backup = JSON.parse(fs.readFileSync(path.join(dir, "leads.backup.json"), "utf8"));
+  assert.deepEqual(backup.map(l => l.business.name), ["First"], "the state this window opened on");
+
+  second.addLead({ business: { name: "Second", website: "https://two.test" }, tier: "A" });
+  const still = JSON.parse(fs.readFileSync(path.join(dir, "leads.backup.json"), "utf8"));
+  assert.equal(still.length, 1, "and it is not rewritten as the night goes on");
 });

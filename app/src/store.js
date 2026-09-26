@@ -20,8 +20,41 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const read = (file, fallback) => {
-  try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return fallback; }
+/**
+ * Moves a file that cannot be read out of the way rather than losing it.
+ *
+ * Returns where it went, or null if even that failed.
+ */
+const rescue = file => {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const saved = `${file}.unreadable-${stamp}`;
+  try { fs.renameSync(file, saved); return saved; } catch { return null; }
+};
+
+/**
+ * Reads one of the files, and says which kind of nothing it got.
+ *
+ * This used to answer the fallback for every failure, so "not written yet"
+ * and "here, and I cannot read it" looked identical. The second one is a
+ * hundred nights of work, and the next save wrote an empty list straight over
+ * it. An unreadable file is now moved aside before anything else touches the
+ * folder, and reported so the page can say what happened.
+ */
+const read = (file, fallback, onDamage) => {
+  let raw;
+  try {
+    raw = fs.readFileSync(file, "utf8");
+  } catch (error) {
+    // Not being there yet is an ordinary first run, not a problem.
+    if (error.code !== "ENOENT") onDamage?.(file, rescue(file), error.code ?? "could not be opened");
+    return fallback;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    onDamage?.(file, rescue(file), "was not readable JSON");
+    return fallback;
+  }
 };
 
 const write = (file, value) => {
@@ -41,11 +74,30 @@ const write = (file, value) => {
 export function createStore(dir) {
   const file = name => path.join(dir, name);
 
-  const places = read(file("places.json"), {});
-  const progress = read(file("progress.json"), { done: [] });
+  // Anything that was there but could not be read, so the page can say so
+  // instead of showing a confident, wrong zero.
+  const damaged = [];
+  const note = (bad, movedTo, why) => damaged.push({
+    file: path.basename(bad), why, movedTo: movedTo ? path.basename(movedTo) : null,
+  });
+
+  const places = read(file("places.json"), {}, note);
+  const progress = read(file("progress.json"), { done: [] }, note);
   const done = new Set(progress.done);
-  let found = read(file("found.json"), []);
-  let leads = read(file("leads.json"), []);
+  let found = read(file("found.json"), [], note);
+  let leads = read(file("leads.json"), [], note);
+
+  /*
+    One copy of the leads as they were when this window opened.
+
+    Everything else in here is written many times a night, so copying on every
+    write would mean copying megabytes per site checked. Once per launch is
+    almost free and is the version anyone would actually want back: the state
+    before today's run touched anything.
+  */
+  if (leads.length) {
+    try { fs.copyFileSync(file("leads.json"), file("leads.backup.json")); } catch { /* best effort */ }
+  }
 
   // Businesses are recognised by name and town together. By name alone, a
   // second "Arctic Air" one town over would be silently discarded as a repeat.
@@ -203,6 +255,16 @@ export function createStore(dir) {
     pendingAudit,
 
     summary: () => ({
+      /*
+        Where these numbers came from.
+
+        The files live beside the app, so a copy of the app unzipped somewhere
+        else starts empty and looks exactly like a night's work vanishing. The
+        page shows this folder, which turns "where did my leads go" into one
+        glance.
+      */
+      folder: dir,
+      damaged,
       towns: Object.keys(places).length,
       searches: done.size,
       found: found.length,

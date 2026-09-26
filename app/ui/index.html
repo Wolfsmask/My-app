@@ -123,6 +123,8 @@
   .state{color:var(--muted);font-size:.8rem;margin:12px 0 0}
   .state b{color:var(--soft);font-weight:600}
   details.narrow{padding:0}
+  .folder{margin-top:6px;font-family:ui-monospace,Consolas,monospace;font-size:.74rem;color:var(--muted);word-break:break-all}
+  .damaged{margin-top:8px;padding:9px 12px;border-left:2px solid var(--bad);border-radius:4px;background:rgba(255,90,90,.07);font-size:.8rem;color:var(--text)}
   details.narrow summary{cursor:pointer;padding:16px 22px;font-size:.84rem;color:var(--muted);list-style:none}
   details.narrow summary::-webkit-details-marker{display:none}
   details.narrow summary::before{content:"\25B8  ";color:var(--muted)}
@@ -331,6 +333,33 @@ Tier D  under 12 — the site is fine, drop it</pre>
           + `<b>${st.pending}</b> waiting, <b>${st.awaitingReview}</b> low scores to look at &middot; `
           + `<b>${st.searches}</b> searches done`
         : 'Nothing found yet. Press Start.';
+
+      /*
+        Say which folder these numbers came from.
+
+        The saved work sits next to the app, so a second copy unzipped
+        somewhere else opens on an empty page that looks exactly like a
+        night's work having vanished. Printing the folder answers that in one
+        glance: it is either the folder you expected, or it is not.
+      */
+      if (st.folder) {
+        const where = document.createElement('div');
+        where.className = 'folder';
+        where.textContent = st.audited
+          ? `Reading ${st.audited} saved from  ${st.folder}`
+          : `Nothing saved in  ${st.folder}  yet. If you had leads before, they are in the out\\ui folder of your older copy.`;
+        $('state').append(where);
+      }
+
+      // Something was there and could not be read. Never quietly show a zero.
+      for (const bad of st.damaged ?? []) {
+        const warn = document.createElement('div');
+        warn.className = 'damaged';
+        warn.textContent = bad.movedTo
+          ? `${bad.file} ${bad.why}, so it was left alone and renamed to ${bad.movedTo}. Nothing has overwritten it.`
+          : `${bad.file} ${bad.why} and could not be moved aside. Do not press Save now \u2014 copy that file somewhere safe first.`;
+        $('state').append(warn);
+      }
     } catch { $('state').textContent = ''; }
   }
   showState();
