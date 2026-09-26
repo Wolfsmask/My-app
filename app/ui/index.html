@@ -497,6 +497,23 @@ Tier D  under 12 — the site is fine, drop it</pre>
       screenshot, and the address is remembered so a later sweep does not find
       it afresh. It cannot be undone, so it asks first.
     */
+    /*
+      A lead that has already been decided on shows what was decided - and
+      still gets a Delete button.
+
+      This used to replace the whole verdict row with the word "Kept.", which
+      threw away the Delete button that had just been wired to it. The result
+      was that every site already saved - the exact pile anyone would want to
+      clear out - was the one pile with no way to delete anything. Rendered
+      before the wiring below, so there is nothing left to throw away.
+    */
+    if (verdict && e.review) {
+      verdict.classList.add('settled');
+      verdict.innerHTML =
+        `<span>${e.review === 'keep' ? 'Kept.' : 'Closed \u2014 it will not be checked again.'}</span>`
+        + `<button class="tiny danger" data-forget="1">Delete</button>`;
+    }
+
     const forgetBtn = verdict?.querySelector('[data-forget]');
     if (forgetBtn) {
       forgetBtn.onclick = async () => {
@@ -515,10 +532,7 @@ Tier D  under 12 — the site is fine, drop it</pre>
       };
     }
 
-    if (verdict && e.review) {
-      verdict.classList.add('settled');
-      verdict.innerHTML = `<span>${e.review === 'keep' ? 'Kept.' : 'Closed \u2014 it will not be checked again.'}</span>`;
-    } else if (verdict) {
+    if (verdict && !e.review) {
       for (const btn of verdict.querySelectorAll('.tiny')) {
         btn.onclick = async () => {
           const decision = btn.dataset.decision;
@@ -723,10 +737,18 @@ Tier D  under 12 — the site is fine, drop it</pre>
     const btn = $(id);
     if (!btn) continue;
     btn.onclick = async () => {
-      const rows = await (await fetch('/api/leads')).json();
-      const n = rows.filter(r => (tier === '-' ? (r.tier ?? '-') === '-' : r.tier === tier)).length;
+      /*
+        Counted from the store, not from what is on the page.
+
+        The page only lists leads that have not been closed, and the delete
+        takes the whole tier including the closed ones - so counting the cards
+        promised "delete 3" and then removed nine hundred. The number in the
+        warning has to be the number that will actually go.
+      */
+      const st = await (await fetch('/api/state')).json();
+      const n = (st.tiers ?? {})[tier] ?? 0;
       if (!n) { $('status').textContent = `Nothing in ${what} to delete.`; return; }
-      if (!confirm(`Delete all ${n} ${what} results for good?\n\nThe saved rows go, their screenshots go, and these sites will not be found or checked again.`)) return;
+      if (!confirm(`Delete all ${n} ${what} results for good?\n\nThat includes ones already closed, which are not shown on the page. The saved rows go, their screenshots go, and these sites will not be found or checked again.`)) return;
       btn.disabled = true;
       try {
         const r = await (await fetch('/api/forget', {

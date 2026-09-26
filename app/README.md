@@ -63,18 +63,31 @@ of repeating two thousand queries against free volunteer servers.
 Progress is shown under the Start button, so you can see where it got to. To wipe it and
 begin again, delete `app/out/ui/`.
 
-## Getting rid of saved sites
+## Drop it, or Delete
 
-Two different buttons, because they do two different things.
+Two buttons on every card, doing two different things.
 
-**Drop it** keeps the row on disk and marks it settled. That is what stops the
-site being checked again tomorrow night, so the row has to stay.
+| | **Not interested, drop it** | **Delete** |
+|---|---|---|
+| The card | goes from the page | goes from the page |
+| The saved row | **stays** on disk, marked settled | removed |
+| Screenshot | deleted | deleted |
+| Checked again tomorrow? | no | no |
+| Found again by a later search? | no — the row is what stops it | no — the address is remembered |
+| Counts in your totals | yes, as closed | no, it never existed |
+| Undo | it is still on disk | none |
 
-**Delete** removes it: the saved result, the business behind it, and the
-screenshot. The address is remembered in `forgotten.json` so a later sweep does
-not rediscover the business and put it straight back on the page. It cannot be
-undone, and it survives a reset — deleting is a decision about that one site,
-and reset is about the search ledger.
+The row has to stay for Drop to work at all: "do not check this again" is
+remembered *by* the saved row. Delete throws the row away, so the address goes
+into `forgotten.json` instead, which does the same job in one line rather than
+a whole audit.
+
+Use Drop for a lead you looked at and passed over. Use Delete when you want it
+out of the totals and off the disk.
+
+Deletions survive a reset. Reset means "run the searches again from nothing";
+deleting means "never show me this one again", and one must not quietly cancel
+the other.
 
 There are bulk buttons next to **Save now** for a whole tier at once (`Delete
 every Tier D`, `Tier C`, `every skipped`), because after a night there are

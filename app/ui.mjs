@@ -25,7 +25,13 @@ import { score, disqualify, qualifies } from './src/score.js';
 import { toCsv, toHtml } from './src/report.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const OUT = path.join(here, 'out', 'ui');
+/*
+  Where the saved work lives. Overridable so the page itself can be driven by
+  a test against a throwaway store - the buttons on it decide what happens to
+  a night's leads, and "I clicked Delete and nothing happened" is not
+  something a unit test on the store can catch.
+*/
+const OUT = process.env.MBONYX_OUT || path.join(here, 'out', 'ui');
 const PORT = Number(process.env.PORT ?? 8123);
 
 /** Only one audit at a time — each run owns the browser. */
