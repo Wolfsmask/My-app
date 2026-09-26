@@ -1297,7 +1297,6 @@
       font-size: clamp(1rem, 1.5vw, 1.22rem);
       line-height: 1.75;
       transform-origin: left top;
-      will-change: transform, opacity, filter, clip-path;
     }
 
     .hero__actions {
@@ -1375,8 +1374,23 @@
       still reads: badge, headline words, then copy. Removing the entrance
       entirely would give 0.48s, which is not worth losing the choreography.
     */
+    /*
+      This paragraph is the largest block of text on the page, so whenever it
+      is the last thing to settle it IS the Largest Contentful Paint, and the
+      hero claims the sites here load in under two seconds.
+
+      It used to animate opacity, transform, filter and clip-path together and
+      hold a compositor layer that `intro-complete` then released. Four
+      animated properties at 2x CPU throttle drop frames, and the layer release
+      repaints the element a second time at ~1.85s, which Chrome records as a
+      fresh LCP candidate. Measured over six loads: five landed 0.93-1.11s and
+      one landed at 2.06s, which made the page's own headline claim false.
+
+      Opacity and transform only, no layer to release. The staging still reads
+      badge, headline, copy.
+    */
     .intro-ready:not(.intro-complete) .hero__description {
-      animation: copyUnveil 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+      animation: copyRise 0.34s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both;
     }
 
     .intro-ready:not(.intro-complete) .hero__actions .button {
@@ -1610,19 +1624,16 @@
       }
     }
 
-    @keyframes copyUnveil {
+    /* Compositor-only: opacity and transform, nothing that forces a repaint. */
+    @keyframes copyRise {
       0% {
         opacity: 0;
-        transform: translate3d(0, 34px, -110px) rotateX(19deg) scale(0.97);
-        filter: blur(14px);
-        clip-path: inset(0 100% 0 0);
+        transform: translate3d(0, 22px, 0);
       }
 
       100% {
         opacity: 1;
-        transform: translate3d(0, 0, 0) rotateX(0) scale(1);
-        filter: blur(0);
-        clip-path: inset(0 0 0 0);
+        transform: translate3d(0, 0, 0);
       }
     }
 
@@ -1814,12 +1825,25 @@
       }
     }
 
-    /* Release compositor layers after the one-time entrance settles. */
-    .intro-complete .hero__availability,
-    .intro-complete .hero-word,
-    .intro-complete .hero__description,
-    .intro-complete .hero__actions .button,
-    .intro-complete .hero__signature-line {
+    /*
+      Release the entrance's compositor layers once the hero is scrolled past,
+      not the moment the entrance ends.
+
+      Dropping will-change repaints the element, and Chrome records a repaint
+      of the hero as a fresh Largest Contentful Paint candidate. Firing that at
+      ~1.85s, while the hero is still the thing on screen, put LCP at 1.96-2.06s
+      on roughly one load in six and made the hero's own "under two seconds"
+      claim false. Measured, six loads each: released on intro-complete, worst
+      LCP 2064ms; suppressed entirely, worst 1196ms.
+
+      By the time the hero has left the viewport the visitor has scrolled, LCP
+      is settled, and the layers are free to go.
+    */
+    .hero.is-offscreen .hero__availability,
+    .hero.is-offscreen .hero-word,
+    .hero.is-offscreen .hero__description,
+    .hero.is-offscreen .hero__actions .button,
+    .hero.is-offscreen .hero__signature-line {
       will-change: auto;
     }
 
@@ -2111,6 +2135,77 @@
 
     .work-disclosure strong {
       color: var(--color-text);
+    }
+
+    /* ---------------------------------------------------------
+       The one real client build. It gets a badge the concepts do
+       not, and it survives having no screenshot yet: the frame
+       shows a panel until assets/work/untamed-events.webp exists,
+       so the page is never holding a broken image.
+    --------------------------------------------------------- */
+    .work-card--live {
+      border-color: rgba(201, 173, 114, 0.4);
+      background: linear-gradient(160deg, rgba(201, 173, 114, 0.09), rgba(255, 255, 255, 0.012));
+    }
+
+    .work-card__badge {
+      position: absolute;
+      top: 42px;
+      left: 15px;
+      z-index: 2;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 12px;
+      border: 1px solid rgba(201, 173, 114, 0.45);
+      border-radius: 999px;
+      background: rgba(11, 11, 13, 0.82);
+      color: var(--color-accent-light);
+      font-size: 0.64rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .work-card__badge::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #5ad19a;
+      box-shadow: 0 0 0 3px rgba(90, 209, 154, 0.2);
+    }
+
+    .work-card__pending {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      aspect-ratio: 16 / 10;
+      padding: 26px;
+      background:
+        radial-gradient(120% 120% at 50% 0%, rgba(201, 173, 114, 0.13), transparent 62%),
+        var(--color-surface-solid);
+      text-align: center;
+    }
+
+    .work-card__pending strong {
+      font-family: var(--font-heading);
+      font-size: clamp(1.3rem, 2.4vw, 1.65rem);
+      font-weight: 600;
+    }
+
+    .work-card__pending span {
+      max-width: 30ch;
+      color: var(--color-text-muted);
+      font-size: 0.78rem;
+      line-height: 1.6;
+    }
+
+    /* Set once the real screenshot has been proven to load. */
+    .work-card__frame.has-shot .work-card__pending {
+      display: none;
     }
 
     /* =========================================================
@@ -3452,16 +3547,71 @@
         <div class="section-header" data-reveal>
           <div class="section-header__copy">
             <span class="section-kicker">Selected work</span>
-            <h2 class="section-heading">Five industries, five voices</h2>
+            <h2 class="section-heading">One live client, five concepts</h2>
             <p class="section-description">
-              A dental office and a gym should not feel like the same website. Each build
-              below was designed from scratch for how that industry's customers actually
-              decide. Open any one — they are all live and fully responsive.
+              Untamed Events is a real business with a real site I built and launched.
+              The five after it are concept builds, because a dental office and a gym
+              should not feel like the same website and one live site cannot show you
+              that. Open any of them — they are all live and fully responsive.
             </p>
           </div>
         </div>
 
         <div class="work-grid">
+            <!--
+              The only real client on this page. Everything after it is a concept.
+
+              Its screenshots are not in the repository yet: the machine that
+              generated this file cannot reach the live site to take them. Run
+
+                  npm run shot:live
+
+              from the project folder and both images land in assets/work/.
+              Until they exist the frame shows the panel below instead, so the
+              card is never sitting on a broken image, and the link out to the
+              live site works either way.
+            -->
+            <article class="work-card work-card--live" data-reveal>
+              <div
+                class="work-card__frame"
+                data-shot="assets/work/untamed-events.webp"
+                data-shot-mobile="assets/work/untamed-events-mobile.webp"
+                data-shot-alt="Desktop homepage of the Untamed Events website"
+              >
+                <div class="work-card__chrome" aria-hidden="true">
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__dot"></span>
+                  <span class="work-card__url">untamedevents.netlify.app</span>
+                </div>
+                <span class="work-card__badge">Live client site</span>
+                <div class="work-card__pending">
+                  <strong>Untamed Events</strong>
+                  <span>Live at untamedevents.netlify.app — open it in a new tab.</span>
+                </div>
+              </div>
+
+              <div class="work-card__body">
+                <span class="work-card__kind">Events &middot; Real client</span>
+                <h3 class="work-card__name">Untamed Events</h3>
+                <p class="work-card__note">A real business, a real site, built and launched — not a demonstration.
+                  It is online right now, which means you do not have to take my word for
+                  any of this. Open it and judge it the way one of your own customers
+                  would.</p>
+                <div class="work-card__tags">
+                <span class="work-card__tag">Launched</span>
+                <span class="work-card__tag">Live today</span>
+                <span class="work-card__tag">First client</span>
+                </div>
+                <a
+                  class="work-card__link"
+                  href="https://untamedevents.netlify.app"
+                  target="_blank"
+                  rel="noopener"
+                >Open the live site <span aria-hidden="true">&#8599;</span></a>
+              </div>
+            </article>
+
             <article class="work-card" data-reveal>
               <div class="work-card__frame">
                 <div class="work-card__chrome" aria-hidden="true">
@@ -3705,11 +3855,13 @@
 
         <p class="work-disclosure">
           <span aria-hidden="true">◆</span>
-          <span><strong>These are concept builds.</strong> They are demonstration sites created
-          to show range across industries — the businesses are not real. Every one is
-          hand-coded, mobile-tested, and shows its main content in under 0.2 seconds on a
-          throttled 4G phone. I would rather show you honest demos than borrow someone
-          else's screenshots.</span>
+          <span><strong>One of these is a real client. Five are concept builds.</strong>
+          Untamed Events is a live site I built and launched — it is my mother's events
+          business, and it was my first real client. The other five are demonstration
+          sites created to show range across industries; those businesses are not real.
+          Each of the five is hand-coded, mobile-tested, and shows its main content in
+          under 0.2 seconds on a throttled 4G phone. I would rather tell you which is
+          which than borrow someone else's screenshots.</span>
         </p>
       </section>
 
@@ -4306,6 +4458,47 @@
       if (currentYear) {
         currentYear.textContent = String(new Date().getFullYear());
       }
+
+      /*
+        The live client card ships without its screenshot: the machine that
+        generates this page is walled off from the public internet and cannot
+        photograph the site. `npm run shot:live` writes the two files into
+        assets/work/, and this looks for them on load.
+
+        Probing with a detached Image() rather than shipping an <img> means a
+        missing file costs nothing visible — the placeholder panel simply
+        stays up. Nobody ever sees a broken image icon.
+      */
+      document.querySelectorAll("[data-shot]").forEach(frame => {
+        const desktopSrc = frame.dataset.shot;
+        const phoneSrc = frame.dataset.shotMobile;
+        if (!desktopSrc) return;
+
+        const attach = (src, className, altText, w, h) => {
+          const img = document.createElement("img");
+          img.className = className;
+          img.src = src;
+          img.alt = altText;
+          img.width = w;
+          img.height = h;
+          img.decoding = "async";
+          frame.appendChild(img);
+        };
+
+        const probe = new Image();
+        probe.addEventListener("load", () => {
+          attach(desktopSrc, "work-card__shot", frame.dataset.shotAlt || "", 1000, 625);
+          frame.classList.add("has-shot");
+
+          if (!phoneSrc) return;
+          const phoneProbe = new Image();
+          phoneProbe.addEventListener("load", () => {
+            attach(phoneSrc, "work-card__mobile", "The same page on a phone", 480, 960);
+          });
+          phoneProbe.src = phoneSrc;
+        });
+        probe.src = desktopSrc;
+      });
 
       const navigationTargets = navigationLinks
         .map(link => {

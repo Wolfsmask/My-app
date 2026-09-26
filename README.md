@@ -1,7 +1,8 @@
 # MBOnyx Studio
 
-Static marketing site for MBOnyx Studio, plus five concept builds used as the portfolio.
-No build step — Netlify publishes the repo root as-is.
+Static marketing site for MBOnyx Studio. The portfolio is one live client build
+(Untamed Events) plus five concept builds. Nothing is compiled — `npm run build`
+only copies the public files into `dist/`, which is what Netlify publishes.
 
 ## Structure
 
@@ -68,6 +69,18 @@ npm run shots       # re-screenshot desktop + mobile, then optimise to WebP
 ```
 
 `tools/og.mjs` regenerates the social share card the same way.
+
+For the live client card, which points at a real site on the public internet
+rather than a file in `work/`:
+
+```bash
+npm run shot:live                                          # Untamed Events
+npm run shot:live -- https://example.com some-other-slug   # anything else
+```
+
+That writes `assets/work/<slug>.webp` and `<slug>-mobile.webp` directly. Until
+those two files exist the card shows a placeholder panel instead of a broken
+image, so the site is safe to deploy either way.
 
 ## Checking the site
 

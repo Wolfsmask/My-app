@@ -9,3 +9,6 @@ app/out/
 # Run `npm run preview` to regenerate it.
 mbonyx-preview.html
 dist/
+
+# Delivery zips, rebuilt on demand from dist/ and app/.
+*.zip

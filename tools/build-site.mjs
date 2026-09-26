@@ -89,6 +89,84 @@ fs.writeFileSync(toml,
     .replace(/\n{3,}/g, '\n\n')
     .trimStart());
 
+/*
+  Bake the live-client screenshot into the shipped page.
+
+  index.html marks that one card's frame with data-shot attributes and shows a
+  placeholder panel, because the machine that wrote the file cannot reach the
+  public internet to photograph the site. In the browser a small script probes
+  for the image and swaps it in — which costs a 404 on every page load when the
+  file is not there yet, and a site that sells "I will find what is broken on
+  yours" should not be shipping a 404 of its own.
+
+  So the decision is made here instead, once, at build time: if the screenshot
+  exists it becomes a plain <img> like every other card, and if it does not the
+  data-shot attributes are stripped so the browser never goes looking. Either
+  way dist/ ships no request that is expected to fail. The source file is
+  untouched; only the copy in dist/ is rewritten.
+*/
+const bakeShots = html => {
+  const openTag = /<div\s+class="work-card__frame"((?:[^>]*?)\sdata-shot="[^"]*"(?:[^>]*?))>/g;
+  const img = (src, cls, alt, w, h) =>
+    `<img\n                  class="${cls}"\n                  src="${src}"\n` +
+    `                  alt="${alt}"\n                  width="${w}"\n                  height="${h}"\n` +
+    `                  loading="lazy"\n                  decoding="async"\n                >`;
+
+  let out = html, baked = 0, stripped = 0;
+  for (const match of [...html.matchAll(openTag)]) {
+    const attrs = match[1];
+    const read = name => (attrs.match(new RegExp(`${name}="([^"]*)"`)) || [])[1];
+    const desktop = read('data-shot');
+    const mobile = read('data-shot-mobile');
+    const alt = read('data-shot-alt') || '';
+    const have = file => file && fs.existsSync(path.join(dist, file));
+
+    // The placeholder is the only thing between this tag and the shots.
+    const from = out.indexOf('<div class="work-card__pending">', out.indexOf(match[0]));
+    const to = from === -1 ? -1 : out.indexOf('</div>', from);
+    if (from === -1 || to === -1) {
+      console.error('  a work-card__frame carries data-shot but has no placeholder panel');
+      process.exit(1);
+    }
+    const panel = out.slice(from, to + 6);
+    if (panel.includes('<div', 4)) {
+      console.error('  the placeholder panel has nested elements this rewrite cannot survive');
+      process.exit(1);
+    }
+
+    if (have(desktop)) {
+      const shots = [img(desktop, 'work-card__shot', alt, 1000, 625)];
+      if (have(mobile)) shots.push(img(mobile, 'work-card__mobile', 'The same page on a phone', 480, 960));
+      out = out.slice(0, from) + shots.join('\n                ') + out.slice(to + 6);
+      baked++;
+    } else {
+      stripped++;
+    }
+    out = out.replace(match[0], '<div class="work-card__frame">');
+  }
+
+  if (baked) console.log(`  baked ${baked} live screenshot(s) into the page`);
+  if (stripped) console.log(`  ${stripped} live card(s) shipping the placeholder — run: npm run shot:live`);
+  return out;
+};
+
+const indexPath = path.join(dist, 'index.html');
+fs.writeFileSync(indexPath, bakeShots(fs.readFileSync(indexPath, 'utf8')));
+
+// Guard: no shipped page may ask the browser for a file that is not here.
+const missing = [];
+for (const page of fs.readdirSync(dist).filter(f => f.endsWith('.html'))) {
+  const html = fs.readFileSync(path.join(dist, page), 'utf8');
+  for (const m of html.matchAll(/(?:src|href)="((?:assets|work)\/[^"#?]+)"/g)) {
+    if (!fs.existsSync(path.join(dist, m[1]))) missing.push(`${page} -> ${m[1]}`);
+  }
+  if (/data-shot=/.test(html)) missing.push(`${page} still carries a data-shot probe`);
+}
+if (missing.length) {
+  console.error(`\n  ${missing.length} dead reference(s) in dist/:\n   ${missing.join('\n   ')}\n`);
+  process.exit(1);
+}
+
 // Guard: nothing private may have slipped through.
 const leaked = [];
 const audit = dir => {
