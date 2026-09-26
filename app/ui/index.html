@@ -398,12 +398,16 @@ Tier D  under 12 — the site is fine, drop it</pre>
           ? `<div class="lead__thin">Only ${esc(e.confidence)}% of the usual checks could be run on this page \u2014 the score is less certain than the others.</div>`
           : ''}
         ${findings}
-        ${!dropped && e.tier !== 'A' && e.tier !== 'B' && e.website ? `
+        ${!dropped && e.website ? (e.tier === 'A' || e.tier === 'B' ? `
+          <div class="verdict" data-site="${esc(e.website)}">
+            <span>Kept as a lead. Drop it if you have looked and do not want it \u2014 it will not come back.</span>
+            <button class="tiny" data-decision="confirmed">Not interested, drop it</button>
+          </div>` : `
           <div class="verdict" data-site="${esc(e.website)}">
             <label class="pick"><input type="checkbox" class="keepbox"> Keep this one</label>
             <span>Scored low. Tick it to keep, or leave it \u2014 Save now closes the rest for good.</span>
             <button class="tiny" data-decision="confirmed">Drop it now</button>
-          </div>` : ''}`;
+          </div>`) : ''}`;
 
     // Looked up inside the card just made, not at the end of the list: once
     // the list is sorted, the newest card is rarely last.
@@ -421,8 +425,17 @@ Tier D  under 12 — the site is fine, drop it</pre>
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ website: verdict.dataset.site, decision }),
             });
-            verdict.classList.add('settled');
-            verdict.innerHTML = `<span>${decision === 'confirmed' ? 'Dropped \u2014 it will not be checked again.' : 'Kept \u2014 it will not be checked again.'}</span>`;
+            if (decision === 'confirmed') {
+              // Gone from the list, not just annotated. It is already out of
+              // the saved set, so leaving the card sitting there would show a
+              // lead that no longer exists.
+              card.style.transition = 'opacity .25s ease';
+              card.style.opacity = '0';
+              setTimeout(() => card.remove(), 260);
+            } else {
+              verdict.classList.add('settled');
+              verdict.innerHTML = '<span>Kept.</span>';
+            }
             showState();
           } catch { btn.textContent = 'could not save'; }
         };

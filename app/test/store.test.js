@@ -171,6 +171,27 @@ test("saving hands back the screenshots that can be binned", () => {
   assert.deepEqual(closedSlugs, ["fine"], "only the closed one's");
 });
 
+test("a good lead can be dropped, and saving does not undo it", () => {
+  const s = createStore(dir);
+  for (const [name, url, tier] of [["Keen", "https://a.test", "A"], ["Also", "https://b.test", "B"]]) {
+    s.addBusiness({ name, town: "Liberty, MO", website: url });
+    s.addLead({ business: { name, website: url }, tier, score: 70, slug: name.toLowerCase() });
+  }
+
+  // Looked at it, did not want it.
+  s.review("https://a.test", "confirmed");
+
+  // Save now used to force every A and B back to "keep", so a lead dropped by
+  // hand came straight back the next time it ran.
+  const { kept, closed } = s.saveNow([]);
+  assert.equal(closed, 1);
+  assert.equal(kept, 1);
+  assert.equal(s.leads.find(l => l.business.website === "https://a.test").review, "confirmed");
+
+  const afterRestart = createStore(dir);
+  assert.deepEqual(afterRestart.leads.filter(l => l.review !== "confirmed").map(l => l.business.name), ["Also"]);
+});
+
 test("what is closed stays on disk but stops counting as kept", () => {
   const s = createStore(dir);
   for (const [name, url, tier] of [["Good", "https://a.test", "A"], ["Fine", "https://d.test", "D"]]) {

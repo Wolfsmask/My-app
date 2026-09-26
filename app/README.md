@@ -46,6 +46,10 @@ they survive Stop, Start, a reload and a restart.
 **Best first.** Results are ordered by score as they arrive — highest at the top, sites that
 could not be reached at the bottom — and the report and spreadsheet come out the same way.
 
+**Any lead can be dropped.** Tier A and B carry a *Not interested, drop it* button; the card
+goes, its screenshot goes, and no email is drafted for it. A decision you make by hand is
+never undone by **Save now** — that only decides the ones nobody has looked at.
+
 **A low score is provisional.** Tier C and D leads get *Agreed, drop it* / *Actually worth it*
 buttons. Until you press one, that site stays in the queue and gets checked again next time —
 the app will not write a business off forever on a guess nobody looked at. Tier A and B are

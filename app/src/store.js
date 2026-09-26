@@ -154,7 +154,8 @@ export function createStore(dir) {
       if (!lead) return false;
       lead.review = decision === "confirmed" || decision === "keep" ? decision : null;
       write(file("leads.json"), leads);
-      return true;
+      // The screenshot goes with a dropped lead, whatever tier it was.
+      return { ok: true, slug: lead.review === "confirmed" ? (lead.slug ?? null) : null };
     },
 
     /**
@@ -172,6 +173,14 @@ export function createStore(dir) {
       for (const lead of leads) {
         const url = lead.business?.website;
         if (!url) continue;
+
+        // A decision already made by hand stands. Save now is a bulk action
+        // for the ones nobody has looked at yet - it used to force every A
+        // and B back to "keep", so dropping a good-looking lead you had
+        // decided against was undone the next time you pressed Save.
+        if (lead.review === "confirmed") { closed++; continue; }
+        if (lead.review === "keep") { kept++; continue; }
+
         if (lead.tier === "A" || lead.tier === "B" || keep.has(url)) {
           lead.review = "keep"; kept++;
         } else {

@@ -505,8 +505,13 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     try {
       const { website, decision } = JSON.parse(body || '{}');
-      const ok = store.review(website, decision);
-      res.end(JSON.stringify({ ok, ...store.summary() }));
+      const result = store.review(website, decision);
+
+      // A dropped lead's screenshot goes with it, the same as Save now does.
+      if (result?.slug) {
+        try { fs.rmSync(path.join(OUT, 'shots', `${result.slug}.jpg`), { force: true }); } catch { /* already gone */ }
+      }
+      res.end(JSON.stringify({ ok: Boolean(result?.ok ?? result), ...store.summary() }));
     } catch (e) {
       res.end(JSON.stringify({ error: e.message }));
     }
