@@ -1,0 +1,79 @@
+<!doctype html>
+<!--
+  A page that is fine to look at and painful to wait for.
+
+  Three faults that only show up in timing, and which a checker that waits a
+  fixed moment and then looks will miss entirely:
+
+    - the hero lands two and a half seconds in, so the page is blank first;
+    - a banner is inserted above the content afterwards, shoving everything
+      down under the reader's thumb;
+    - the photo is a 4px file stretched across 800px, so it is a smear.
+
+  None of it is exotic. It is what a slider plugin and an uncompressed logo
+  do to an ordinary small-business site.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Halstead Plumbing &amp; Drains</title>
+  <style>
+    body { font-family: system-ui, sans-serif; font-size: 16px; line-height: 1.6;
+           margin: 0; padding: 0; color: #1a1a1a; }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 46px; margin: 0 0 16px; }
+    h2 { font-size: 30px; margin: 40px 0 12px; }
+    a { display: inline-block; padding: 14px 0; font-size: 18px; }
+    section { padding: 56px 0; }
+    #hero { min-height: 340px; }
+    .shot { display: block; width: 800px; max-width: 100%; height: 300px; object-fit: cover; }
+    .banner { background: #ffe9a8; padding: 22px; font-size: 18px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section id="hero"><!-- filled in late, on purpose --></section>
+
+    <section>
+      <h2>What we do</h2>
+      <p>Drain clearing, burst pipes, water heaters and full bathroom fits across the
+      northland. Licensed and insured, and we answer the phone ourselves.</p>
+      <p><a href="tel:8165550188">Call (816) 555-0188</a></p>
+    </section>
+
+    <section>
+      <h2>Emergency call-outs</h2>
+      <p>Same-day for burst pipes and blocked mains. No call-out fee inside Clay County.</p>
+    </section>
+
+    <p>&copy; 2025 Halstead Plumbing &amp; Drains</p>
+  </div>
+
+  <script>
+    /*
+      A 4x3 pixel image shown at 800x300. This is what an uncompressed logo
+      dragged to full width actually looks like once the browser scales it.
+    */
+    const tiny = "data:image/gif;base64,R0lGODlhBAADAPABAP+ZM////yH5BAAAAAAALAAAAAAEAAMAAAIExI+ZBQA7";
+
+    // The hero paints two and a half seconds in. Everything before this
+    // moment is a blank screen with a bit of text below the fold.
+    setTimeout(() => {
+      document.getElementById("hero").innerHTML =
+        '<h1>Blocked drain? We are on our way.</h1>' +
+        '<img class="shot" alt="A plumbing van" src="' + tiny + '">' +
+        '<p>Northland plumbing, seven days a week.</p>';
+    }, 2500);
+
+    // And then a banner is pushed in above all of it, moving the page under
+    // whoever was already reading.
+    setTimeout(() => {
+      const b = document.createElement("div");
+      b.className = "banner";
+      b.textContent = "Winter offer: free drain inspection with any call-out booked this month.";
+      document.querySelector(".wrap").prepend(b);
+    }, 3000);
+  </script>
+</body>
+</html>

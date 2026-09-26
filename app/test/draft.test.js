@@ -7,7 +7,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { draftEmail, numbersAreReal } from "../src/draft.js";
+import { draftEmail, numbersAreReal, claimsAreMeasured } from "../src/draft.js";
 
 const lead = (name, over = {}) => ({
   business: { name, town: "Liberty, MO", category: "HVAC / heating & cooling", website: "https://x.test" },
@@ -216,4 +216,80 @@ test("a small business with a decent website is not offered a free rebuild", () 
     audit: { business: { size: "micro", offerFree: true } },
   };
   assert.equal(draftEmail(barelyAnything, { address: "PO Box 1" }).offerFree, false);
+});
+
+/* ------------------------------------- saying only what was actually found */
+
+test("a page that overflows is described as overflowing, never as too small", () => {
+  /*
+    "Not responsive" covers two opposite symptoms, and the wording used to be
+    picked by a hash of the business name - so about half the time the email
+    described the wrong one. An owner who opens their phone and cannot find
+    what the email said is gone for good, and rightly.
+  */
+  const overflowing = {
+    business: { name: "Wide Load Haulage", town: "Liberty, MO" },
+    score: 55,
+    hits: [{ id: "not_responsive", points: 40, label: "Breaks on a phone", evidence: "On a phone: the page lays out 980px wide." }],
+    audit: {
+      mobileOverflowPct: 151, mobileCutOff: 8, mobileScrollWidth: 980,
+      effectiveBodyPx: 16, mobileZoom: 1,
+    },
+  };
+  const a = draftEmail(overflowing, { address: "PO Box 1" });
+  assert.match(a.claims, /runs off the side|wider than the screen|off the edge/);
+  assert.doesNotMatch(a.claims, /shrunk down|everything ends up tiny|too small to read/);
+  assert.equal(claimsAreMeasured(a, overflowing.audit).ok, true);
+});
+
+test("a page that is shrunk is described as shrunk, never as overflowing", () => {
+  const shrunk = {
+    business: { name: "Perkins Upholstery", town: "Liberty, MO" },
+    score: 55,
+    hits: [{ id: "not_responsive", points: 40, label: "Breaks on a phone", evidence: "On a phone: the whole page is shrunk to fit." }],
+    // Nothing overflows here. The browser laid it out at 980 and scaled it.
+    audit: { mobileOverflowPct: 0, mobileCutOff: 0, mobileZoom: 0.4, bodyFontSize: 12, effectiveBodyPx: 4.8 },
+  };
+  const b = draftEmail(shrunk, { address: "PO Box 1" });
+  assert.match(b.claims, /shrunk down|squeezes the desktop|too small to read|everything ends up tiny/);
+  assert.doesNotMatch(b.claims, /runs off the side|wider than the screen|drag/);
+  assert.equal(claimsAreMeasured(b, shrunk.audit).ok, true);
+});
+
+test("a symptom nobody measured is caught before the email is called ready", () => {
+  /*
+    The backstop. The phrasings above are already gated on the audit; this
+    re-reads the finished letter, so a phrasing added later without a gate
+    still cannot reach a stranger unflagged.
+  */
+  const draft = {
+    claims: "Pulled up on a phone, the page runs off the side of the screen and has to be dragged around to read. " +
+            "Browsers now put a \"not secure\" warning in front of the page. Some of the photos come out blurry.",
+  };
+  // A site where none of that is true.
+  const clean = { mobileOverflowPct: 0, mobileCutOff: 0, sslValid: true, stretchedImages: 0 };
+  const bad = claimsAreMeasured(draft, clean);
+  assert.equal(bad.ok, false);
+  assert.equal(bad.unsupported.length, 3, JSON.stringify(bad.unsupported));
+  assert.match(bad.unsupported.join("; "), /dragged sideways/);
+  assert.match(bad.unsupported.join("; "), /security warning/);
+  assert.match(bad.unsupported.join("; "), /blurry/);
+
+  // And the same sentences against a site where all three are true.
+  const real = { mobileOverflowPct: 60, mobileCutOff: 5, sslValid: false, stretchedImages: 2 };
+  assert.equal(claimsAreMeasured(draft, real).ok, true);
+});
+
+test("the sign-off is not held to the website's measurements", () => {
+  // "Liberty" in a postal address is not a claim about anyone's website, and
+  // the check must not read the signature as one.
+  const lead = {
+    business: { name: "Quiet Co", town: "Liberty, MO" },
+    score: 30,
+    hits: [{ id: "stale_copyright", points: 8, label: "Footer looks abandoned", evidence: "Footer still says 2019." }],
+    audit: { copyrightYear: 2019 },
+  };
+  const d = draftEmail(lead, { address: "PO Box 42, Liberty MO 64068" });
+  assert.equal(claimsAreMeasured(d, lead.audit).ok, true);
+  assert.match(d.body, /PO Box 42/, "the address really is in the letter");
 });

@@ -375,13 +375,46 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
     });
     const page = await context.newPage();
 
+    /*
+      How long before anything worth looking at is on the screen.
+
+      This used to need a PageSpeed API key, so on a normal run it never ran
+      at all and load time counted for nothing. The browser already knows:
+      Largest Contentful Paint is the moment the biggest thing on the first
+      screen finishes drawing, which is as close as a number gets to "the
+      page looks ready". It has to be observed before the paint happens -
+      reading performance.getEntriesByType afterwards returns an empty list
+      and silently reports zero - so it is installed before navigation.
+
+      Also collected: layout shift, which is the measure of things jumping
+      around under your thumb while it loads.
+    */
+    await context.addInitScript(() => {
+      window.__lcpMs = null;
+      window.__cls = 0;
+      try {
+        new PerformanceObserver(list => {
+          for (const e of list.getEntries()) window.__lcpMs = Math.round(e.startTime);
+        }).observe({ type: "largest-contentful-paint", buffered: true });
+        new PerformanceObserver(list => {
+          for (const e of list.getEntries()) if (!e.hadRecentInput) window.__cls += e.value;
+        }).observe({ type: "layout-shift", buffered: true });
+      } catch { /* an older engine; left unmeasured rather than guessed at */ }
+    });
+
     let bytes = 0;
     const imageTypes = new Set();
+    // Plain-HTTP files pulled into a secure page. Chrome blocks scripts and
+    // stylesheets loaded this way outright and strips the padlock, so a site
+    // can be on HTTPS with a valid certificate and still look unsafe.
+    const insecure = new Set();
     page.on("response", async res => {
       const len = parseInt(res.headers()["content-length"] || "0", 10);
       if (len) bytes += len;
       const ct = res.headers()["content-type"] || "";
       if (ct.startsWith("image/")) imageTypes.add(ct.split(";")[0].trim());
+      const url = res.url();
+      if (url.startsWith("http://") && insecure.size < 25) insecure.add(url);
     });
 
     const resp = await page.goto(target, { waitUntil: "load", timeout: timeoutMs });
@@ -401,8 +434,52 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
       return out;
     }
 
-    // Give lazy content a moment, but never hang the run on a slow site.
-    await page.waitForTimeout(1200);
+    /*
+      Wait for the page to stop painting, rather than for a fixed moment.
+
+      A flat 1200ms wait under-reported the exact sites worth knowing about:
+      anything whose hero image or slider lands at two and a half seconds had
+      already been measured and written down as fast. Waiting 4s on every site
+      instead would add over an hour to a two-thousand-site night for no gain,
+      since most pages are done in well under one.
+
+      A "has it been quiet for a moment" test on its own does not work, and
+      it is worth saying why: a page whose text paints instantly and whose
+      hero arrives at 2.5s is quiet at 900ms, so the check passes and records
+      28ms for a page that is visibly blank for two and a half seconds. There
+      is no signal that distinguishes "finished" from "about to paint again".
+
+      So the floor is 2.6s, which covers the sliders and hero images that
+      cause this, and after that it waits for 600ms of quiet up to a 4s
+      ceiling. The cost is about 1.4s a site over the old fixed wait - call it
+      half an hour across a two-thousand-site night, on two workers - to stop
+      recording the slowest sites as the fastest.
+    */
+    await page.waitForTimeout(2600);
+    await page.waitForFunction(() => {
+      const now = performance.now();
+      // Nothing has painted at all yet: give it until the ceiling.
+      if (window.__lcpMs == null) return now > 3800;
+      return now - window.__lcpMs > 600;
+    }, null, { timeout: 1400 }).catch(() => { /* still busy at the ceiling */ });
+
+    /*
+      Read before anything else touches the page.
+
+      Everything after this resizes the window twice, and a resize repaints,
+      which Chrome records as a fresh Largest Contentful Paint. Read late, the
+      number would be "how long until the page settled after we poked it"
+      rather than how long a visitor waited.
+    */
+    const timing = await page.evaluate(() => ({
+      lcpMs: window.__lcpMs,
+      cls: window.__cls == null ? null : Math.round(window.__cls * 1000) / 1000,
+      domContentLoaded: Math.round(performance.timing
+        ? performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart
+        : 0) || null,
+    })).catch(() => ({}));
+    out.lcpMs = timing.lcpMs ?? null;
+    out.layoutShift = timing.cls ?? null;
 
     const html = await page.content();
     const headers = resp?.headers() ?? {};
@@ -768,6 +845,10 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
     });
 
     out.pageWeightBytes = bytes || null;
+    // Only counts on a page that is itself secure; an http:// site loading
+    // http:// files is consistent, just old, and the certificate check
+    // already has plenty to say about it.
+    out.mixedContent = /^https:/i.test(out.finalUrl || target) ? insecure.size : null;
     out.usesModernImages = measured.imageCount === 0
       ? null
       : [...imageTypes].some(t => t === "image/webp" || t === "image/avif");
@@ -827,7 +908,7 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
  * Checks only same-site links, and only a handful. We are measuring their
  * homepage, not crawling their server.
  */
-async function countBrokenLinks(links, hostname, { allowLocal = false, max = 12 } = {}) {
+async function countBrokenLinks(links, hostname, { allowLocal = false, max = 10 } = {}) {
   const sameSite = [...new Set(links.filter(h => {
     try { return new URL(h).hostname === hostname; } catch { return false; }
   }))].slice(0, max);
@@ -847,8 +928,24 @@ async function countBrokenLinks(links, hostname, { allowLocal = false, max = 12 
     } catch {
       broken++;
     }
-    // Be a polite guest: roughly one request per second per host.
-    await new Promise(r => setTimeout(r, 900));
+    /*
+      Be a polite guest - but in proportion.
+
+      This used to sleep 900ms between each of twelve links, which made it
+      about eleven seconds of the fourteen an average audit took. It was, by
+      a wide margin, the most expensive thing this tool did, and across a
+      two-thousand-site night it cost hours.
+
+      The courtesy was also inconsistent: loading their homepage a moment
+      earlier fired off dozens of requests for images, fonts and scripts with
+      no delay at all, and then this crawled through ten HEAD requests - the
+      cheapest kind there is, no body returned - as though they were the
+      burden. A person clicking around the site makes more requests, faster.
+
+      300ms keeps it well under what any visitor does and takes this from
+      eleven seconds to three.
+    */
+    await new Promise(r => setTimeout(r, 300));
   }
   return broken;
 }

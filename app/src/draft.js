@@ -31,6 +31,24 @@ function pick(options, seed) {
   return options[h % options.length];
 }
 
+/**
+ * Picks a phrasing, from the ones that are true of this site.
+ *
+ * Entries wrapped in when() carry a test against the audit; plain ones always
+ * apply. Anything whose test fails is not a wording choice, it is a false
+ * statement about somebody's business, so it is removed before the choice is
+ * made rather than being one option in three.
+ *
+ * Returns null when nothing applies, and the caller leaves the sentence out.
+ * A shorter email is always better than a wrong one.
+ */
+function pickTrue(options, seed, audit) {
+  const usable = (options ?? []).filter(o => !o || typeof o.test !== "function" || o.test(audit));
+  if (!usable.length) return null;
+  const chosen = pick(usable, seed);
+  return chosen && typeof chosen === "object" && "say" in chosen ? chosen.say : chosen;
+}
+
 /** The finding worth leading with: the one that costs them the most. */
 function headline(findings) {
   return [...findings].sort((a, b) => b.points - a.points)[0] ?? null;
@@ -62,14 +80,37 @@ function headline(findings) {
  * broken. Several phrasings each, chosen by the business, so two owners who
  * know each other do not compare notes and find the same letter.
  */
+/*
+  A phrasing that only applies when something was actually measured.
+
+  "Not responsive" turned out to cover two opposite symptoms. A page that
+  declares a viewport and overflows it has to be dragged sideways; a page that
+  declares nothing is shrunk to about 40% and comes out too small to read.
+  Nothing overflows in the second case and nothing is tiny in the first, and
+  the phrasings were picked by a hash of the business name - so roughly half
+  the time the email described a symptom the owner would open their phone and
+  fail to find.
+
+  That is the one mistake this file cannot afford. Being wrong about a
+  stranger's business, in writing, is worse than not writing at all.
+*/
+const when = (test, say) => ({ test, say });
+
 const OBSERVE = {
   not_responsive: [
-    () => `On a phone it does not shrink to fit the screen, so you have to pinch and zoom just to read anything.`,
-    () => `Pulled up on a phone, the page runs off the side and has to be dragged around to read.`,
-    () => `It was not built with phones in mind - everything comes out tiny and has to be zoomed in on.`,
+    // Declared a viewport and overflowed it: you drag the page sideways.
+    when(a => a.mobileOverflowPct >= 10 || a.mobileCutOff >= 3,
+      () => `Pulled up on a phone, the page runs off the side of the screen and has to be dragged around to read.`),
+    when(a => a.mobileOverflowPct >= 10 || a.mobileCutOff >= 3,
+      () => `On a phone it is wider than the screen, so parts of it sit off the edge until you drag them into view.`),
+    // Declared nothing, so the browser shrank the whole page to fit.
+    when(a => a.effectiveBodyPx != null && a.effectiveBodyPx < 9,
+      () => `On a phone the whole page is shrunk down to fit, so the writing comes out too small to read without zooming in.`),
+    when(a => a.effectiveBodyPx != null && a.effectiveBodyPx < 9,
+      () => `It was not built with phones in mind, so a phone squeezes the desktop version onto the screen and everything ends up tiny.`),
   ],
   looks_dated: [
-    a => (a.datedSignals ?? 3) >= 5
+    a => (a.visualAgeSignals ?? 3) >= 5
       ? `The design looks like it has not been touched in well over a decade.`
       : `The design looks like it has not been touched in a long time.`,
     () => `Next to a newer competitor's site it looks noticeably older, and people do read that as the business being behind.`,
@@ -100,7 +141,22 @@ const OBSERVE = {
     () => `Someone landing on the page cannot see how to call you without scrolling.`,
   ],
   slow_lcp: [
-    () => `It takes a few seconds before anything shows up, and most people will not wait that long.`,
+    a => `It takes about ${(a.lcpMs / 1000).toFixed(1)} seconds before anything shows up on the screen.`,
+    a => a.lcpMs >= 4000
+      ? `There is a pause of several seconds before the page shows anything at all.`
+      : `There is a noticeable wait before the page shows anything.`,
+  ],
+  layout_shift: [
+    () => `While it is loading, things jump around on the screen - so you go to tap something and it moves.`,
+  ],
+  mixed_content: [
+    () => `Some of the page loads over an insecure connection, which is why the padlock does not show in the address bar.`,
+  ],
+  stretched_images: [
+    a => `${a.stretchedImages === 1 ? 'One of the photos is' : 'Some of the photos are'} blown up bigger than the original, so ${a.stretchedImages === 1 ? 'it comes' : 'they come'} out blurry.`,
+  ],
+  heavy_page: [
+    a => `The front page is about ${(a.pageWeightBytes / 1e6).toFixed(0)}MB to download, which is a lot on a phone.`,
   ],
   text_too_small: [
     () => `The writing is small enough that most people would be zooming in to read it on a phone.`,
@@ -125,8 +181,24 @@ const OBSERVE = {
 
 const CONSEQUENCE = {
   not_responsive: [
-    `Most people looking for you are on a phone, and a page they have to fight with usually means they back out and call the next name on the list.`,
+    when(a => a.mobileOverflowPct >= 10 || a.mobileCutOff >= 3,
+      `Most people looking for you are on a phone, and a page they have to drag around usually means they back out and call the next name on the list.`),
+    when(a => a.effectiveBodyPx != null && a.effectiveBodyPx < 9,
+      `Most people looking for you are on a phone, and if they cannot read it without zooming in, a good number of them will not bother - they will call the next name on the list.`),
+    // True whichever way it fails, so no guard on this one.
     `That matters more than it used to - most people find a local business on their phone now, and they do not persevere with a page that is hard to use.`,
+  ],
+  layout_shift: [
+    `It is a small thing that makes a site feel unfinished, and it costs you the odd tap that lands on the wrong link.`,
+  ],
+  mixed_content: [
+    `A missing padlock is the sort of thing people notice without being able to say why, and it makes them careful about leaving their details.`,
+  ],
+  stretched_images: [
+    `Blurry photos read as "made in a hurry", which is not what you want people thinking about the work.`,
+  ],
+  heavy_page: [
+    `On a weak signal that is the difference between a page that opens and one that gives up.`,
   ],
   ssl_broken: [
     `That warning is a hard thing to come back from - most people will not click past it.`,
@@ -184,6 +256,10 @@ const SHORT_FIX = {
   weak_structure: "tidy it up so Google reads it properly",
   heavy_page: "slim the page down",
   unoptimised_images: "compress the pictures",
+  layout_shift: "stop the page jumping around as it loads",
+  mixed_content: "get the padlock showing properly",
+  stretched_images: "put the photos back at a size that stays sharp",
+  poor_layout: "lay the page out so it reads properly",
 };
 
 /** Two or three things, as a sentence rather than a list. */
@@ -299,14 +375,17 @@ export function draftEmail(lead, sender = {}) {
     // all read the same.
     const ways = OBSERVE[lead_.id];
     if (Array.isArray(ways) && ways.length) {
-      try { observation = pick(ways, business + lead_.id)(audit) ?? null; } catch { observation = null; }
+      try {
+        const say = pickTrue(ways, business + lead_.id, audit);
+        observation = typeof say === "function" ? (say(audit) ?? null) : (say ?? null);
+      } catch { observation = null; }
     }
     // The report's own wording is the fallback, since a clumsy true sentence
     // beats a missing one - but it is jargon, so it is a last resort.
     observation = observation ?? lead_.evidence ?? null;
 
     const results = CONSEQUENCE[lead_.id];
-    if (Array.isArray(results) && results.length) consequence = pick(results, business + 'c' + lead_.id);
+    if (Array.isArray(results) && results.length) consequence = pickTrue(results, business + 'c' + lead_.id, audit);
   }
 
 
@@ -384,4 +463,96 @@ export function numbersAreReal(draft, facts) {
   );
   const invented = claimed.filter(n => !allowed.has(n));
   return { ok: invented.length === 0, invented };
+}
+
+/**
+ * Every symptom the letter describes must be one that was measured.
+ *
+ * `numbersAreReal` catches an invented figure. This catches the other half:
+ * a sentence with no number in it that is simply not true of this site.
+ * "The page runs off the side of the screen" reads perfectly well, cites
+ * nothing, and is false of a site whose failure was that the browser shrank
+ * it instead - and an owner who opens their phone and cannot find what the
+ * email described stops reading there, permanently.
+ *
+ * Deliberately a second line of defence. The phrasings are already gated on
+ * the audit; this re-checks the finished text, so a phrasing added later
+ * without a gate is caught before it reaches anybody.
+ *
+ * Only the claims are checked, never the sign-off: "Liberty" in a postal
+ * address is not a statement about a website.
+ */
+const SYMPTOM_CLAIMS = [
+  {
+    what: "the page having to be dragged sideways on a phone",
+    said: /runs off the side|drag(ged)? (it )?around|wider than the screen|off the edge|sit off the edge/i,
+    measured: a => a.mobileOverflowPct >= 10 || a.mobileCutOff >= 3,
+  },
+  {
+    what: "the page being shrunk too small to read on a phone",
+    said: /shrunk down|squeezes the desktop|everything ends up tiny|too small to read/i,
+    measured: a => (a.effectiveBodyPx != null && a.effectiveBodyPx < 9) || a.textTooSmall === true,
+  },
+  {
+    what: "a browser security warning",
+    said: /not secure|security warning/i,
+    measured: a => a.sslValid === false,
+  },
+  {
+    what: "a missing padlock",
+    said: /padlock/i,
+    measured: a => a.sslValid === false || (a.mixedContent ?? 0) > 0,
+  },
+  {
+    what: "broken links or images",
+    said: /go(es)? nowhere|do not go anywhere|do not load/i,
+    measured: a => (a.brokenLinks ?? 0) > 0 || (a.brokenImages ?? 0) > 0,
+  },
+  {
+    what: "a wait before the page shows anything",
+    said: /before anything shows|noticeable wait|pause of several seconds/i,
+    measured: a => a.lcpMs != null && a.lcpMs > 1500,
+  },
+  {
+    what: "the page jumping around as it loads",
+    said: /jump around|things move/i,
+    measured: a => a.layoutShift != null && a.layoutShift > 0.25,
+  },
+  {
+    what: "blurry photos",
+    said: /blurry/i,
+    measured: a => (a.stretchedImages ?? 0) > 0,
+  },
+  {
+    what: "an out-of-date footer",
+    said: /still (says|reads) \d{4}|copyright line/i,
+    measured: a => a.copyrightYear != null,
+  },
+  {
+    what: "a phone number that is not visible without scrolling",
+    said: /not visible until you scroll|cannot see how to call/i,
+    measured: a => a.hasContactAboveFold === false,
+  },
+  {
+    what: "buttons being awkward to tap",
+    said: /awkward to tap|easier to tap/i,
+    measured: a => a.tapTargetsTooSmall === true,
+  },
+  {
+    what: "how much the page downloads",
+    said: /MB to download/i,
+    measured: a => a.pageWeightBytes != null,
+  },
+];
+
+export function claimsAreMeasured(draft, audit = {}) {
+  const text = draft?.claims ?? "";
+  const unsupported = [];
+  for (const claim of SYMPTOM_CLAIMS) {
+    if (!claim.said.test(text)) continue;
+    let ok = false;
+    try { ok = Boolean(claim.measured(audit)); } catch { ok = false; }
+    if (!ok) unsupported.push(claim.what);
+  }
+  return { ok: unsupported.length === 0, unsupported };
 }

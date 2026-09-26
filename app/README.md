@@ -332,14 +332,36 @@ an owner reply, an embarrassing one does.
 | Buttons too small to tap | 5 |
 | Heading and semantic structure problems | 2 |
 
-**Performance** — real, but never the headline of an email.
+**Performance and the small stuff** — real, but never the headline of an email.
 
 | Signal | Points |
 |---|---|
-| Very slow to show content (LCP > 4s, needs PageSpeed) | 10 |
-| Low mobile performance score (needs PageSpeed) | 8 |
-| Page over 5MB | 1 |
+| Slow to show anything | 14 |
+| Insecure files on a secure page | 5 |
+| The page jumps around as it loads | 4 |
+| Low mobile performance score (needs a PageSpeed key) | 8 |
+| Very heavy page (over 3MB) | 3 |
+| Blurry, stretched photos | 3 |
 | Images not compressed | 1 |
+
+### Load time
+
+Measured by the browser doing the audit, on every site. It used to need a
+PageSpeed API key, which meant that on a normal run it never ran and load time
+counted for nothing at all.
+
+The number is Largest Contentful Paint — when the biggest thing on the first
+screen finishes drawing, which is as close as a number gets to "the page looks
+ready". Nothing counts under 1.5s, full marks by 6s. Half a second would be a
+nicer bar and a useless one: that is faster than almost every site on the
+internet, so it would flag everybody and mean nothing.
+
+The audit waits 2.6 seconds before reading it. A shorter wait measured a page
+whose hero image lands at 2.5s as taking 28ms — recording the slowest site in
+the set as the fastest — and there is no signal that tells "finished" apart
+from "about to paint again". That wait costs about 1.4s a site, and is more
+than paid for by the broken-link check no longer sleeping 900ms between each
+of twelve links: an average audit went from 14 seconds to 6.
 
 Most of these are graded rather than all-or-nothing: a page 12% too wide and a
 page with its nav hanging off the side both "break on a phone", and scoring
@@ -393,6 +415,30 @@ because it has nothing to lay out, not because it was built in 2009.
 The era shown in the email comes from the markers rather than from how many
 there are, so a FrontPage table page reads as the mid-2000s and a Bootstrap 3
 template reads as the early 2010s.
+
+## What the email is allowed to say
+
+Every symptom the letter describes has to be one that was measured on that
+site, and this is enforced twice.
+
+"Breaks on a phone" covers two opposite symptoms. A page that declares a
+viewport and overflows it has to be dragged sideways; a page that declares
+nothing gets shrunk to about 40% and comes out too small to read. Nothing
+overflows in the second case and nothing is tiny in the first — and the
+wording used to be picked by a hash of the business name, so roughly half the
+time the email described the one the owner would open their phone and fail to
+find. Each phrasing now carries a test against the audit, and anything that is
+not true of this site is removed before the choice is made.
+
+Then the finished letter is read back: `claimsAreMeasured` looks for the
+symptom sentences — dragged sideways, too small to read, a security warning,
+a missing padlock, links that go nowhere, a wait before anything appears, the
+page jumping about, blurry photos — and checks the matching measurement exists.
+Anything unsupported is a warning on the draft, not a sent email. The sign-off
+is exempt: "Liberty" in a postal address is not a claim about a website.
+
+`numbersAreReal` covers the other half, that no figure in the letter is one
+nobody took off the page.
 
 ## Who gets an email, and which one
 
@@ -477,7 +523,11 @@ business name like `=HYPERLINK(...)` comes straight from Google Places.
 
 ## Politeness
 
-- ~1 request/second per host, max 12 link checks per site
+- At most 10 link checks per site, 300ms apart, and they are HEAD requests —
+  no body is transferred. Loading the homepage a moment earlier fires off far
+  more than that for images, fonts and scripts, so throttling these harder
+  than that was courtesy aimed at the wrong thing; it also made an average
+  audit take 14 seconds instead of 6.
 - Honest User-Agent identifying the crawler with a contact URL
 - Homepage only — no crawling, no login walls, no scraping of personal data
 

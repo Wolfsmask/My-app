@@ -18,7 +18,7 @@ import { spawn } from 'node:child_process';
 import { discoverFile, discoverOsm, locate, OSM_CATEGORIES } from './src/discover.js';
 import { resolveWebsite } from './src/resolve.js';
 import { REGIONS, citiesFor, ALL_CITIES } from './src/places.js';
-import { draftEmail, numbersAreReal } from './src/draft.js';
+import { draftEmail, numbersAreReal, claimsAreMeasured } from './src/draft.js';
 import { createStore } from './src/store.js';
 import { auditSite, launchBrowser } from './src/audit.js';
 import { score, disqualify, qualifies } from './src/score.js';
@@ -482,6 +482,9 @@ const server = http.createServer(async (req, res) => {
       const drafts = worth.map(lead => {
         const draft = draftEmail(lead, sender ?? {});
         const check = numbersAreReal(draft, draft.facts);
+        // The other half of the same rule: a sentence with no number in it
+        // can still describe a symptom this site does not have.
+        const claimed = claimsAreMeasured(draft, lead.audit ?? {});
         return {
           name: lead.business?.name, website: lead.business?.website,
           tier: lead.tier, score: lead.score,
@@ -496,7 +499,11 @@ const server = http.createServer(async (req, res) => {
           size: lead.audit?.business?.size ?? null,
           // A draft that cites a number nobody measured is never presentable
           // as ready, whatever else is right about it.
-          warnings: check.ok ? draft.warnings : [...draft.warnings, `Contains a number that was not measured: ${check.invented.join(', ')}`],
+          warnings: [
+            ...draft.warnings,
+            ...(check.ok ? [] : [`Contains a number that was not measured: ${check.invented.join(', ')}`]),
+            ...(claimed.ok ? [] : [`Describes something that was not measured on this site: ${claimed.unsupported.join('; ')}. Do not send this without checking it yourself.`]),
+          ],
         };
       });
 

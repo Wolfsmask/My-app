@@ -242,3 +242,65 @@ test("how big the business is, and whether it is still trading, are read off the
   assert.equal(tiny.business.size, "micro");
   assert.equal(tiny.business.offerFree, true);
 });
+
+/* ------------------------------------------------------- the smaller faults */
+
+test("a page that keeps you waiting, jumps about and blurs its photos is measured for all three",
+  { skip: !up && "no server on :8899" }, async () => {
+  /*
+    Three faults that only exist in timing, and one that only exists at the
+    size the photo is displayed. None of them showed up before: load time
+    needed a PageSpeed key so on a normal run it never ran at all, layout
+    shift was not looked at, and stretched images were measured by
+    structure() and then never scored.
+  */
+  const a = await audit("slow-and-shifty");
+
+  // The hero lands 2.5s in. A fixed short wait measured this page at 28ms
+  // and called the slowest fixture in the set the fastest.
+  assert.ok(a.lcpMs > 2000, `the late hero has to be what counts, got ${a.lcpMs}ms`);
+  assert.ok(a.layoutShift > 0.25, `the banner shoving the page down, got ${a.layoutShift}`);
+  assert.equal(a.stretchedImages, 1, "a 4px image shown at 800px");
+
+  const ids = score(a).hits.map(h => h.id);
+  for (const id of ["slow_lcp", "layout_shift", "stretched_images"]) {
+    assert.ok(ids.includes(id), `${id} must be among ${JSON.stringify(ids)}`);
+  }
+
+  // And none of it is a reason to write on its own: this is an otherwise
+  // decent page that is slow, not a rebuild.
+  assert.equal(score(a).tier, "C");
+});
+
+test("a fast, steady page is not accused of any of it", { skip: !up && "no server on :8899" }, async () => {
+  const a = await audit("modern");
+  assert.ok(a.lcpMs < 1500, `got ${a.lcpMs}ms`);
+  assert.equal(a.layoutShift, 0);
+  assert.equal(a.stretchedImages, 0);
+  assert.deepEqual(score(a).hits, []);
+});
+
+test("the email describes the phone failure this site actually has",
+  { skip: !up && "no server on :8899" }, async () => {
+  /*
+    The rule he set: say they are losing customers who cannot read the text,
+    if and only if that is true. "Not responsive" covers two opposite
+    symptoms - dragged sideways, or shrunk too small - and the wording used
+    to be picked by a hash of the business name, so about half the time the
+    letter described the one the owner would not find on their phone.
+  */
+  const { draftEmail, claimsAreMeasured } = await import("../src/draft.js");
+
+  const shrunk = await audit("bad-2011");
+  const a = draftEmail({ business: { name: "Shrunk Co", town: "Liberty, MO" }, ...score(shrunk), audit: shrunk },
+    { address: "PO Box 1" });
+  assert.match(a.claims, /shrunk|too small|tiny/i);
+  assert.doesNotMatch(a.claims, /runs off the side|wider than the screen/i);
+  assert.equal(claimsAreMeasured(a, shrunk).ok, true, JSON.stringify(claimsAreMeasured(a, shrunk).unsupported));
+
+  const wide = await audit("half-fixed");
+  const b = draftEmail({ business: { name: "Wide Co", town: "Liberty, MO" }, ...score(wide), audit: wide },
+    { address: "PO Box 1" });
+  assert.match(b.claims, /runs off the side|wider than the screen|off the edge/i);
+  assert.equal(claimsAreMeasured(b, wide).ok, true, JSON.stringify(claimsAreMeasured(b, wide).unsupported));
+});

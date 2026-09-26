@@ -179,13 +179,56 @@ export const DESIGN = [
 export const PERFORMANCE = [
   {
     id: "slow_lcp",
-    // Needs a measurement a plain page load does not produce, so it only
-    // counts against a site when it was actually taken.
+    /*
+      How long before anything worth looking at is on screen.
+
+      This used to need a PageSpeed API key, which meant that on a normal run
+      it never ran and load time counted for nothing at all. The browser
+      doing the audit knows the number, so it is now measured on every site
+      and counts like any other check.
+
+      Where the line sits is a judgement. Nobody abandons a page at half a
+      second - that is faster than almost every site on the internet, and a
+      bar there would flag everyone and mean nothing. People start noticing
+      at somewhere over a second, and by five or six they have gone. So it
+      is nothing under 1.5s, and full marks by 6s.
+
+      Fourteen points: more than the plumbing, well under how the site looks
+      or whether it works on a phone. Slow is a reason to mention, not a
+      reason to write.
+    */
+    points: 14,
+    label: "Slow to show anything",
+    test: a => a.lcpMs != null && a.lcpMs > 1500,
+    scale: a => Math.max(0.3, Math.min(1, (a.lcpMs - 1500) / 4500)),
+    evidence: a => `The main content takes ${(a.lcpMs / 1000).toFixed(1)} seconds to appear. Google counts anything over 2.5s as slow.`,
+  },
+  {
+    id: "layout_shift",
+    // Things moving under a thumb while the page loads. Everyone has tapped
+    // the wrong thing because an advert pushed the page down.
+    points: 4,
+    label: "The page jumps around as it loads",
+    test: a => a.layoutShift != null && a.layoutShift > 0.25,
+    scale: a => Math.min(1, a.layoutShift / 0.5),
+    evidence: a => `Content moves around while the page loads (layout shift ${a.layoutShift}; Google counts anything over 0.1 as poor). Visitors tap the wrong thing.`,
+  },
+  {
+    id: "mixed_content",
+    /*
+      A valid certificate is not the same as a secure page.
+
+      Optional, because it is not "we failed to measure this" - it is a
+      question that does not apply. A site served over plain http cannot have
+      insecure files on a secure page, and marking its confidence down for a
+      check that could never run would say the audit was less thorough than
+      it was.
+    */
     optional: true,
-    points: 10,
-    label: "Very slow to show content",
-    test: a => a.lcpMs != null && a.lcpMs > 4000,
-    evidence: a => `Main content takes ${(a.lcpMs / 1000).toFixed(1)}s to appear. Google's threshold for "good" is 2.5s.`,
+    points: 5,
+    label: "Insecure files on a secure page",
+    test: a => a.mixedContent != null && a.mixedContent > 0,
+    evidence: a => `${a.mixedContent} file(s) load over plain http on an https page. Chrome blocks some of them outright and drops the padlock.`,
   },
   {
     id: "low_lighthouse",
@@ -199,10 +242,22 @@ export const PERFORMANCE = [
   },
   {
     id: "heavy_page",
-    points: 1,
+    points: 3,
     label: "Very heavy page",
-    test: a => a.pageWeightBytes != null && a.pageWeightBytes > 5_000_000,
-    evidence: a => `Homepage downloads ${(a.pageWeightBytes / 1e6).toFixed(1)}MB — punishing on phone data.`,
+    test: a => a.pageWeightBytes != null && a.pageWeightBytes > 3_000_000,
+    scale: a => Math.min(1, a.pageWeightBytes / 9_000_000),
+    evidence: a => `The homepage downloads ${(a.pageWeightBytes / 1e6).toFixed(1)}MB — punishing on phone data, and slow anywhere with a weak signal.`,
+  },
+  {
+    id: "stretched_images",
+    // Measured all along by structure() and never scored. A photo blown up
+    // past its real size is visibly soft, and it is the sort of thing an
+    // owner sees immediately once it is pointed out.
+    points: 3,
+    label: "Blurry, stretched photos",
+    test: a => (a.stretchedImages ?? 0) > 0,
+    scale: a => Math.min(1, a.stretchedImages / 3),
+    evidence: a => `${a.stretchedImages} image(s) are displayed much larger than the file actually is, so they come out soft and blurry.`,
   },
   {
     id: "unoptimised_images",
@@ -353,6 +408,9 @@ function didCheckRun(check, a) {
     case "broken_assets":    return a.brokenLinks !== undefined || a.brokenImages !== undefined;
     case "no_contact":       return a.hasContactAboveFold !== undefined && a.hasContactAboveFold !== null;
     case "slow_lcp":         return a.lcpMs != null;
+    case "layout_shift":     return a.layoutShift != null;
+    case "mixed_content":    return a.mixedContent != null;
+    case "stretched_images": return a.stretchedImages !== undefined;
     case "low_lighthouse":   return a.lighthousePerf != null;
     case "heavy_page":       return a.pageWeightBytes != null;
     case "unoptimised_images": return a.usesModernImages !== undefined && a.usesModernImages !== null;
