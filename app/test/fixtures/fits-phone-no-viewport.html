@@ -1,0 +1,50 @@
+<!doctype html>
+<!--
+  No responsive code whatsoever, and still perfectly usable on a phone.
+
+  The old checker failed any page with no viewport meta tag and handed it the
+  heaviest penalty in the scorer - forty points - for a problem its visitors
+  may not have. Telling this owner their site does not work on phones, when it
+  plainly does, is the kind of mistake that makes an email obviously automated.
+
+  What actually happens to a page with no viewport tag is worth stating,
+  because it is not "nothing": the browser lays it out at 980px and then
+  shrinks the whole thing to fit the screen, here to 40%. Small text becomes
+  unreadable at that scale. This page is built the way one has to be built to
+  survive it - large type, generous tap targets, a narrow measure - so at 40%
+  the body text still lands above 9px and every link is still comfortably
+  bigger than a thumb.
+
+  There is no media query, no flexbox, no grid and no framework in here. That
+  is the point: none of those are what makes a page work on a phone.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Perkins Upholstery &mdash; Liberty, Missouri, since 1987</title>
+  <style>
+    body { font-family: Georgia, serif; font-size: 28px; line-height: 1.55; color: #1c1c1c;
+           margin: 0 auto; padding: 40px 32px; max-width: 760px; background: #fbfaf7; }
+    h1 { font-size: 54px; margin: 0 0 10px; line-height: 1.1; }
+    h2 { font-size: 38px; margin: 40px 0 10px; }
+    a { display: inline-block; padding: 22px 0; font-size: 30px; color: #7a3b1d; }
+    li { margin-bottom: 14px; }
+    img { max-width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <h1>Perkins Upholstery</h1>
+  <p>Furniture repair and re-covering in Liberty, Missouri. Family run since 1987.</p>
+  <p><a href="tel:8165550142">Call (816) 555-0142</a></p>
+  <p><a href="mailto:perkins@perkins-upholstery.test">perkins@perkins-upholstery.test</a></p>
+  <h2>What we do</h2>
+  <ul>
+    <li>Sofas, chairs and dining seats</li>
+    <li>Antique restoration</li>
+    <li>Boat and motorcycle seats</li>
+  </ul>
+  <h2>Where we are</h2>
+  <p>214 South Water Street, Liberty MO. Open Tuesday to Saturday, 9am to 4pm.</p>
+  <p>&copy; 2025 Perkins Upholstery</p>
+</body>
+</html>

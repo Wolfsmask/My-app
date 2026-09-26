@@ -12,6 +12,7 @@ const YEAR = new Date().getFullYear();
  */
 const awful = {
   isResponsive: false, mobileScrollWidth: 980,
+  mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1,
   sslValid: false, sslExpiredAt: "2024-03-03",
   copyrightYear: YEAR - 8,
   platformIsObsolete: true, platform: "Microsoft FrontPage",
@@ -19,7 +20,8 @@ const awful = {
   hasContactAboveFold: false,
   pageWeightBytes: 9e6,
   usesModernImages: false,
-  looksDated: true, datedSignals: 5,
+  looksDated: true, visualAgeShare: 1,
+  visualAgeMarkers: [{ when: "pre-2008", why: "laid out with tables" }], visualDecade: "the mid-2000s",
   textTooSmall: true, bodyFontSize: 11,
   tapTargetsTooSmall: true, tinyTapTargets: 9,
   hasStructureProblems: true, structureProblems: ["no h1"],
@@ -30,6 +32,7 @@ const awful = {
 /** A site with nothing wrong. */
 const fine = {
   isResponsive: true, mobileScrollWidth: 390,
+  mobileOverflowPct: 0, mobileCutOff: 0, mobileCutOffWorstPx: 0, notResponsiveSignals: 0, notResponsiveSeverity: 0,
   sslValid: true,
   copyrightYear: YEAR,
   platformIsObsolete: false, platform: "custom or unknown",
@@ -37,7 +40,7 @@ const fine = {
   hasContactAboveFold: true,
   pageWeightBytes: 400000,
   usesModernImages: true,
-  looksDated: false,
+  looksDated: false, visualAgeShare: 0, visualAgeMarkers: [],
   textTooSmall: false,
   tapTargetsTooSmall: false,
   hasStructureProblems: false,
@@ -61,7 +64,7 @@ test("a healthy site scores 0 and is dropped as tier D", () => {
 
 test("embarrassment outweighs performance, which is the whole point", () => {
   // Only mobile broken, everything else fine.
-  const mobileOnly = score({ ...fine, isResponsive: false, mobileScrollWidth: 1200 });
+  const mobileOnly = score({ ...fine, isResponsive: false, mobileScrollWidth: 1200, mobileOverflowPct: 208, mobileCutOff: 9, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
   // Only slow, everything else fine.
   const slowOnly = score({ ...fine, lcpMs: 9000, lighthousePerf: 18, pageWeightBytes: 9e6, usesModernImages: false });
 
@@ -93,8 +96,8 @@ test("a check that could not run never raises the score", () => {
   // measurable, so a page where one check ran and failed scored 100 out of
   // 100 and came out Tier A - the same single fault on a fully measured page
   // scored 25. An unexaminable page must rank low, not high.
-  const thin = score({ isResponsive: false, mobileScrollWidth: 980 });
-  const full = score({ ...fine, isResponsive: false, mobileScrollWidth: 980 });
+  const thin = score({ isResponsive: false, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
+  const full = score({ ...fine, isResponsive: false, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
 
   assert.equal(thin.score, full.score, "the same fault scores the same either way");
   assert.ok(thin.tier !== "A", `a page examined once must not be tier A (was ${thin.score})`);
@@ -109,22 +112,42 @@ test("a fresh copyright year is not a finding", () => {
 });
 
 test("evidence quotes the real measurement, never a guess", () => {
-  const hit = score(awful).hits.find(h => h.id === "not_responsive");
-  assert.match(hit.evidence, /980px/);
-  assert.match(hit.evidence, /390px/);
+  // A page that declares a viewport and then overflows it: the number to
+  // quote is how wide it actually laid out.
+  const overflowing = score(awful).hits.find(h => h.id === "not_responsive");
+  assert.match(overflowing.evidence, /980px/);
+  assert.match(overflowing.evidence, /dragged sideways/);
+
+  /*
+    A page with no viewport tag fails differently and has to be described
+    differently. Nothing overflows - the browser laid it out at 980 and shrank
+    the result - so the honest measurement is the size the text arrives at,
+    and saying "the page is too wide" would be plainly false.
+  */
+  const shrunk = score({
+    ...fine, isResponsive: false, notResponsiveSeverity: 0.9,
+    mobileOverflowPct: 0, mobileCutOff: 0, mobileZoom: 0.4,
+    bodyFontSize: 12, effectiveBodyPx: 4.8,
+  }).hits.find(h => h.id === "not_responsive");
+  assert.match(shrunk.evidence, /4\.8px/);
+  assert.match(shrunk.evidence, /shrunk to fit/);
+  assert.doesNotMatch(shrunk.evidence, /dragged sideways/, "nothing overflowed, so do not claim it did");
 });
 
 test("a fault that is a matter of degree scores in proportion", () => {
   // A site with three dated markers and one built entirely like 2005 are both
   // "dated". Scoring them the same buried the second among the first.
-  const mild = score({ ...fine, looksDated: true, datedSignals: 3 });
-  const total = score({ ...fine, looksDated: true, datedSignals: 5 });
+  const mild = score({ ...fine, looksDated: true, visualAgeShare: 0.5, visualAgeMarkers: [{ when: '2011-2015', why: 'Open Sans as the body font' }] });
+  const total = score({ ...fine, looksDated: true, visualAgeShare: 1, visualDecade: "the mid-2000s", visualAgeMarkers: [{ when: 'pre-2008', why: 'laid out with tables' }] });
 
   assert.ok(total.score > mild.score, `5 markers (${total.score}) must beat 3 (${mild.score})`);
   assert.ok(total.tier === "A" || total.tier === "B", "a thoroughly dated site is worth contacting");
   assert.equal(mild.tier, "C", "a mildly dated one is not, yet");
-  // And the email has to be able to say how dated, in words an owner reads.
-  assert.match(total.hits.find(h => h.id === "looks_dated").evidence, /100%/);
+  // And the email has to be able to say *why* it looks dated, in words an
+  // owner reads. A percentage told them nothing; naming the thing does.
+  const said = total.hits.find(h => h.id === "looks_dated").evidence;
+  assert.match(said, /mid-2000s/, "says roughly when the design is from");
+  assert.match(said, /laid out with tables/, "and names a marker it actually measured");
 });
 
 test("how it looks and whether it works on a phone outweigh the plumbing", () => {
@@ -136,8 +159,8 @@ test("how it looks and whether it works on a phone outweigh the plumbing", () =>
   });
   assert.equal(plumbingOnly.tier, "D", `technical nits alone scored ${plumbingOnly.score}`);
 
-  const phone = score({ ...fine, isResponsive: false, mobileScrollWidth: 980 });
-  const looks = score({ ...fine, looksDated: true, datedSignals: 5 });
+  const phone = score({ ...fine, isResponsive: false, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
+  const looks = score({ ...fine, looksDated: true, visualAgeShare: 1, visualAgeMarkers: [{ when: 'pre-2008', why: 'laid out with tables' }] });
   assert.ok(phone.score > plumbingOnly.score * 3, "the phone test dominates");
   assert.ok(looks.score > plumbingOnly.score * 3, "so does how it looks");
 });
@@ -171,10 +194,10 @@ test("adding a check does not quietly lower every other score", () => {
   // Scores used to be a share of every check there was, so the same site
   // scored lower today than yesterday purely because the checker had learnt
   // to look at one more thing. They are measured against a fixed bar now.
-  const phoneOnly = score({ ...fine, isResponsive: false, mobileScrollWidth: 980 });
+  const phoneOnly = score({ ...fine, isResponsive: false, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
   assert.equal(phoneOnly.score, 40, "the phone test is worth 40 points, whatever else exists");
 
-  const withNewCheck = score({ ...fine, isResponsive: false, mobileScrollWidth: 980, poorLayout: false, poorLayoutSignals: 0 });
+  const withNewCheck = score({ ...fine, isResponsive: false, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1, poorLayout: false, poorLayoutSignals: 0 });
   assert.equal(withNewCheck.score, phoneOnly.score, "a check that passes changes nothing");
 });
 
@@ -194,9 +217,9 @@ test("the sites a person would actually rebuild come out worth contacting", () =
   // months" - when they plainly needed rebuilding.
   const base = { ...fine };
   const worthDoing = [
-    ["unreadable on a phone", { isResponsive: false, mobileScrollWidth: 980 }],
-    ["old software, still mobile-friendly", { looksDated: true, datedSignals: 5, copyrightYear: YEAR - 9, platformIsObsolete: true }],
-    ["unreadable on a phone and a decade old", { isResponsive: false, mobileScrollWidth: 980, looksDated: true, datedSignals: 4, copyrightYear: YEAR - 8 }],
+    ["unreadable on a phone", { isResponsive: false, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, notResponsiveSignals: 4, notResponsiveSeverity: 1 }],
+    ["old software, still mobile-friendly", { looksDated: true, visualAgeShare: 1, visualAgeMarkers: [{ when: "pre-2008", why: "laid out with tables" }], copyrightYear: YEAR - 9, platformIsObsolete: true }],
+    ["unreadable on a phone and a decade old", { isResponsive: false, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, notResponsiveSignals: 4, notResponsiveSeverity: 1, looksDated: true, visualAgeShare: 0.67, visualAgeMarkers: [{ when: "pre-2012", why: "no semantic layout tags" }], copyrightYear: YEAR - 8 }],
   ];
   for (const [label, over] of worthDoing) {
     const r = score({ ...base, ...over });
@@ -268,7 +291,7 @@ test("obsolete platforms are recognised and named", () => {
   the browser side is covered by test/audit.e2e.test.js.
 */
 test("a page wider than the phone screen is not responsive", () => {
-  const r = score({ ...fine, isResponsive: false, mobileScrollWidth: 940, mobileScreenWidth: 390 });
+  const r = score({ ...fine, isResponsive: false, mobileScrollWidth: 940, mobileScreenWidth: 390, mobileOverflowPct: 141, mobileCutOff: 7, mobileCutOffWorstPx: 550, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
   const hit = r.hits.find(h => h.id === "not_responsive");
   assert.ok(hit, "overflowing page must be flagged");
   assert.match(hit.evidence, /940px/);
@@ -400,4 +423,21 @@ test("a business with no website does not crash the run", async () => {
   assert.match(stdout, /no_website/);
   assert.match(stdout, /dropped:1/);
   assert.doesNotMatch(stdout, /before initialization/);
+});
+
+test("a business whose own site says it has closed is not a lead", () => {
+  /*
+    A shut-down business and a neglected one look almost identical to a checker
+    that reads markup: stale footer, nothing modern, no sign of maintenance.
+    The scorer happily ranked a closed shop as a prime rebuild candidate, which
+    is the single most embarrassing email this tool could send.
+  */
+  const site = { website: "https://gone.test" };
+  assert.equal(disqualify(site, { vitality: { state: "closed" } }), "closed");
+  assert.equal(disqualify(site, { vitality: { state: "unbuilt" } }), "not_built_yet");
+
+  // Quiet is not closed. Plenty of booked-solid trades have not touched their
+  // website in years, and those are the best leads there are.
+  assert.equal(disqualify(site, { vitality: { state: "quiet" } }), null);
+  assert.equal(disqualify(site, { vitality: { state: "active" } }), null);
 });

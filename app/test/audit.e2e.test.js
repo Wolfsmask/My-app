@@ -161,3 +161,84 @@ test("phone-sized things are measured on a phone, not on the desktop it resized 
   // And the layout pass still got its desktop look in.
   assert.ok(a.contentWidthPct != null, "layout was measured");
 });
+
+/* ------------------------------------------------------- how it reads today */
+
+test("no responsive code is not a fault if the page still works on a phone",
+  { skip: !up && "no server on :8899" }, async () => {
+  /*
+    The rule this exists to enforce, in his words: if there is no code to make
+    it adjust, but you put it on a phone and it still looks fine and you can
+    still use it, do not count it.
+
+    The old check failed any page without a viewport meta tag and gave it the
+    heaviest penalty in the scorer - forty points - which is how sites that
+    work perfectly well ended up being written to about a problem they do not
+    have. This page has no viewport tag, no media query, no flexbox and no
+    grid. The browser lays it out at 980px and shrinks it to fit, and because
+    the type and the tap targets are large enough to survive that, everything
+    is still readable and still tappable.
+  */
+  const a = await audit("fits-phone-no-viewport");
+  assert.equal(a.hasViewportMeta, false, "it really has no responsive code");
+  assert.ok(a.mobileZoom < 0.5, `the browser really did shrink it, got ${a.mobileZoom}`);
+  assert.ok(a.effectiveBodyPx >= 9, `text still arrives readable, got ${a.effectiveBodyPx}px`);
+  assert.equal(a.isResponsive, true, "and so it is not a phone problem");
+  assert.equal(score(a).hits.some(h => h.id === "not_responsive"), false);
+});
+
+test("a page shrunk until the text is unreadable is a phone problem",
+  { skip: !up && "no server on :8899" }, async () => {
+  // The other half of the same rule. Same missing viewport tag, but here the
+  // page is laid out at 980px with small type, so the phone renders it at
+  // 40% and the body text arrives at about 5px. Nothing overflows - measuring
+  // only overflow missed this entirely - and it is unreadable.
+  const a = await audit("bad-2011");
+  assert.equal(a.mobileOverflowPct, 0, "nothing overflows, which is why overflow alone missed it");
+  assert.ok(a.effectiveBodyPx < 9, `text arrives too small, got ${a.effectiveBodyPx}px`);
+  assert.equal(a.isResponsive, false);
+  const hit = score(a).hits.find(h => h.id === "not_responsive");
+  assert.ok(hit, "must be flagged");
+  assert.match(hit.evidence, /shrunk to fit/, "and the email has to say what is actually wrong");
+});
+
+test("a modern template that still looks 2014 is worth contacting",
+  { skip: !up && "no server on :8899" }, async () => {
+  /*
+    The case he raised: a real electrical contractor whose site plainly needs
+    rebuilding and which the checker scored at nothing.
+
+    Every construction marker the old detector looked for is absent - it is
+    responsive, semantic, on current software, with web fonts and flexbox - so
+    "looks a decade out of date" never fired and the site fell to the bottom
+    tier. What a customer sees is Bootstrap 3, jQuery 1.11, Font Awesome 4,
+    Open Sans, 30px headlines and glossy gradient buttons: a 2014 template.
+  */
+  const a = await audit("template-2014");
+  assert.equal(a.isResponsive, true, "it genuinely is fine on a phone");
+  assert.equal(a.platformIsObsolete, false, "and genuinely is not obsolete software");
+  assert.equal(a.usesWebFonts, true);
+  assert.equal(a.usesFlexOrGrid, true);
+
+  assert.ok(a.oldLibraries.length >= 3, `its libraries date it: ${JSON.stringify(a.oldLibraries)}`);
+  assert.equal(a.visualDecade, "the early 2010s");
+
+  const s = score(a);
+  assert.ok(s.score >= 25, `a site like this must be worth contacting, got ${s.score}`);
+  assert.match(s.hits.find(h => h.id === "looks_dated").evidence, /jQuery|Bootstrap|Open Sans/);
+});
+
+test("how big the business is, and whether it is still trading, are read off the page",
+  { skip: !up && "no server on :8899" }, async () => {
+  // A contractor with a careers page, commercial customers and a fleet can pay
+  // for a rebuild. A one-page family upholstery shop cannot, and is the one
+  // the free offer exists for.
+  const big = await audit("template-2014");
+  assert.equal(big.business.size, "established");
+  assert.equal(big.business.offerFree, false);
+  assert.equal(big.vitality.state, "active");
+
+  const tiny = await audit("fits-phone-no-viewport");
+  assert.equal(tiny.business.size, "micro");
+  assert.equal(tiny.business.offerFree, true);
+});

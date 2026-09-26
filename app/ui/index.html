@@ -123,6 +123,13 @@
   .state{color:var(--muted);font-size:.8rem;margin:12px 0 0}
   .state b{color:var(--soft);font-weight:600}
   details.narrow{padding:0}
+  .lead__who{margin:8px 0;padding:8px 11px;border-left:2px solid var(--muted);border-radius:4px;background:rgba(255,255,255,.03);font-size:.8rem;color:var(--soft);line-height:1.5}
+  .lead__who.free{border-left-color:var(--a);background:rgba(74,222,128,.07)}
+  .lead__who.warn{border-left-color:var(--c);background:rgba(251,146,60,.08)}
+  .tiny.danger{border-color:rgba(248,113,113,.4);color:var(--bad)}
+  .tiny.danger:hover{background:rgba(248,113,113,.12)}
+  .bulk{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+  .bulk .note{font-size:.78rem;color:var(--muted)}
   .folder{margin-top:6px;font-family:ui-monospace,Consolas,monospace;font-size:.74rem;color:var(--muted);word-break:break-all}
   .damaged{margin-top:8px;padding:9px 12px;border-left:2px solid var(--bad);border-radius:4px;background:rgba(255,90,90,.07);font-size:.8rem;color:var(--text)}
   details.narrow summary{cursor:pointer;padding:16px 22px;font-size:.84rem;color:var(--muted);list-style:none}
@@ -171,6 +178,19 @@
       <button class="ghost" id="save">Save now</button>
       <span class="note">Keeps every A and B, plus any low ones you ticked. Everything else is closed for good and
         never checked again — so tomorrow night is not spent on sites you already passed over.</span>
+    </div>
+    <!--
+      Deleting in bulk, because after a night there are thousands in the
+      bottom tier and nobody is clicking a button two thousand times. Kept
+      separate from Save now, and each one asks before it does anything: this
+      removes the rows rather than closing them, and it cannot be undone.
+    -->
+    <div class="bulk">
+      <button class="ghost" id="delD">Delete every Tier D</button>
+      <button class="ghost" id="delC">Delete every Tier C</button>
+      <button class="ghost" id="delSkip">Delete every skipped</button>
+      <span class="note">Removes them outright — the saved result, the screenshot, and any chance of
+        them being found again. Use it to clear out the bottom of the list.</span>
     </div>
   </div>
 
@@ -351,6 +371,22 @@ Tier D  under 12 — the site is fine, drop it</pre>
         $('state').append(where);
       }
 
+      /*
+        Why things were skipped, not just how many.
+
+        A night's run leaves thousands in the skipped pile, and a bare total
+        tells you nothing about whether the tool is working. "No website at
+        all" is the search doing its job; "unreachable" in that quantity would
+        be a bug worth chasing.
+      */
+      const why = Object.entries(st.skippedReasons ?? {}).sort((a, b) => b[1] - a[1]);
+      if (why.length) {
+        const line = document.createElement('div');
+        line.className = 'folder';
+        line.textContent = 'Skipped: ' + why.map(([w, n]) => `${n} ${w.replace(/_/g, ' ')}`).join(' \u00b7 ');
+        $('state').append(line);
+      }
+
       // Something was there and could not be read. Never quietly show a zero.
       for (const bad of st.damaged ?? []) {
         const warn = document.createElement('div');
@@ -426,21 +462,59 @@ Tier D  under 12 — the site is fine, drop it</pre>
         ${!dropped && e.confidence != null && e.confidence < 100
           ? `<div class="lead__thin">Only ${esc(e.confidence)}% of the usual checks could be run on this page \u2014 the score is less certain than the others.</div>`
           : ''}
+        ${!dropped && e.size === 'micro' ? `<div class="lead__who free">
+          <strong>Looks like a very small business.</strong> ${esc((e.sizeWhy ?? []).join('; '))}.
+          A $900 proposal is probably the wrong letter to send. If the site really is this bad,
+          offer to build it free \u2014 the email writer will do that for you.</div>` : ''}
+        ${!dropped && e.size === 'established' ? `<div class="lead__who">
+          Looks like an established business: ${esc((e.sizeWhy ?? []).join('; '))}.</div>` : ''}
+        ${!dropped && e.vitality === 'quiet' ? `<div class="lead__who warn">
+          <strong>No sign of life on the page.</strong> ${esc((e.vitalityWhy ?? []).join(', '))}.
+          Check they are still trading before you write.</div>` : ''}
         ${findings}
         ${!dropped && e.website ? (e.tier === 'A' || e.tier === 'B' ? `
           <div class="verdict" data-site="${esc(e.website)}">
             <span>Kept as a lead. Drop it if you have looked and do not want it \u2014 it will not come back.</span>
             <button class="tiny" data-decision="confirmed">Not interested, drop it</button>
+            <button class="tiny danger" data-forget="1">Delete</button>
           </div>` : `
           <div class="verdict" data-site="${esc(e.website)}">
             <label class="pick"><input type="checkbox" class="keepbox"> Keep this one</label>
             <span>Scored low. Tick it to keep, or leave it \u2014 Save now closes the rest for good.</span>
             <button class="tiny" data-decision="confirmed">Drop it now</button>
+            <button class="tiny danger" data-forget="1">Delete</button>
           </div>`) : ''}`;
 
     // Looked up inside the card just made, not at the end of the list: once
     // the list is sorted, the newest card is rarely last.
     const verdict = card.querySelector('.verdict');
+
+    /*
+      Delete is not Drop.
+
+      Drop keeps the row on disk, which is what stops the site being checked
+      again every night. Delete removes the row, the business and the
+      screenshot, and the address is remembered so a later sweep does not find
+      it afresh. It cannot be undone, so it asks first.
+    */
+    const forgetBtn = verdict?.querySelector('[data-forget]');
+    if (forgetBtn) {
+      forgetBtn.onclick = async () => {
+        if (!confirm(`Delete ${e.name} for good?\n\nThe saved result goes, and this site will not be found or checked again.`)) return;
+        try {
+          await fetch('/api/forget', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ websites: [verdict.dataset.site] }),
+          });
+          card.style.transition = 'opacity .25s ease';
+          card.style.opacity = '0';
+          setTimeout(() => card.remove(), 260);
+          showState();
+        } catch { forgetBtn.textContent = 'could not delete'; }
+      };
+    }
+
     if (verdict && e.review) {
       verdict.classList.add('settled');
       verdict.innerHTML = `<span>${e.review === 'keep' ? 'Kept.' : 'Closed \u2014 it will not be checked again.'}</span>`;
@@ -506,6 +580,9 @@ Tier D  under 12 — the site is fine, drop it</pre>
           <div class="meta">Tier ${esc(d.tier)} &middot; scored ${esc(d.score)}${d.website ? ` &middot; ${safeHref(d.website)
             ? `<a href="${esc(safeHref(d.website))}" target="_blank" rel="noopener noreferrer">${esc(d.website)}</a>`
             : esc(d.website)}` : ''}</div>
+          ${d.offerFree ? `<div class="lead__who free">This one offers to build it <strong>free</strong>.
+            Their site says a very small business, and a $900 proposal would be the wrong letter.
+            Read it before you send it \u2014 you are promising to do the work for nothing.</div>` : ''}
           ${d.warnings.length ? `<div class="warn">${d.warnings.map(esc).join('<br>')}</div>` : ''}
           <p class="subj"><strong>Subject:</strong> ${esc(d.subject)}</p>
           <pre>${esc(d.body)}</pre>
@@ -635,6 +712,34 @@ Tier D  under 12 — the site is fine, drop it</pre>
           : '';
       }
     } catch { /* nothing saved yet */ }
+  }
+
+  /*
+    Bulk delete. Each button names exactly what is about to go and how many,
+    because "Delete every Tier D" with two and a half thousand behind it is
+    not a click anyone should make on trust.
+  */
+  for (const [id, tier, what] of [['delD', 'D', 'Tier D'], ['delC', 'C', 'Tier C'], ['delSkip', '-', 'skipped']]) {
+    const btn = $(id);
+    if (!btn) continue;
+    btn.onclick = async () => {
+      const rows = await (await fetch('/api/leads')).json();
+      const n = rows.filter(r => (tier === '-' ? (r.tier ?? '-') === '-' : r.tier === tier)).length;
+      if (!n) { $('status').textContent = `Nothing in ${what} to delete.`; return; }
+      if (!confirm(`Delete all ${n} ${what} results for good?\n\nThe saved rows go, their screenshots go, and these sites will not be found or checked again.`)) return;
+      btn.disabled = true;
+      try {
+        const r = await (await fetch('/api/forget', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tier }),
+        })).json();
+        $('status').textContent = `Deleted ${r.removed} ${what} result${r.removed === 1 ? '' : 's'}.`;
+        await loadSaved({ quiet: true });
+        showState();
+      } catch { $('status').textContent = 'Could not delete those.'; }
+      btn.disabled = false;
+    };
   }
 
   function showTotals(counts) {

@@ -86,6 +86,14 @@ export function createStore(dir) {
   const done = new Set(progress.done);
   let found = read(file("found.json"), [], note);
   let leads = read(file("leads.json"), [], note);
+  /*
+    Sites deleted by hand, kept as a list of addresses after the row itself is
+    gone. Without this, deleting a lead is pointless: the business is still in
+    found.json, so the next sweep audits it again and puts it straight back on
+    the page. The list is tiny - a URL each - so keeping it forever costs
+    nothing next to re-checking the same site every night.
+  */
+  const forgotten = new Set(read(file("forgotten.json"), [], note));
 
   /*
     One copy of the leads as they were when this window opened.
@@ -138,6 +146,7 @@ export function createStore(dir) {
     const seen = new Set();
     return found.filter(b => {
       if (!b.website || b.duplicateOf) return false;
+      if (forgotten.has(b.website)) return false;
       if (seen.has(b.website)) return false;
       if (settled(verdictFor(b.website))) return false;
       seen.add(b.website);
@@ -161,8 +170,11 @@ export function createStore(dir) {
     get found() { return found; },
     hasBusiness: (name, town) => seenBusiness.has(`${(name ?? "").toLowerCase()}|${town ?? ""}`),
     /** Already found under some other name? */
-    hasSite: url => Boolean(url) && claimedSites.has(url),
+    // Deleted sites answer yes too, so a later sweep skips them as "already
+    // seen" rather than finding them afresh and putting them back.
+    hasSite: url => Boolean(url) && (claimedSites.has(url) || forgotten.has(url)),
     addBusiness(business) {
+      if (business.website && forgotten.has(business.website)) return;
       seenBusiness.add(`${(business.name ?? "").toLowerCase()}|${business.town ?? ""}`);
       // Recorded, but marked as the same company found again, so it is not
       // audited or emailed twice.
@@ -247,6 +259,52 @@ export function createStore(dir) {
       return { kept, closed, closedSlugs };
     },
 
+    /**
+     * Deletes saved sites outright, rather than marking them settled.
+     *
+     * "Drop" keeps the row and stops it coming back. This removes it: the
+     * lead, and the business it came from, both go, and the address is
+     * remembered so a later sweep does not rediscover it and audit it again.
+     *
+     * Takes a list so a bulk delete is one write rather than two thousand.
+     * Returns the screenshots to bin, because the caller owns the filesystem.
+     */
+    forget(urls = []) {
+      const drop = new Set(urls.filter(Boolean));
+      if (!drop.size) return { removed: 0, slugs: [] };
+
+      const slugs = [];
+      for (const lead of leads) {
+        const url = lead.business?.website;
+        if (url && drop.has(url) && lead.slug) slugs.push(lead.slug);
+      }
+
+      const before = leads.length;
+      leads = leads.filter(l => !(l.business?.website && drop.has(l.business.website)));
+      found = found.filter(b => !(b.website && drop.has(b.website)));
+      for (const url of drop) {
+        forgotten.add(url);
+        auditedUrls.delete(url);
+        claimedSites.delete(url);
+      }
+
+      write(file("leads.json"), leads);
+      write(file("found.json"), found);
+      write(file("forgotten.json"), [...forgotten]);
+      return { removed: before - leads.length, slugs };
+    },
+
+    /** Every saved site in one tier, for the bulk delete on the page. */
+    websitesInTier(tier) {
+      return leads
+        .filter(l => (tier === "-" ? (l.tier ?? "-") === "-" : l.tier === tier))
+        .map(l => l.business?.website)
+        .filter(Boolean);
+    },
+
+    /** Deleted by hand and never to be looked at again. */
+    isForgotten: url => forgotten.has(url),
+
     /** Checked, ranked low, and nobody has looked at it yet. */
     awaitingReview: () => leads.filter(l =>
       !l.review && l.tier !== "A" && l.tier !== "B" && l.business?.website),
@@ -265,6 +323,7 @@ export function createStore(dir) {
       */
       folder: dir,
       damaged,
+      forgotten: forgotten.size,
       towns: Object.keys(places).length,
       searches: done.size,
       found: found.length,
@@ -274,6 +333,26 @@ export function createStore(dir) {
       closed: leads.filter(l => l.review === "confirmed").length,
       awaitingReview: leads.filter(l => !l.review && l.tier !== "A" && l.tier !== "B" && l.business?.website).length,
       pending: pendingAudit().length,
+      /*
+        Why the skipped ones were skipped, counted.
+
+        A night's run puts thousands in the skipped pile and the page only
+        ever showed the total, which says nothing about whether the tool is
+        working. "Two thousand had no website at all" and "two thousand could
+        not be reached" are very different problems and only one of them is a
+        bug.
+      */
+      skippedReasons: leads.reduce((tally, l) => {
+        if (l.tier !== "-" && l.tier != null) return tally;
+        const why = String(l.dropReason ?? "skipped").split(":")[0].trim();
+        tally[why] = (tally[why] ?? 0) + 1;
+        return tally;
+      }, {}),
+      tiers: leads.reduce((tally, l) => {
+        const t = l.tier ?? "-";
+        tally[t] = (tally[t] ?? 0) + 1;
+        return tally;
+      }, {}),
     }),
 
     /** Start over. Only ever on an explicit ask. */
@@ -281,6 +360,12 @@ export function createStore(dir) {
       for (const name of ["places.json", "progress.json", "found.json", "leads.json"]) {
         try { fs.rmSync(file(name), { force: true }); } catch { /* nothing to remove */ }
       }
+      /*
+        Deletions survive a reset on purpose. Reset means "run the searches
+        again from nothing"; deleting a site means "never show me this one
+        again", which is a decision about that site and not about the ledger.
+        Clearing the list here would quietly undo it.
+      */
       done.clear(); seenBusiness.clear(); auditedUrls.clear(); claimedSites.clear();
       found = []; leads = [];
       for (const k of Object.keys(places)) delete places[k];

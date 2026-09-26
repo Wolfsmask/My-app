@@ -18,11 +18,35 @@ export const EMBARRASSMENT = [
   {
     id: "not_responsive",
     points: 40,
-    label: "Not readable on a phone",
-    // The single strongest signal. Over half of local searches are mobile, so
-    // this is lost revenue the owner can feel, not an abstract metric.
+    label: "Breaks on a phone",
+    /*
+      The single strongest signal, and the one most easily got wrong.
+
+      This used to fail any site without a viewport meta tag. That is a
+      statement about the markup, not about the visitor: a fixed-width site
+      from 2009 that scales down cleanly is perfectly usable, just unfashionable,
+      and writing to that owner about a phone problem they cannot see makes the
+      whole email look automated.
+
+      It now fails only on things a thumb runs into — having to drag the page
+      sideways, and content hanging off the edge of the screen.
+    */
     test: a => a.isResponsive === false,
-    evidence: a => `Page is ${a.mobileScrollWidth}px wide on a 390px phone screen — visitors have to pinch and drag to read it.`,
+    // Untidy and unusable are not the same email. A page 12% too wide is worth
+    // a fraction of one that runs half off the screen with the nav hanging out.
+    scale: a => a.notResponsiveSeverity ?? 0.5,
+    evidence: a => {
+      const bits = [];
+      if (a.mobileOverflowPct >= 10) bits.push(`the page lays out ${a.mobileScrollWidth}px wide and has to be dragged sideways to read`);
+      if (a.mobileCutOff >= 3) bits.push(`${a.mobileCutOff} things run off the right-hand edge, the worst by ${a.mobileCutOffWorstPx}px`);
+      if (a.effectiveBodyPx != null && a.effectiveBodyPx < 9) {
+        bits.push(`the whole page is shrunk to fit, so ${a.bodyFontSize ?? "the body"}px text arrives at about ${a.effectiveBodyPx}px`);
+      }
+      if (a.effectiveTapPx != null && a.effectiveTapPx < 24) bits.push(`links end up about ${a.effectiveTapPx}px tall, too small for a thumb`);
+      return bits.length
+        ? `On a phone: ${bits.join("; ")}.`
+        : `Does not work on a phone screen.`;
+    },
   },
   {
     id: "ssl_broken",
@@ -75,18 +99,24 @@ export const DESIGN = [
     // The heaviest thing after the phone test. People judge a business on how
     // its site looks long before they notice anything technical about it.
     points: 35,
-    label: "Looks a decade out of date",
+    label: "The design looks dated",
+    /*
+      Judged on how the design reads, not on how the code was written.
+
+      The old version counted five construction markers - system fonts, no
+      flexbox, table layout - which describes a site built in 2005 and says
+      nothing about the far commoner case: a template bought in 2014, running
+      on current software, that still looks like 2014. Those scored zero and
+      sat in the bottom tier forever, which is exactly the complaint.
+    */
     test: a => a.looksDated === true,
-    // Five markers of a pre-2013 build: system-only fonts, no flex or grid,
-    // table layout, no semantic tags, inline styles everywhere. How many are
-    // present is how old it looks, so it scores in proportion rather than
-    // all-or-nothing.
-    scale: a => (a.datedSignals ?? 3) / 5,
+    scale: a => a.visualAgeShare ?? 0.5,
     evidence: a => {
-      const pct = Math.round(((a.datedSignals ?? 3) / 5) * 100);
+      const why = (a.visualAgeMarkers ?? []).slice(0, 3).map(m => m.why);
+      if (!why.length) return `The design reads as older than it is.`;
       return a.visualDecade
-        ? `The design reads as ${a.visualDecade} — system-only fonts, no modern layout, built before responsive design was standard.`
-        : `Built ${pct}% the way a site was built before 2013 (${a.datedSignals} of 5 markers: system-only fonts, no modern layout, table-based structure).`;
+        ? `The design reads as ${a.visualDecade}: ${why.join("; ")}.`
+        : `Showing its age: ${why.join("; ")}.`;
     },
   },
   {
@@ -202,6 +232,18 @@ export function disqualify(business, audit = {}) {
   if (business.status && business.status !== "OPERATIONAL") return "closed";
   if (business.suppressed) return "suppressed";
   if (audit.fetchFailed) return "unreachable";
+  /*
+    The site itself saying the business has gone.
+
+    A shut-down business and a neglected one read almost identically to a
+    checker that only looks at markup - both have a stale footer and nothing
+    modern about them - and the old scorer happily ranked a closed shop as a
+    prime rebuild candidate. Only an outright statement counts: "permanently
+    closed", "no longer in business". A quiet site is still a lead, it is just
+    flagged as quiet, because plenty of busy trades never touch their website.
+  */
+  if (audit.vitality?.state === "closed") return "closed";
+  if (audit.vitality?.state === "unbuilt") return "not_built_yet";
   return null;
 }
 

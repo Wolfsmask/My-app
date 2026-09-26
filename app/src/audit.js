@@ -8,7 +8,8 @@ import { chromium } from "playwright";
 import tls from "node:tls";
 import dns from "node:dns/promises";
 import net from "node:net";
-import { structure, interpretStructure } from "./visual.js";
+import { structure, interpretStructure, detectOldLibraries, visualAge } from "./visual.js";
+import { vitality, sizeOf, latestYearIn } from "./business.js";
 
 const UA =
   "Mozilla/5.0 (compatible; MBOnyxAudit/1.0; +https://mbonyx.netlify.app/) " +
@@ -262,6 +263,69 @@ function measureLayout() {
     // it, which is how navigation was written before menus.
     pipeNav: [...document.querySelectorAll("nav,header,#nav,.nav,.menu")]
       .some(n => /\S\s*\|\s*\S/.test((n.innerText || "").slice(0, 400))),
+
+    /*
+      Markers of when the design was fashionable, as opposed to when the code
+      was written.
+
+      The old dated-design test only looked at construction: system fonts, no
+      flexbox, table layout. That catches a site built in 2005 and says nothing
+      at all about the far more common case - a template bought in 2014, on
+      current software, with web fonts and a grid, that still looks 2014. Those
+      came out at zero findings and sat in the bottom tier forever.
+
+      Measured on the desktop pass, because that is the screen a design is
+      composed for.
+    */
+    // Display type got much bigger around 2016. A headline under 34px on a
+    // 1280px screen is a small-type era layout.
+    biggestHeadingPx: (() => {
+      let biggest = 0;
+      for (const h of document.querySelectorAll("h1,h2,.hero h1,.hero h2,[class*='title' i],[class*='headline' i]")) {
+        const r = h.getBoundingClientRect();
+        if (r.top > window.innerHeight * 1.2 || !(h.innerText || "").trim()) continue;
+        biggest = Math.max(biggest, parseFloat(getComputedStyle(h).fontSize) || 0);
+      }
+      return biggest ? Math.round(biggest) : null;
+    })(),
+
+    // Glossy gradients, bevels and text shadows: the house style of roughly
+    // 2008-2014, and almost never used deliberately since.
+    chromeStyling: (() => {
+      let glossy = 0, looked = 0;
+      const candidates = [...document.querySelectorAll("a.button,button,.btn,[class*='button' i],nav a,header a,h1,h2")].slice(0, 60);
+      for (const el of candidates) {
+        const st = getComputedStyle(el);
+        looked++;
+        if (/linear-gradient/.test(st.backgroundImage)) glossy++;
+        else if (st.textShadow && st.textShadow !== "none") glossy++;
+        else if (/inset/.test(st.boxShadow || "")) glossy++;
+      }
+      return looked >= 6 ? Math.round((glossy / looked) * 100) : null;
+    })(),
+
+    // Whitespace between sections roughly doubled over the 2010s. Under 40px
+    // of breathing room reads as a cramped, older page.
+    sectionRhythmPx: (() => {
+      const pads = [];
+      for (const el of document.querySelectorAll("section,.section,main > div,[class*='row' i]")) {
+        const r = el.getBoundingClientRect();
+        if (r.width < window.innerWidth * 0.6 || r.height < 80) continue;
+        const st = getComputedStyle(el);
+        pads.push((parseFloat(st.paddingTop) || 0) + (parseFloat(st.paddingBottom) || 0));
+        if (pads.length >= 12) break;
+      }
+      if (pads.length < 3) return null;
+      pads.sort((a, b) => a - b);
+      return Math.round(pads[Math.floor(pads.length / 2)]);
+    })(),
+
+    // The body font, which dates a design more reliably than almost anything
+    // else: Open Sans and Lato were everywhere from 2011 to 2015.
+    bodyFontName: (() => {
+      const f = document.body ? getComputedStyle(document.body).fontFamily : "";
+      return (f || "").split(",")[0].replace(/["']/g, "").trim().slice(0, 40);
+    })(),
   };
 }
 
@@ -356,6 +420,18 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
       */
       const screenWidth = Math.round(window.visualViewport?.width ?? window.innerWidth);
 
+      /*
+        How far the browser had to zoom out to fit the page on the screen.
+
+        A page with no viewport meta tag is laid out at 980px and then scaled
+        down to the phone's width - here, 0.4. Nothing overflows, because the
+        layout viewport grew to match; the page is simply rendered at 40% size,
+        so 17px text arrives as 7px. Measuring only overflow missed that
+        entirely, and it is the commonest way an old site fails on a phone.
+      */
+      const zoom = window.visualViewport?.scale ?? 1;
+      const physicalWidth = window.screen?.width || screenWidth;
+
       // "Above the fold" = the first screen a visitor sees without scrolling.
       const fold = window.innerHeight;
       /*
@@ -383,7 +459,75 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
           return true;
         });
 
+      /*
+        What is actually cut off at the right edge of the phone screen.
+
+        Whether a page has a viewport meta tag says what the author intended,
+        not what the visitor gets. Plenty of sites written before responsive
+        design was standard still fit a phone perfectly and work fine; plenty
+        of sites with the tag still push their header half off the screen.
+        Only the second kind is worth telling someone about, so this counts
+        the things a thumb cannot reach rather than reading the markup.
+
+        Three kinds of false positive have to be excluded or this counts every
+        site on the internet:
+          - anything inside a deliberately scrollable strip (a carousel, a
+            wide table in a scroll box) is meant to extend past the edge;
+          - a hidden slide-in menu parked off to the right is not visible;
+          - an element that starts past the right edge entirely is off-stage,
+            not cut in half.
+      */
+      const cutOff = (() => {
+        const clipped = el => {
+          for (let p = el.parentElement; p; p = p.parentElement) {
+            const st = getComputedStyle(p);
+            if (st.overflowX === "auto" || st.overflowX === "scroll" || st.overflowX === "hidden") return true;
+          }
+          return false;
+        };
+        const items = [];
+        for (const el of document.querySelectorAll("body *")) {
+          const r = el.getBoundingClientRect();
+          if (r.width < 24 || r.height < 12) continue;
+          // Starts off-screen: a parked drawer, not a broken layout.
+          if (r.left >= screenWidth - 4) continue;
+          if (r.right <= screenWidth + 8) continue;
+          const st = getComputedStyle(el);
+          if (st.display === "none" || st.visibility === "hidden" || Number(st.opacity) === 0) continue;
+          const ink = (el.innerText || "").trim().length > 0
+            || /^(IMG|SVG|VIDEO|CANVAS|INPUT|BUTTON|SELECT|TEXTAREA)$/.test(el.tagName)
+            || (st.backgroundImage && st.backgroundImage !== "none");
+          if (!ink) continue;
+          if (clipped(el)) continue;
+          items.push({ tag: el.tagName.toLowerCase(), over: Math.round(r.right - screenWidth) });
+        }
+        /*
+          A cut-off parent drags all of its children into the list, so twenty
+          "elements off screen" can be one broken header. Only the outermost
+          offender at each overhang is interesting, and the count is capped so
+          one runaway table cannot outweigh everything else.
+        */
+        items.sort((a, b) => b.over - a.over);
+        return {
+          count: Math.min(items.length, 40),
+          worstPx: items.length ? items[0].over : 0,
+          sample: items.slice(0, 4).map(i => i.tag),
+        };
+      })();
+
       return {
+        mobileZoom: Math.round(zoom * 1000) / 1000,
+        physicalWidth,
+        bodyFontPx: document.body ? parseFloat(getComputedStyle(document.body).fontSize) || null : null,
+        // The typical tappable thing, after the browser's zoom is applied.
+        medianTapPx: (() => {
+          const hs = [...document.querySelectorAll("a[href],button,input,select")]
+            .map(el => el.getBoundingClientRect().height).filter(h => h > 0).sort((a, b) => a - b);
+          return hs.length ? Math.round(hs[Math.floor(hs.length / 2)]) : null;
+        })(),
+        cutOffCount: cutOff.count,
+        cutOffWorstPx: cutOff.worstPx,
+        cutOffSample: cutOff.sample,
         scrollWidth: Math.max(doc.scrollWidth, document.body ? document.body.scrollWidth : 0),
         clientWidth: screenWidth,
         hasViewportMeta: !!document.querySelector('meta[name="viewport"]'),
@@ -411,11 +555,94 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
       };
     });
 
-    // A page is responsive if it fits the phone's screen. 20px of slack absorbs
-    // sub-pixel rounding without letting a genuinely broken layout through.
+    /*
+      Does the page work on a phone, judged on what the visitor gets.
+
+      This used to require a viewport meta tag: no tag meant "not responsive"
+      however well the page actually behaved. That is the wrong question. A
+      site written in 2009 with a fixed 960px layout that happens to scale
+      down cleanly is usable — you can read it, you can tap the phone number,
+      it is simply not fashionable. A site whose header runs 300px off the
+      side of the screen is not, tag or no tag.
+
+      So it is measured two ways, both of them things a visitor feels:
+      how far you have to drag the page sideways, and how much is hanging
+      off the edge while you do.
+    */
     out.mobileScrollWidth = measured.scrollWidth;
     out.mobileScreenWidth = measured.clientWidth;
-    out.isResponsive = measured.hasViewportMeta && measured.scrollWidth <= measured.clientWidth + 20;
+    out.mobileOverflowPct = measured.clientWidth
+      ? Math.max(0, Math.round(((measured.scrollWidth - measured.clientWidth) / measured.clientWidth) * 100))
+      : null;
+    out.mobileCutOff = measured.cutOffCount;
+    out.mobileCutOffWorstPx = measured.cutOffWorstPx;
+    out.mobileCutOffSample = measured.cutOffSample;
+    /*
+      10% is the line because it is roughly where dragging starts: below that
+      you are looking at rounding, a stray margin or one wide image, and the
+      page still reads in one column. Three cut-off elements rather than one
+      for the same reason — a single overhanging banner is untidy, a header, a
+      nav and a hero all hanging off is a broken page.
+    */
+    out.mobileZoom = measured.mobileZoom;
+    // What the visitor's eye actually receives, after the browser shrank the
+    // page to fit. 17px text on a page zoomed to 0.4 arrives as 7px.
+    out.effectiveBodyPx = measured.bodyFontPx == null ? null
+      : Math.round(measured.bodyFontPx * measured.mobileZoom * 10) / 10;
+    out.effectiveTapPx = measured.medianTapPx == null ? null
+      : Math.round(measured.medianTapPx * measured.mobileZoom);
+
+    /*
+      Four ways a page fails a phone, in the order a visitor meets them.
+
+      10% of overflow is where dragging starts; below that it is a stray
+      margin. Three cut-off elements rather than one, because a single
+      overhanging banner is untidy and a header, a nav and a hero all hanging
+      off is a broken page. 9px is where text stops being readable without
+      pinching, and 24px is where a thumb stops landing on the right link.
+    */
+    /*
+      Two different failures, graded separately and never added together.
+
+      A page fails a phone in one of two ways, and they are mutually
+      exclusive. Either it declares a viewport and then overflows it, so the
+      visitor drags sideways - or it declares nothing, the browser lays it out
+      at 980px and shrinks the result to fit, so nothing overflows and
+      everything is too small to read. Counting "how many of four signals"
+      capped the worst page on the fixtures at half marks, because no page can
+      ever be both. Each track is scored on how bad it is, and the worse of
+      the two wins.
+    */
+    const ramp = (value, from, to) => Math.max(0, Math.min(1, (value - from) / (to - from)));
+
+    let broken = 0;
+    if (out.mobileOverflowPct >= 10) broken = 0.5 + 0.5 * ramp(out.mobileOverflowPct, 10, 100);
+    if (out.mobileCutOff >= 3) broken = Math.max(broken, 0.5 + 0.5 * ramp(out.mobileCutOff, 3, 12));
+
+    let shrunk = 0;
+    if (out.effectiveBodyPx != null && out.effectiveBodyPx < 9) shrunk = 0.5 + 0.5 * ramp(9 - out.effectiveBodyPx, 0, 4);
+    /*
+      Tap size counts here only when the browser actually shrank the page.
+
+      At zoom 1 the median link height is mostly a property of prose - an
+      inline link inside a paragraph is one line tall, about 21px, on every
+      well-built site there is, and this flagged one of our own concept builds
+      because of it. Whether buttons are comfortable to hit is the small
+      tap-target check's job. This track is about what shrink-to-fit did, so
+      it only applies where there was shrinking.
+    */
+    if (out.mobileZoom < 0.95 && out.effectiveTapPx != null && out.effectiveTapPx < 24) {
+      shrunk = Math.max(shrunk, 0.4 + 0.4 * ramp(24 - out.effectiveTapPx, 0, 16));
+    }
+
+    out.notResponsiveSeverity = Math.round(Math.max(broken, shrunk) * 100) / 100;
+    out.notResponsiveSignals = [
+      out.mobileOverflowPct >= 10,
+      out.mobileCutOff >= 3,
+      out.effectiveBodyPx != null && out.effectiveBodyPx < 9,
+      out.mobileZoom < 0.95 && out.effectiveTapPx != null && out.effectiveTapPx < 24,
+    ].filter(Boolean).length;
+    out.isResponsive = out.notResponsiveSeverity === 0;
     out.hasViewportMeta = measured.hasViewportMeta;
     out.hasContactAboveFold = measured.hasContactAboveFold;
     out.brokenImages = measured.brokenImages;
@@ -500,9 +727,45 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
 
     out.copyrightYear = findCopyrightYear(measured.text + " " + html);
 
+    /*
+      Is anybody still running this business, and could they pay for a rebuild?
+
+      Both are read off the homepage text that was already fetched, so they
+      cost nothing. They are kept out of the score on purpose: a dead business
+      and a struggling one are not "worse websites", they are different
+      answers to "should this person get an email at all", and that decision
+      belongs to a person looking at the card.
+    */
+    out.latestYearOnPage = latestYearIn(measured.text || "");
+    out.vitality = vitality({
+      text: measured.text || "",
+      copyrightYear: out.copyrightYear,
+      latestYearOnPage: out.latestYearOnPage,
+    });
+
+    // Pages of their own they link to, as a rough measure of how much site
+    // there is. Off-site links are already filtered out of measured.links.
+    const ownHost = (() => { try { return new URL(out.finalUrl || target).hostname; } catch { return hostname; } })();
+    const ownPages = new Set();
+    for (const href of measured.links || []) {
+      try {
+        const u = new URL(href);
+        if (u.hostname !== ownHost) continue;
+        const path = u.pathname.replace(/\/+$/, "");
+        if (path && path !== "/index.html") ownPages.add(path);
+      } catch { /* not a URL we can read */ }
+    }
+    out.ownPageCount = ownPages.size;
+
     const plat = detectPlatform(html, headers);
     out.platform = plat.platform;
     out.platformIsObsolete = plat.obsolete;
+
+    out.business = sizeOf({
+      text: measured.text || "",
+      ownPageCount: out.ownPageCount,
+      freeTier: /free website-builder tier/i.test(plat.platform || ""),
+    });
 
     out.pageWeightBytes = bytes || null;
     out.usesModernImages = measured.imageCount === 0
@@ -512,7 +775,36 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
     // --- How it is built and how it looks -------------------------------
     // Runs in the page that is already open, so it costs nothing extra.
     const struct = await structure(page);
-    Object.assign(out, struct, interpretStructure(struct));
+    const interpreted = interpretStructure(struct);
+    Object.assign(out, struct, interpreted);
+
+    /*
+      How old the design looks, which is a different question from how old the
+      code is and was the one nobody was asking.
+
+      The construction markers come from structure(), the composition markers
+      from the desktop layout pass, and the library fingerprints from the raw
+      HTML - version numbers survive in the source and not in the DOM.
+    */
+    out.oldLibraries = detectOldLibraries(html);
+    Object.assign(out, visualAge({
+      oldLibraries: out.oldLibraries,
+      bodyFontName: layout.bodyFontName,
+      biggestHeadingPx: layout.biggestHeadingPx,
+      chromeStyling: layout.chromeStyling,
+      sectionRhythmPx: layout.sectionRhythmPx,
+      usesWebFonts: interpreted.usesWebFonts,
+      usesFlexOrGrid: struct.usesFlexOrGrid,
+      layoutTables: struct.layoutTables,
+      semanticTagCount: struct.semanticTagCount,
+      inlineStyleRatio: interpreted.inlineStyleRatio,
+      elementCount: struct.elementCount,
+      contentWidthPct: layout.contentWidthPct,
+    }));
+    out.biggestHeadingPx = layout.biggestHeadingPx;
+    out.chromeStyling = layout.chromeStyling;
+    out.sectionRhythmPx = layout.sectionRhythmPx;
+    out.bodyFontName = layout.bodyFontName;
 
     out.brokenLinks = await countBrokenLinks(measured.links, hostname, { allowLocal });
 

@@ -251,3 +251,137 @@ export async function vision(screenshotPath, { client, model = "claude-opus-5" }
     return { error: e.message.slice(0, 160) };
   }
 }
+
+/**
+ * Front-end libraries that pin a build to a period.
+ *
+ * These are the most reliable age markers there are, and they cost nothing:
+ * a site shipping jQuery 1.11, Bootstrap 3 and Font Awesome 4 was built
+ * around 2014 and has not been touched since, whatever its copyright line
+ * says. Read from the HTML source rather than the DOM, because that is where
+ * the version numbers survive.
+ */
+export function detectOldLibraries(html = "") {
+  const found = [];
+  const seen = new Set();
+  const add = (name, era) => { if (!seen.has(name)) { seen.add(name); found.push({ name, era }); } };
+
+  // jQuery 3 is current and says nothing. 1.x and 2.x do.
+  const jq = html.match(/jquery[.-]?(?:min\.)?(?:js)?[^"'>]*?[?v=/-](1|2)\.(\d+)\.(\d+)/i)
+          || html.match(/jquery[/-](1|2)\.(\d+)\.(\d+)[^"']*\.js/i);
+  if (jq) add(`jQuery ${jq[1]}.${jq[2]}`, jq[1] === "1" ? 2013 : 2015);
+
+  if (/bootstrap[/-]?3\.\d|navbar-default|glyphicon|col-(xs|sm|md|lg)-\d/i.test(html)) add("Bootstrap 3", 2014);
+  if (/bootstrap[/-]?2\.\d|span\d{1,2}["'\s].*?row-fluid/i.test(html)) add("Bootstrap 2", 2012);
+  if (/font-?awesome[/-]?4\.\d|class=["'][^"']*\bfa fa-/i.test(html)) add("Font Awesome 4", 2014);
+  if (/revslider|rev_slider|revolution-slider/i.test(html)) add("Revolution Slider", 2013);
+  if (/owl\.carousel|owl-carousel/i.test(html)) add("Owl Carousel", 2013);
+  if (/nivo-?slider/i.test(html)) add("Nivo Slider", 2011);
+  if (/flexslider/i.test(html)) add("FlexSlider", 2012);
+  if (/prettyphoto|fancybox[/-]?1\./i.test(html)) add("prettyPhoto", 2011);
+  if (/modernizr[.-](1|2)\./i.test(html)) add("Modernizr 2", 2012);
+  if (/<script[^>]+src=["'][^"']*swfobject/i.test(html)) add("SWFObject (Flash)", 2008);
+
+  return found;
+}
+
+/** Body fonts that were the default choice of a particular few years. */
+const ERA_FONTS = /^(open sans|lato|pt sans|droid sans|source sans pro|raleway|ubuntu|cabin|oxygen|istok web|arvo|museo sans)$/i;
+
+/**
+ * How old the design looks, as opposed to how old the code is.
+ *
+ * The two are not the same, and conflating them was the bug. A restaurant
+ * site built last year on a 2014 template is modern code and a dated design;
+ * a hand-written 2006 page that has aged gracefully is old code and an
+ * unremarkable design. What gets an owner to reply is the first one, and the
+ * old detector scored it zero.
+ *
+ * Ten markers, five about construction and five about composition. The score
+ * is out of six rather than ten, deliberately: a site does not have to be
+ * wrong in every possible way to look a decade old, and requiring that is how
+ * two and a half thousand sites ended up in the bottom tier.
+ */
+export function visualAge(input = {}) {
+  const {
+    oldLibraries = [], bodyFontName = "", biggestHeadingPx = null,
+    chromeStyling = null, sectionRhythmPx = null,
+    usesWebFonts = null, usesFlexOrGrid = null, layoutTables = 0,
+    semanticTagCount = null, inlineStyleRatio = 0,
+    elementCount = null, contentWidthPct = null,
+  } = input;
+
+  const markers = [];
+  const mark = (era, why) => markers.push({ era, why });
+
+  /*
+    Some markers only mean anything on a page with a design to speak of.
+
+    A one-column shop page with a phone number and a list of services has no
+    flexbox and no <section> tags because it has nothing to lay out, not
+    because it was built in 2009. Counting those against it put a perfectly
+    serviceable little site in the same tier as a rotting template. The gate
+    is element count: below about sixty elements there is no layout to judge.
+  */
+  const isDesigned = elementCount === null || elementCount >= 60;
+  // Likewise a headline: 26px is small across a full screen and perfectly
+  // proportionate on a page that is only a phone's width wide.
+  const fillsScreen = contentWidthPct === null || contentWidthPct >= 60;
+
+  // --- Construction ---------------------------------------------------
+  if (usesWebFonts === false) mark(2012, "system-only fonts");
+  if (isDesigned && usesFlexOrGrid === false) mark(2015, "no flexbox or grid anywhere");
+  if (layoutTables > 0) mark(2008, "laid out with tables");
+  if (isDesigned && semanticTagCount !== null && semanticTagCount <= 1) mark(2012, "no semantic layout tags");
+  if (inlineStyleRatio > 0.25) mark(2010, "styling written into the markup");
+
+  // --- Composition ----------------------------------------------------
+  if (oldLibraries.length) {
+    const oldest = Math.min(...oldLibraries.map(l => l.era));
+    mark(oldest, `still running ${oldLibraries.slice(0, 3).map(l => l.name).join(", ")}`);
+  }
+  if (bodyFontName && ERA_FONTS.test(bodyFontName.trim())) mark(2013, `${bodyFontName} as the body font`);
+  if (fillsScreen && biggestHeadingPx !== null && biggestHeadingPx < 34) mark(2016, `headlines only ${biggestHeadingPx}px across a full screen`);
+  if (chromeStyling !== null && chromeStyling >= 35) mark(2011, "gradients, bevels and text shadows on buttons and headings");
+  if (sectionRhythmPx !== null && sectionRhythmPx < 40) mark(2015, `only ${sectionRhythmPx}px of space between sections`);
+
+  const signals = markers.length;
+  /*
+    Six is "full marks" rather than ten. Measured against the fixtures: the
+    2011 table-layout page hits 7, a bought-in 2014 template hits 4-5, and a
+    site built this year hits 0-1. Dividing by ten would have scored that
+    template at 40% of the points when it is plainly most of the way to a
+    rebuild; dividing by six puts it where a person would put it.
+  */
+  const share = Math.min(1, signals / 6);
+
+  /*
+    When the design reads from, taken from the markers rather than from how
+    many there are.
+
+    Counting them put a table-layout FrontPage page and a 2014 Bootstrap
+    template in the same decade, which is visibly wrong to anyone looking at
+    the two. The median marker is the fairest single answer, except that
+    laying a page out with tables or shipping Flash is on its own conclusive -
+    nobody did either after about 2008 - so those decide it outright.
+  */
+  const eras = markers.map(m => m.era).sort((a, b) => a - b);
+  let decade = null;
+  if (eras.length) {
+    const conclusive = eras[0] <= 2008;
+    const era = conclusive ? eras[0] : eras[Math.floor(eras.length / 2)];
+    decade = era <= 2009 ? "the mid-2000s"
+           : era <= 2012 ? "around 2010"
+           : era <= 2015 ? "the early 2010s"
+           : "the mid-2010s";
+  }
+
+  return {
+    visualAgeSignals: signals,
+    visualAgeShare: Math.round(share * 100) / 100,
+    visualAgeMarkers: markers,
+    visualAgeEra: eras.length ? (eras[0] <= 2008 ? eras[0] : eras[Math.floor(eras.length / 2)]) : null,
+    visualDecade: decade,
+    looksDated: signals >= 2,
+  };
+}

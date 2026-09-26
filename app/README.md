@@ -63,6 +63,24 @@ of repeating two thousand queries against free volunteer servers.
 Progress is shown under the Start button, so you can see where it got to. To wipe it and
 begin again, delete `app/out/ui/`.
 
+## Getting rid of saved sites
+
+Two different buttons, because they do two different things.
+
+**Drop it** keeps the row on disk and marks it settled. That is what stops the
+site being checked again tomorrow night, so the row has to stay.
+
+**Delete** removes it: the saved result, the business behind it, and the
+screenshot. The address is remembered in `forgotten.json` so a later sweep does
+not rediscover the business and put it straight back on the page. It cannot be
+undone, and it survives a reset — deleting is a decision about that one site,
+and reset is about the search ledger.
+
+There are bulk buttons next to **Save now** for a whole tier at once (`Delete
+every Tier D`, `Tier C`, `every skipped`), because after a night there are
+thousands at the bottom of the list and nobody is clicking a button two
+thousand times. Each asks first and says how many are about to go.
+
 ## Where your saved leads live
 
 Everything you have kept is four JSON files in **`app/out/ui/`**, right next to the app:
@@ -271,48 +289,127 @@ no recovering from that with a business owner.
 
 ## How the score works
 
-Three groups, deliberately unequal. The weighting is the argument of the whole
-project: a slow site does not make an owner reply, an embarrassing one does.
+A hundred points of findings is a rebuild. The score is what a site earned
+against that fixed bar, so two heavy faults are already worth writing about
+and the number does not shrink every time the checker learns to look at one
+more thing.
 
-**Embarrassment — 70 points**
+The weighting is the argument of the whole project: a slow site does not make
+an owner reply, an embarrassing one does.
 
-| Signal | Points |
-|---|---|
-| Not readable on a phone | 25 |
-| Security warning / broken SSL | 15 |
-| Footer copyright 3+ years stale | 10 |
-| Obsolete platform (Flash, FrontPage, old WordPress) | 10 |
-| Broken links or missing images | 5 |
-| No contact method above the fold | 5 |
-
-**Design & structure — 30 points**
+**Embarrassment**
 
 | Signal | Points |
 |---|---|
-| Looks a decade out of date | 12 |
-| Poor first impression (`--vision`, ≤4/10) | 8 |
-| Body text under 14px | 4 |
-| Buttons too small to tap | 3 |
-| Heading/semantic structure problems | 3 |
+| Breaks on a phone | 40 |
+| Built on obsolete software (Flash, FrontPage, old WordPress) | 12 |
+| Security warning / broken HTTPS | 10 |
+| Footer copyright 3+ years stale | 8 |
+| No way to make contact without scrolling | 8 |
+| Broken links or missing images | 4 |
 
-**Performance — 25 points**
+**Design**
 
 | Signal | Points |
 |---|---|
-| Slow to show content (LCP > 4s) | 10 |
-| Low mobile performance score | 8 |
-| Page over 5MB | 4 |
-| Images not compressed | 3 |
+| Badly laid out | 40 |
+| The design looks dated | 35 |
+| Puts customers off on sight (`--vision` only, ≤4/10) | 8 |
+| Body text under 14px | 6 |
+| Buttons too small to tap | 5 |
+| Heading and semantic structure problems | 2 |
 
-Only checks that actually ran count toward the maximum, so a run without
-`--vision` or without performance data still produces a meaningful 0–100
-rather than capping everything below tier A.
+**Performance** — real, but never the headline of an email.
 
-**Tiers:** A ≥ 70 (contact now) · B 50–69 (contact) · C 25–49 (hold, recheck in
-6 months) · D < 25 (drop, the site is fine).
+| Signal | Points |
+|---|---|
+| Very slow to show content (LCP > 4s, needs PageSpeed) | 10 |
+| Low mobile performance score (needs PageSpeed) | 8 |
+| Page over 5MB | 1 |
+| Images not compressed | 1 |
+
+Most of these are graded rather than all-or-nothing: a page 12% too wide and a
+page with its nav hanging off the side both "break on a phone", and scoring
+them the same buries the second among the first.
+
+**Tiers:** A ≥ 45 (contact now) · B 25–44 (contact) · C 12–24 (hold, re-check in
+six months) · D < 12 (leave it, the site is fine).
+
+### Breaks on a phone
+
+Measured on what a visitor gets, not on whether the markup declares a viewport.
+A site written before responsive design was standard that still scales down
+cleanly is usable — unfashionable, but usable — and telling that owner their
+site does not work on phones is how an email gives itself away as automated.
+
+There are two ways a page actually fails, and they never happen together:
+
+* **It overflows.** The page declares a viewport and then lays out wider than
+  it, so the visitor drags sideways. Measured as how far over, and how many
+  things hang off the right-hand edge. Carousels, scroll boxes and parked
+  slide-in menus are excluded, or every site on the internet would fail.
+* **It is shrunk.** The page declares nothing, so the browser lays it out at
+  980px and scales the result down to fit — on a 390px phone, to about 40%.
+  Nothing overflows; everything is simply too small. 17px text arrives at 7px.
+
+Each is graded on how bad it is and the worse of the two is what counts.
+
+### The design looks dated
+
+How old the design *reads*, which is not how old the code is. The two get
+conflated easily and that was a real bug: a template bought in 2014, running on
+current WordPress with web fonts and a responsive grid, has none of the markers
+of an old build and still looks like 2014. One real contractor's site scored 4
+out of 100 and sat in the bottom tier; measured this way it scores 33.
+
+Ten markers, five about construction and five about composition:
+
+| Construction | Composition |
+|---|---|
+| system-only fonts | still running jQuery 1.x, Bootstrap 3, Font Awesome 4, Revolution/Owl/Nivo slider |
+| no flexbox or grid | Open Sans, Lato, PT Sans or another 2011–2015 body font |
+| laid out with tables | headlines under 34px across a full screen |
+| no semantic layout tags | gradients, bevels and text shadows on buttons and headings |
+| styling written into the markup | under 40px of space between sections |
+
+Six markers is full marks, not ten — a site does not have to be wrong in every
+possible way to look a decade old. Two of the construction markers are skipped
+on pages with fewer than sixty elements: a one-column shop page has no flexbox
+because it has nothing to lay out, not because it was built in 2009.
+
+The era shown in the email comes from the markers rather than from how many
+there are, so a FrontPage table page reads as the mid-2000s and a Bootstrap 3
+template reads as the early 2010s.
+
+## Who gets an email, and which one
+
+Two questions about the business, both read off its own homepage and neither
+of them part of the score. They decide whether a person is written to at all,
+not how bad the website is.
+
+**Is it still trading?** A business that says "permanently closed" or "coming
+soon" is dropped outright. A site with a stale footer, nothing dated recently
+and nothing inviting a visitor to get in touch is flagged **quiet** and still
+kept — plenty of booked-solid trades have not touched their website in years,
+and those are the best leads there are. The card says to check before writing.
+
+**Can it afford this?** Read from what the homepage says about itself: a
+careers page, a team, more than one location, commercial customers, licensing,
+a fleet, years in business, trade terms. Three of those and it is
+**established**; one and it is **small**; none, or a single-page site, or a
+free website-builder plan, and it is **micro**.
+
+A micro business with a genuinely bad site gets a different letter: an offer to
+build it free. A nine-hundred-dollar proposal landing on a one-person shop that
+is barely covering rent is not a sale. The free offer never says or implies
+that they look poor — it says the portfolio is worth more than the fee, which
+is true. It is only used where the business is micro *and* the site scores 25
+or more, because a tiny business with a perfectly good website does not need
+charity, and a big company with an awful one can pay.
 
 Leads are dropped before auditing if they have no website, are a Facebook page
-only, are permanently closed, or are on the suppression list.
+only, redirect to a directory listing, are permanently closed, or are on the
+suppression list.
 
 ## Costs
 

@@ -217,7 +217,7 @@ test("reset clears everything, and only on an explicit ask", () => {
   s.addLead({ business: { name: "Arctic Air", website: "https://a.test" }, tier: "B" });
 
   s.reset();
-  const { folder, damaged, ...counts } = s.summary();
+  const { folder, damaged, forgotten, skippedReasons, tiers, ...counts } = s.summary();
   assert.deepEqual(counts, { towns: 0, searches: 0, found: 0, withSite: 0, audited: 0, kept: 0, closed: 0, awaitingReview: 0, pending: 0 });
   assert.equal(createStore(dir).found.length, 0, "and it stays cleared after a restart");
 });
@@ -285,4 +285,59 @@ test("a good leads.json is copied once per launch, not once per lead", () => {
   second.addLead({ business: { name: "Second", website: "https://two.test" }, tier: "A" });
   const still = JSON.parse(fs.readFileSync(path.join(dir, "leads.backup.json"), "utf8"));
   assert.equal(still.length, 1, "and it is not rewritten as the night goes on");
+});
+
+test("deleting a saved site removes it and stops it coming back", () => {
+  /*
+    "Drop" marks a lead settled and keeps the row, which is what stops the
+    same site being re-checked. Delete is the stronger thing: the row goes,
+    the business goes with it, and the address is remembered - otherwise the
+    next sweep rediscovers the business, audits it again, and puts it straight
+    back on the page, which makes the button look broken.
+  */
+  const s = createStore(dir);
+  for (const [name, url, tier] of [["Keep", "https://keep.test", "A"], ["Bin", "https://bin.test", "D"]]) {
+    s.addBusiness({ name, town: "Liberty, MO", website: url });
+    s.addLead({ business: { name, website: url }, tier, slug: name.toLowerCase() });
+  }
+
+  const gone = s.forget(["https://bin.test"]);
+  assert.equal(gone.removed, 1);
+  assert.deepEqual(gone.slugs, ["bin"], "and hands back the screenshot to bin");
+  assert.deepEqual(s.leads.map(l => l.business.name), ["Keep"]);
+  assert.equal(s.found.length, 1, "the business goes too, not just the verdict");
+
+  // Found again by a later sweep: it must not come back.
+  s.addBusiness({ name: "Bin", town: "Liberty, MO", website: "https://bin.test" });
+  assert.equal(s.found.length, 1, "rediscovering it must not re-add it");
+  assert.equal(s.hasSite("https://bin.test"), true, "and discovery is told it has been seen");
+  assert.equal(s.pendingAudit().some(b => b.website === "https://bin.test"), false);
+
+  const after = createStore(dir);
+  assert.equal(after.leads.length, 1, "and it stays gone after a restart");
+  assert.equal(after.isForgotten("https://bin.test"), true);
+});
+
+test("a bulk delete takes a whole tier at once", () => {
+  const s = createStore(dir);
+  const rows = [["A1", "https://a1.test", "A"], ["D1", "https://d1.test", "D"], ["D2", "https://d2.test", "D"]];
+  for (const [name, url, tier] of rows) {
+    s.addBusiness({ name, town: "Liberty, MO", website: url });
+    s.addLead({ business: { name, website: url }, tier });
+  }
+  assert.deepEqual(s.websitesInTier("D").sort(), ["https://d1.test", "https://d2.test"]);
+  assert.equal(s.forget(s.websitesInTier("D")).removed, 2);
+  assert.deepEqual(s.leads.map(l => l.tier), ["A"]);
+});
+
+test("a reset does not undo a deletion", () => {
+  // Reset means "run the searches again from nothing". Deleting a site means
+  // "never show me this one again". One must not quietly cancel the other.
+  const s = createStore(dir);
+  s.addBusiness({ name: "Bin", town: "Liberty, MO", website: "https://bin.test" });
+  s.addLead({ business: { name: "Bin", website: "https://bin.test" }, tier: "D" });
+  s.forget(["https://bin.test"]);
+
+  s.reset();
+  assert.equal(createStore(dir).isForgotten("https://bin.test"), true);
 });

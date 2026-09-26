@@ -221,6 +221,23 @@ const OFFERS = [
   "If it would help, I can redo your front page as a free mockup - no obligation, just so you can see it.",
 ];
 
+/*
+  What to say to somebody who plainly needs the work and plainly cannot pay
+  nine hundred dollars for it.
+
+  A rebuild proposal landing on a one-person shop that is barely covering rent
+  is not a sale, it is an insult with a price on it. Those are often the
+  businesses a decent website would help most, so the answer is not to skip
+  them - it is to offer it free and mean it, without saying "I can tell you are
+  struggling", which no owner wants to read.
+*/
+const FREE_OFFERS = [
+  "I am still building up my portfolio, so I would do this one free - a proper site, not a trial. I would rather have the work to show than the money.",
+  "I would build it for you free. I am fourteen and still putting a portfolio together, so having a real local business to show matters more to me than being paid for it.",
+  "There is no charge for this one. I am building up examples of my work, and a site I am proud of is worth more to me right now than the fee.",
+  "I would do it free. I am early on and what I need is work I can point to, so if you like the result all I would ask is that you let me show it.",
+];
+
 const CLOSERS = [
   "Either way, thought it was worth telling you.",
   "No pressure at all - happy to leave it there if you are not interested.",
@@ -260,7 +277,15 @@ export function draftEmail(lead, sender = {}) {
   // "businesses", so "local business" made "local business businesses".
   const trade = INTERNAL.has(raw.toLowerCase()) ? "local" : raw;
   const opener = pick(town ? OPENERS : OPENERS_NO_TOWN, business)({ trade, town, name: business });
-  const offer = pick(OFFERS, business + "o");
+  /*
+    Which offer goes in. The paid one asks for a mockup and a conversation;
+    the free one asks for nothing. It is only used where the business looks
+    very small AND the site is genuinely bad enough to be worth a rebuild -
+    a tiny business with a perfectly good website does not need charity, and
+    an established one with an awful website can pay.
+  */
+  const offerFree = Boolean(lead.offerFree ?? (lead.audit?.business?.offerFree && (lead.score ?? 0) >= 25));
+  const offer = offerFree ? pick(FREE_OFFERS, business + "f") : pick(OFFERS, business + "o");
   const closer = pick(CLOSERS, business + "c");
 
   // Said plainly, but built from the audit's own numbers. Falls back to the
@@ -338,7 +363,7 @@ export function draftEmail(lead, sender = {}) {
   }
   if (!findings.length) warnings.push('No findings for this business.');
 
-  return { subject, body, claims, warnings, facts: findings.map(f => f.evidence).filter(Boolean) };
+  return { subject, body, claims, offerFree, warnings, facts: findings.map(f => f.evidence).filter(Boolean) };
 }
 
 /**

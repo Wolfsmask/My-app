@@ -484,6 +484,10 @@ const server = http.createServer(async (req, res) => {
           to: lead.audit?.contactEmail ?? null,
           maybe: lead.audit?.emailCandidates ?? [],
           subject: draft.subject, body: draft.body,
+          // So the page can mark which letters are offering the work free,
+          // rather than making him read each one to find out.
+          offerFree: draft.offerFree,
+          size: lead.audit?.business?.size ?? null,
           // A draft that cites a number nobody measured is never presentable
           // as ready, whatever else is right about it.
           warnings: check.ok ? draft.warnings : [...draft.warnings, `Contains a number that was not measured: ${check.invented.join(', ')}`],
@@ -518,6 +522,39 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  /*
+    Delete saved sites outright.
+
+    Different from dropping one, which keeps the row so the site is never
+    re-checked. This removes the row, the business behind it and the
+    screenshot, and remembers the address so a later sweep does not find it
+    again. Takes either a list of addresses or a whole tier, because after a
+    night's run there are two thousand in the bottom tier and nobody is
+    clicking that two thousand times.
+  */
+  if (req.method === 'POST' && url.pathname === '/api/forget') {
+    let body = '';
+    req.on('data', c => { body += c; if (body.length > 1e6) req.destroy(); });
+    await new Promise(r => req.on('end', r));
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    try {
+      const { websites, tier } = JSON.parse(body || '{}');
+      const list = tier ? store.websitesInTier(tier) : (Array.isArray(websites) ? websites : []);
+      const result = store.forget(list);
+
+      let freed = 0;
+      for (const slug of result.slugs) {
+        const shot = path.join(OUT, 'shots', `${slug}.jpg`);
+        try { freed += fs.statSync(shot).size; fs.rmSync(shot, { force: true }); } catch { /* already gone */ }
+      }
+      res.end(JSON.stringify({ ok: true, removed: result.removed, freedBytes: freed, ...store.summary() }));
+    } catch (e) {
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/leads') {
     // So the page can show what is already on disk. Results used to live only
     // in the window, and pressing Start wiped them - a night's work looked
@@ -533,6 +570,13 @@ const server = http.createServer(async (req, res) => {
         name: l.business?.name, website: l.business?.website,
         tier: l.tier, score: l.score, confidence: l.confidence,
         review: l.review ?? null, note: l.dropReason ?? null,
+        // Who this is, as opposed to how bad the site is. The page needs both
+        // to decide whether to send a proposal, send a free offer, or look
+        // harder before sending anything.
+        size: l.audit?.business?.size ?? null,
+        sizeWhy: l.audit?.business?.reasons ?? [],
+        vitality: l.audit?.vitality?.state ?? null,
+        vitalityWhy: l.audit?.vitality?.reasons ?? [],
         findings: (l.hits ?? []).map(h => ({ label: h.label, points: h.points, evidence: h.evidence })),
       }));
     res.end(JSON.stringify(rows));

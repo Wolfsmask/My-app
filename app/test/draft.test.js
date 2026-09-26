@@ -181,3 +181,39 @@ test("reads like a person, not a form", () => {
   // Short enough that a busy owner reads all of it.
   assert.ok(body.split(/\s+/).length < 170, "under 170 words");
 });
+
+test("a very small business is offered the work free, not a $900 proposal", () => {
+  /*
+    The whole point of measuring how big a business is. A one-person shop with
+    a genuinely bad website gets an offer to build it for nothing; the same
+    bad website behind a company with staff and trucks gets the normal letter.
+  */
+  const site = {
+    business: { name: "Tony's Pizza", town: "Liberty, MO", category: "restaurant" },
+    score: 48,
+    hits: [{ id: "looks_dated", points: 29, label: "The design looks dated", evidence: "The design reads as the early 2010s." }],
+    audit: { business: { size: "micro", offerFree: true } },
+  };
+  const free = draftEmail(site, { address: "PO Box 1, Liberty MO" });
+  assert.equal(free.offerFree, true);
+  assert.match(free.body, /free/i);
+  assert.doesNotMatch(free.body, /\$\s?\d/, "no price is quoted at somebody who is being offered it free");
+  // And nothing in it says or implies they look poor.
+  assert.doesNotMatch(free.body, /struggl|afford|cheap|small business|tight/i);
+
+  const paid = draftEmail({ ...site, audit: { business: { size: "established", offerFree: false } } },
+    { address: "PO Box 1, Liberty MO" });
+  assert.equal(paid.offerFree, false);
+  assert.notEqual(paid.body, free.body);
+});
+
+test("a small business with a decent website is not offered a free rebuild", () => {
+  // The offer is for businesses that need the work, not for every small one.
+  const barelyAnything = {
+    business: { name: "Quiet Cafe", town: "Liberty, MO" },
+    score: 11,
+    hits: [{ id: "stale_copyright", points: 8, label: "Footer looks abandoned", evidence: "Footer still says 2021." }],
+    audit: { business: { size: "micro", offerFree: true } },
+  };
+  assert.equal(draftEmail(barelyAnything, { address: "PO Box 1" }).offerFree, false);
+});
