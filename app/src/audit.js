@@ -10,6 +10,7 @@ import dns from "node:dns/promises";
 import net from "node:net";
 import { structure, interpretStructure, detectOldLibraries, visualAge } from "./visual.js";
 import { vitality, sizeOf, latestYearIn } from "./business.js";
+import { findBusinessEmail } from "./emails.js";
 
 const UA =
   "Mozilla/5.0 (compatible; MBOnyxAudit/1.0; +https://mbonyx.netlify.app/) " +
@@ -145,53 +146,9 @@ export function detectPlatform(html, headers = {}) {
  * Audits one site. Shares a browser across calls so a run of 50 sites does not
  * pay browser startup 50 times.
  */
-/**
- * Which address on the page belongs to the business.
- *
- * A page carries more than one. There is the owner's, and then there is the
- * web designer's in the footer, the theme vendor's in a comment, an image
- * library's, a "noreply@" from a form service, and whatever placeholder the
- * template shipped with. Writing to any of those is worse than writing to
- * none: it is a stranger receiving a letter about a website that is not
- * theirs.
- *
- * So the address is only accepted when it sits on the business's own domain.
- * An owner on gmail.com or a webmail account is common and real, but there is
- * no way to tell theirs from their designer's, so those are offered as a
- * maybe rather than used.
- */
-export function pickBusinessEmail(candidates, siteUrl) {
-  const NEVER = /^(noreply|no-reply|donotreply|do-not-reply|postmaster|abuse|webmaster@wordpress|sentry|support@(wix|squarespace|godaddy|weebly|shopify|duda))/i;
-  // Matched against the domain on its own. Run against the whole address it
-  // never fired, because every domain sits behind an "@" rather than at the
-  // start or after a dot - so "info@example.com" came through as a candidate.
-  const JUNK_DOMAIN = /^(example|test|localhost|sentry|wixpress|wix|squarespace|shopify|godaddy|weebly|duda|w3|schema|googleapis|gstatic|jquery|bootstrapcdn|sentry-cdn)\./i;
-
-  const seen = new Set();
-  const clean = [];
-  for (const raw of candidates ?? []) {
-    const addr = String(raw).trim().toLowerCase().replace(/[.,;:)\]]+$/, "");
-    if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(addr)) continue;
-    const domain = addr.split("@")[1] ?? "";
-    if (NEVER.test(addr) || JUNK_DOMAIN.test(domain)) continue;
-    if (/\.(png|jpe?g|gif|svg|webp|css|js)$/i.test(addr)) continue;
-    if (seen.has(addr)) continue;
-    seen.add(addr);
-    clean.push(addr);
-  }
-  if (!clean.length) return { email: null, confident: false, candidates: [] };
-
-  let host = "";
-  try { host = new URL(siteUrl).hostname.replace(/^www\./i, "").toLowerCase(); } catch { /* not a URL */ }
-  const root = host.split(".").slice(-2).join(".");
-
-  // On their own domain: as good as it gets without asking them.
-  const onDomain = clean.find(a => root && a.endsWith("@" + root)) ??
-                   clean.find(a => root && a.split("@")[1]?.endsWith("." + root));
-  if (onDomain) return { email: onDomain, confident: true, candidates: clean };
-
-  return { email: null, confident: false, candidates: clean };
-}
+// The address picker lives with the rest of the email finding; re-exported
+// here because this is where callers have always imported it from.
+export { pickBusinessEmail } from "./emails.js";
 
 /**
  * How the page is laid out, as opposed to how old its code is.
@@ -620,15 +577,6 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
           .slice(0, 25),
         title: document.title,
 
-        // Every address on the page, in the order found, plus the ones written
-        // as mailto: links first. Sorting out which one is the business's is
-        // done outside the page, where it can be tested.
-        mailtos: [...document.querySelectorAll('a[href^="mailto:" i]')]
-          .map(a => (a.getAttribute("href") || "").replace(/^mailto:/i, "").split("?")[0].trim())
-          .filter(Boolean)
-          .slice(0, 20),
-        emailText: ((document.body ? document.body.innerText : "") + " " + (document.head ? document.head.innerHTML : ""))
-          .match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)?.slice(0, 30) ?? [],
       };
     });
 
@@ -745,12 +693,6 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
       return out;
     }
 
-    const found = pickBusinessEmail([...(measured.mailtos ?? []), ...(measured.emailText ?? [])], out.finalUrl || target);
-    out.contactEmail = found.email;
-    // Kept separately: an address that is not on their domain might be theirs
-    // or might be their web designer's, and the page says which it is rather
-    // than quietly picking one.
-    out.emailCandidates = found.candidates.slice(0, 5);
 
     /*
       Layout is judged on a desktop screen, not the phone one everything else
@@ -893,6 +835,16 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
       await page.screenshot({ path: screenshotPath, type: "jpeg", quality: 72 });
       out.screenshotPath = screenshotPath;
     }
+
+    /*
+      The email address, looked for last because it may leave the homepage.
+
+      Everything above measures the homepage as a visitor sees it. Finding
+      the address can mean opening the contact page, so it runs once the
+      homepage is finished with - including the screenshot, which would
+      otherwise be of the contact page.
+    */
+    Object.assign(out, emailFields(await findBusinessEmail(page, out.finalUrl || target)));
   } catch (e) {
     out.fetchFailed = true;
     out.error = e.message.split("\n")[0].slice(0, 200);
@@ -948,6 +900,49 @@ async function countBrokenLinks(links, hostname, { allowLocal = false, max = 10 
     await new Promise(r => setTimeout(r, 300));
   }
   return broken;
+}
+
+/** The parts of a search the rest of the app reads. */
+function emailFields(found) {
+  return {
+    contactEmail: found.email,
+    contactEmailWhy: found.why,
+    contactEmailFoundOn: found.foundOn,
+    // Addresses that might be theirs but were not good enough to use on their
+    // own - shown on the draft so they can be chosen by hand.
+    emailCandidates: (found.candidates ?? []).filter(a => a !== found.email).slice(0, 5),
+    emailPagesSearched: found.searched ?? [],
+    emailSearchVersion: found.version ?? 1,
+  };
+}
+
+/**
+ * Looks for a business's email address without re-auditing the whole site.
+ *
+ * For leads saved before the finder learned to open contact pages and read
+ * Gmail and Cloudflare-protected addresses: re-checking the whole site to get
+ * one field would cost a dozen seconds each and change scores nobody asked to
+ * change.
+ */
+export async function searchEmails(url, { browser, timeoutMs = 25000, allowLocal = false } = {}) {
+  const owned = !browser;
+  browser = browser || (await launchBrowser());
+  let context;
+  try {
+    const target = url.startsWith("http") ? url : `https://${url}`;
+    await assertPublicTarget(new URL(target).hostname, { allowLocal });
+    context = await browser.newContext({ viewport: { width: 1280, height: 900 }, userAgent: UA, ignoreHTTPSErrors: true });
+    const page = await context.newPage();
+    const resp = await page.goto(target, { waitUntil: "domcontentloaded", timeout: timeoutMs });
+    if (resp && resp.status() >= 400) return { ...emailFields({ email: null, candidates: [], searched: [target], version: 2 }), error: `server returned ${resp.status()}` };
+    await page.waitForTimeout(1500);
+    return emailFields(await findBusinessEmail(page, page.url()));
+  } catch (e) {
+    return { ...emailFields({ email: null, candidates: [], searched: [], version: 0 }), error: e.message.split("\n")[0].slice(0, 160) };
+  } finally {
+    await context?.close().catch(() => {});
+    if (owned) await browser.close().catch(() => {});
+  }
 }
 
 export async function launchBrowser() {

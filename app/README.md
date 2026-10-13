@@ -3,8 +3,9 @@
 Finds local businesses whose websites genuinely need rebuilding, measures what's wrong, and
 scores them 0–100.
 
-**It audits. It does not email anyone.** There is no sending code in here at all — that is
-deliberate, and it is Phase 3 work gated behind the setup in `docs/SETUP-CHECKLIST.md`.
+**It only emails when you tell it to.** Letters go out through your own Gmail, one at a time,
+only after you press Send — and never to a business with no address on its site, never twice
+to the same inbox, and never to anyone who asked not to be contacted.
 
 ## Quick start — no terminal
 
@@ -146,25 +147,75 @@ the drafts are built from the findings the audit measured, so every number in an
 number taken off that business's own page. A draft citing a figure nobody measured is flagged
 and never presented as ready.
 
-Before sending anything, fill in **your details**. US law (CAN-SPAM) requires a real postal
-address in commercial email — a PO box counts, and costs a few dollars a month. Until one is
-set, every draft carries a warning and is for practice only. Each draft also carries an
-opt-out line and names who is writing.
+**Your details** go at the bottom of every letter: name, email, and the postal address US law
+(CAN-SPAM) requires in commercial email. Your PO box is filled in already. Each letter also
+carries an opt-out line and names who is writing.
 
 They are written in the words an owner uses, not the words the report uses — no pixels, no
 milliseconds, no "viewport". A number only appears where a person would use one themselves:
 the year in the footer, how many links are broken. And every part is drawn from several
 phrasings, so a town's worth of these do not read as the same letter with the name swapped.
 
-**Open in Gmail** opens a compose tab with the business's address, the subject and the whole
-letter already filled in. You read it, change anything you want, and press Send. Nothing is
-ever sent for you.
+#### Where the address comes from
 
-The address comes off their own website, and only when it is on their own domain. A page
-usually carries the web designer's address too, and a `noreply@`, and whatever the template
-shipped with — writing to one of those is worse than writing to none. When nothing on their
-domain is found, the button still opens the draft with the To field empty and the page shows
-what it did find, for you to check.
+It reads the homepage, and if there is nothing usable there it opens their **contact page**,
+then an about page — up to three pages. On each it reads:
+
+* `mailto:` links, and addresses written in the text;
+* addresses hidden by **Cloudflare**, which shows visitors the address but leaves the page
+  saying `[email protected]` — common on WordPress sites;
+* addresses written out to dodge spam bots, like `info [at] example [dot] com`;
+* the business details some sites carry for Google.
+
+It takes, in order: an address on their own domain; one on a domain that shares their business
+name; or a Gmail, Yahoo, Outlook or similar address printed on their site — that is the
+business's, overwhelmingly. It refuses `noreply@` addresses, website builders' support desks,
+template placeholders like `yourname@gmail.com`, and anything in a **"website by" / "designed
+by"** line, which is the web designer's. An unrelated company's address is shown as a maybe for
+you to choose by hand, never used on its own.
+
+Leads saved before this was added are searched again the first time you press **Write the
+emails**.
+
+#### The three groups
+
+* **Ready to send** — a real address and nothing that needs fixing.
+* **Need a look** — there is an address, but something in the yellow note needs dealing with
+  (nothing specific measured, or that address already got a letter for another business).
+  These are never sent by Send all.
+* **No email anywhere on their site** — it looked on the homepage and the contact page and
+  found none. These are never sent; there is nobody to send to. Their contact form is the way
+  in if you want one.
+
+#### Sending
+
+Set up **Send from Gmail** once: your Gmail address and an *app password* (instructions are
+in the app). Your normal password will not work — Google refuses it for programs. The app
+password is saved only on your computer, in `app/out/ui/mail.json`.
+
+* **Send me a test** sends the first letter to yourself, so you see exactly what an owner gets.
+* **Send now** sends that one letter.
+* **Send all** sends every ready letter **one at a time**, with a pause between each (90
+  seconds by default, varied a little), up to **25 a day**. Both are adjustable. Keep the tab
+  open; closing it, or pressing Stop, stops it. It also stops by itself if Gmail refuses the
+  sign-in or says too much is going out — pushing on would risk the account being locked.
+* **Open in Gmail** is still there if you would rather send it yourself; press **I sent it
+  myself** afterwards so it leaves the list.
+* **Drop** takes a letter out without sending it.
+
+Anything sent or dropped is never written again. Every letter sent from here lands in your
+Gmail **Sent** folder, and the app keeps its own list under **Sent**. When someone replies
+asking not to be contacted, press **They asked not to be contacted** next to them: the address
+goes on a permanent do-not-email list, which your privacy policy promises, and it survives
+deleting the lead and resetting the app.
+
+#### What the letter leads with
+
+The fault that costs them most — with one exception. If the site takes **four seconds or more**
+to show anything, that leads, with the measured time and Google's finding that more than half
+of people leave a phone page that takes over three seconds. A phone problem then follows as
+"On top of that…". Under four seconds, it is never mentioned as the headline, because it would
+not be true.
 
 ### What it will not do
 
@@ -181,7 +232,7 @@ Google Places has far better data and review counts — see
 > On a Mac the first double-click may say the file is from an unidentified developer.
 > Right-click it → **Open** → **Open**. That only happens once.
 
-Everything runs on your own computer. Nothing is sent anywhere and nothing is emailed.
+Everything runs on your own computer. Nothing is emailed unless you press Send in the Emails tab.
 
 ## Quick start — terminal
 
@@ -336,7 +387,7 @@ an owner reply, an embarrassing one does.
 
 | Signal | Points |
 |---|---|
-| Slow to show anything | 14 |
+| Slow to show anything (graded, full marks by 6s) | 25 |
 | Insecure files on a secure page | 5 |
 | The page jumps around as it loads | 4 |
 | Low mobile performance score (needs a PageSpeed key) | 8 |

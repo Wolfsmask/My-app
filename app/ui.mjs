@@ -18,9 +18,10 @@ import { spawn } from 'node:child_process';
 import { discoverFile, discoverOsm, locate, OSM_CATEGORIES } from './src/discover.js';
 import { resolveWebsite } from './src/resolve.js';
 import { REGIONS, citiesFor, ALL_CITIES } from './src/places.js';
-import { draftEmail, numbersAreReal, claimsAreMeasured } from './src/draft.js';
 import { createStore } from './src/store.js';
-import { auditSite, launchBrowser } from './src/audit.js';
+import { auditSite, launchBrowser, searchEmails } from './src/audit.js';
+import { buildDrafts, wantsLetter } from './src/outbox.js';
+import { loadMailSettings, saveMailSettings, publicSettings, createTransport, explainMailError, sendLetter } from './src/mailer.js';
 import { score, disqualify, qualifies } from './src/score.js';
 import { toCsv, toHtml } from './src/report.js';
 
@@ -47,6 +48,49 @@ let finding = false;
 const ALLOW_LOCAL = process.env.MBONYX_ALLOW_LOCAL === '1';
 
 const send = (res, event) => res.write(JSON.stringify(event) + '\n');
+
+/** A request body as JSON, or {} - never throws on an empty or broken body. */
+async function readJson(req, limit = 1e6) {
+  let body = '';
+  req.on('data', c => { body += c; if (body.length > limit) req.destroy(); });
+  await new Promise(r => req.on('end', r));
+  try { return JSON.parse(body || '{}'); } catch { return {}; }
+}
+
+let searchingEmails = false;
+let sendingAll = false;
+
+/**
+ * Sends the letter for one lead, if - and only if - it is sendable right now.
+ *
+ * The draft is rebuilt here rather than trusted from the page, and the rules
+ * are checked again at the moment of sending: a letter marked ready an hour
+ * ago may since have gone out by hand, or its address may have opted out.
+ * `fatal` means stop sending altogether - a refused sign-in or a rate warning
+ * will not fix itself on the next letter.
+ */
+async function sendOneLetter(website, sender, settings = loadMailSettings(OUT)) {
+  if (!settings.pass) return { ok: false, fatal: true, message: 'No Gmail app password saved yet - add it at the top of this tab.' };
+  const draft = buildDrafts(store, sender).find(d => d.website === website);
+  if (!draft) return { ok: false, message: 'That letter has already been sent or dropped.' };
+  if (!draft.sendable) {
+    return { ok: false, message: draft.to ? `Not sent: ${draft.warnings[0] ?? 'it needs checking first.'}` : 'Not sent: no email address on their site.' };
+  }
+  if (store.sentToday() >= settings.dailyCap) {
+    return { ok: false, fatal: true, message: `That is today's limit of ${settings.dailyCap}. The rest can go tomorrow.` };
+  }
+  try {
+    const { messageId } = await sendLetter(createTransport(settings), settings, {
+      fromName: sender.name, to: draft.to, subject: draft.subject, body: draft.body,
+    });
+    store.setMail(website, 'sent', { to: draft.to, via: 'gmail', messageId, subject: draft.subject });
+    return { ok: true, to: draft.to, message: `Sent to ${draft.to}.` };
+  } catch (e) {
+    const message = explainMailError(e);
+    const fatal = /sign-in|app password|too much mail|reach Gmail/.test(message);
+    return { ok: false, fatal, message };
+  }
+}
 
 /**
  * Searches outward from a town until it runs out of places to look, or until
@@ -462,55 +506,209 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && url.pathname === '/api/emails') {
-    let body = '';
-    req.on('data', c => { body += c; if (body.length > 4e6) req.destroy(); });
-    await new Promise(r => req.on('end', r));
-
+    const { sender } = await readJson(req);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     try {
-      const { sender } = JSON.parse(body || '{}');
-      // Drafts are written from the last run's leads, not from anything the
-      // page sends back, so an email can only ever cite a real measurement.
-      const leads = store.leads;
-      // A lead kept by hand counts as much as a high-ranked one. Filtering on
-      // tier alone meant ticking "actually worth it" on a Tier C put it in
-      // the keep list and then never wrote it a letter - the one case where
-      // the score was overruled on purpose.
-      const worth = leads.filter(l =>
-        l.review !== 'confirmed' && (l.tier === 'A' || l.tier === 'B' || l.review === 'keep'));
-
-      const drafts = worth.map(lead => {
-        const draft = draftEmail(lead, sender ?? {});
-        const check = numbersAreReal(draft, draft.facts);
-        // The other half of the same rule: a sentence with no number in it
-        // can still describe a symptom this site does not have.
-        const claimed = claimsAreMeasured(draft, lead.audit ?? {});
-        return {
-          name: lead.business?.name, website: lead.business?.website,
-          tier: lead.tier, score: lead.score,
-          // The address off their own site, and the ones that might be theirs
-          // but might be their web designer's.
-          to: lead.audit?.contactEmail ?? null,
-          maybe: lead.audit?.emailCandidates ?? [],
-          subject: draft.subject, body: draft.body,
-          // So the page can mark which letters are offering the work free,
-          // rather than making him read each one to find out.
-          offerFree: draft.offerFree,
-          size: lead.audit?.business?.size ?? null,
-          // A draft that cites a number nobody measured is never presentable
-          // as ready, whatever else is right about it.
-          warnings: [
-            ...draft.warnings,
-            ...(check.ok ? [] : [`Contains a number that was not measured: ${check.invented.join(', ')}`]),
-            ...(claimed.ok ? [] : [`Describes something that was not measured on this site: ${claimed.unsupported.join('; ')}. Do not send this without checking it yourself.`]),
-          ],
-        };
-      });
-
-      res.end(JSON.stringify({ drafts, total: leads.length }));
+      // Drafts are written from the saved leads, not from anything the page
+      // sends back, so an email can only ever cite a real measurement - and
+      // the sending routes below build them the same way, so what is sent is
+      // what was shown.
+      const drafts = buildDrafts(store, sender ?? {});
+      const settings = loadMailSettings(OUT);
+      res.end(JSON.stringify({
+        drafts,
+        total: store.leads.length,
+        counts: {
+          ready: drafts.filter(d => d.group === 'ready').length,
+          attention: drafts.filter(d => d.group === 'attention').length,
+          noEmail: drafts.filter(d => d.group === 'noEmail').length,
+        },
+        needSearch: store.leads.filter(l => wantsLetter(l) && (l.audit?.emailSearchVersion ?? 1) < 2).length,
+        sentToday: store.sentToday(),
+        mail: publicSettings(settings),
+      }));
     } catch (e) {
       res.end(JSON.stringify({ error: e.message }));
     }
+    return;
+  }
+
+  /*
+    Looks again for the address of every lead about to get a letter whose
+    site was searched the old way - homepage only, own domain only. Streams,
+    and stops when the tab closes, like everything else that takes a while.
+  */
+  if (req.method === 'POST' && url.pathname === '/api/emails/find') {
+    await readJson(req);
+    if (searchingEmails) { res.writeHead(409).end('already looking'); return; }
+    searchingEmails = true;
+    const stop = new AbortController();
+    res.on('close', () => { stop.abort(); searchingEmails = false; });
+    res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' });
+
+    const todo = store.leads.filter(l => wantsLetter(l) && l.business?.website && (l.audit?.emailSearchVersion ?? 1) < 2);
+    let browser;
+    try {
+      send(res, { type: 'start', total: todo.length });
+      if (todo.length) browser = await launchBrowser();
+      let done = 0, found = 0;
+      const queue = [...todo];
+      const worker = async () => {
+        while (queue.length && !stop.signal.aborted) {
+          const lead = queue.shift();
+          const r = await searchEmails(lead.business.website, { browser, allowLocal: ALLOW_LOCAL });
+          // A site that could not be reached keeps its old answer and is
+          // tried again next time, rather than being written off as "none".
+          if (!r.error || r.contactEmail) store.setEmailSearch(lead.business.website, r);
+          if (r.contactEmail) found++;
+          done++;
+          send(res, { type: 'progress', done, total: todo.length, found, name: lead.business.name, email: r.contactEmail ?? null });
+        }
+      };
+      await Promise.all([worker(), worker(), worker()]);
+      if (!stop.signal.aborted) send(res, { type: 'done', total: todo.length, found });
+    } catch (e) {
+      if (!stop.signal.aborted) send(res, { type: 'error', message: e.message });
+    } finally {
+      await browser?.close().catch(() => {});
+      searchingEmails = false;
+      res.end();
+    }
+    return;
+  }
+
+  /* --- Gmail -------------------------------------------------------------- */
+
+  if (url.pathname === '/api/mail/settings') {
+    if (req.method === 'POST') saveMailSettings(OUT, await readJson(req));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(publicSettings(loadMailSettings(OUT))));
+    return;
+  }
+
+  // Signs in without sending anything, so a wrong password is found out
+  // before the first real letter rather than during it.
+  if (req.method === 'POST' && url.pathname === '/api/mail/verify') {
+    await readJson(req);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    const settings = loadMailSettings(OUT);
+    if (!settings.pass) { res.end(JSON.stringify({ ok: false, message: 'No app password saved yet.' })); return; }
+    try {
+      await createTransport(settings).verify();
+      res.end(JSON.stringify({ ok: true, message: `Signed in to ${settings.user}.` }));
+    } catch (e) {
+      res.end(JSON.stringify({ ok: false, message: explainMailError(e) }));
+    }
+    return;
+  }
+
+  // The first ready letter, sent to himself, so he can see exactly what a
+  // business owner will receive before anyone does.
+  if (req.method === 'POST' && url.pathname === '/api/mail/test') {
+    const { sender } = await readJson(req);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    const settings = loadMailSettings(OUT);
+    const draft = buildDrafts(store, sender ?? {}).find(d => d.group === 'ready') ?? buildDrafts(store, sender ?? {})[0];
+    if (!draft) { res.end(JSON.stringify({ ok: false, message: 'There is no letter to test with yet.' })); return; }
+    try {
+      await sendLetter(createTransport(settings), settings, {
+        fromName: sender?.name, to: settings.user,
+        subject: `[Test - would go to ${draft.to ?? 'nobody, no address'}] ${draft.subject}`, body: draft.body,
+      });
+      res.end(JSON.stringify({ ok: true, message: `Test sent to ${settings.user}. Nothing went to ${draft.name}.` }));
+    } catch (e) {
+      res.end(JSON.stringify({ ok: false, message: explainMailError(e) }));
+    }
+    return;
+  }
+
+  // One letter, now.
+  if (req.method === 'POST' && url.pathname === '/api/mail/send') {
+    const { website, sender } = await readJson(req);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    if (sendingAll) { res.end(JSON.stringify({ ok: false, message: 'Letters are already going out one at a time. Stop that first.' })); return; }
+    const result = await sendOneLetter(website, sender ?? {});
+    res.end(JSON.stringify({ ...result, sentToday: store.sentToday() }));
+    return;
+  }
+
+  /*
+    Every ready letter, one at a time, with a pause between each.
+
+    Stops when he presses Stop or closes the tab, at the daily limit, and at
+    the first sign Gmail is unhappy - a refused sign-in or a rate warning
+    will not fix itself by trying the next letter.
+  */
+  if (req.method === 'POST' && url.pathname === '/api/mail/send-all') {
+    const { sender } = await readJson(req);
+    if (sendingAll) { res.writeHead(409).end('already sending'); return; }
+    sendingAll = true;
+    const stop = new AbortController();
+    res.on('close', () => { stop.abort(); sendingAll = false; });
+    res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' });
+
+    const settings = loadMailSettings(OUT);
+    const queue = buildDrafts(store, sender ?? {}).filter(d => d.sendable);
+    let sent = 0;
+    try {
+      send(res, { type: 'start', total: queue.length, sentToday: store.sentToday(), cap: settings.dailyCap });
+      for (let i = 0; i < queue.length && !stop.signal.aborted; i++) {
+        if (store.sentToday() >= settings.dailyCap) {
+          send(res, { type: 'stopped', reason: `That is today's limit of ${settings.dailyCap}. The rest will be here tomorrow.` });
+          break;
+        }
+        const result = await sendOneLetter(queue[i].website, sender ?? {}, settings);
+        send(res, { type: 'letter', index: i + 1, total: queue.length, name: queue[i].name, website: queue[i].website, ...result });
+        if (result.ok) sent++;
+        else if (result.fatal) { send(res, { type: 'stopped', reason: result.message }); break; }
+
+        if (i < queue.length - 1 && !stop.signal.aborted) {
+          const gap = Math.round(settings.gapSeconds * (0.67 + Math.random() * 0.66));
+          send(res, { type: 'waiting', seconds: gap, next: queue[i + 1].name });
+          await new Promise(r => {
+            const t = setTimeout(r, gap * 1000);
+            stop.signal.addEventListener('abort', () => { clearTimeout(t); r(); }, { once: true });
+          });
+        }
+      }
+      if (!stop.signal.aborted) send(res, { type: 'done', sent, sentToday: store.sentToday() });
+    } catch (e) {
+      if (!stop.signal.aborted) send(res, { type: 'error', message: e.message });
+    } finally {
+      sendingAll = false;
+      res.end();
+    }
+    return;
+  }
+
+  // Sent by hand from Gmail, dropped, or "they asked not to be contacted".
+  if (req.method === 'POST' && url.pathname === '/api/mail/mark') {
+    const { website, status, sender } = await readJson(req);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    const draft = status === 'sent' ? buildDrafts(store, sender ?? {}).find(d => d.website === website) : null;
+    const lead = store.leads.find(l => l.business?.website === website);
+    const ok = store.setMail(website, status ?? null, status === 'sent'
+      ? { to: draft?.to ?? lead?.mail?.to ?? null, via: 'by hand', subject: draft?.subject ?? null }
+      : {});
+    res.end(JSON.stringify({ ok, sentToday: store.sentToday() }));
+    return;
+  }
+
+  // One of the maybes, chosen by hand.
+  if (req.method === 'POST' && url.pathname === '/api/mail/use') {
+    const { website, address } = await readJson(req);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: store.useAddress(website, address) }));
+    return;
+  }
+
+  // What has gone out, newest first, for following up and for opt-outs.
+  if (req.method === 'GET' && url.pathname === '/api/mail/sent') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(store.leads
+      .filter(l => l.mail?.status === 'sent' || l.mail?.status === 'optout')
+      .sort((a, b) => String(b.mail.at).localeCompare(String(a.mail.at)))
+      .map(l => ({ name: l.business?.name, website: l.business?.website, to: l.mail.to, at: l.mail.at, via: l.mail.via, status: l.mail.status }))));
     return;
   }
 

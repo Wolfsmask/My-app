@@ -49,10 +49,57 @@ function pickTrue(options, seed, audit) {
   return chosen && typeof chosen === "object" && "say" in chosen ? chosen.say : chosen;
 }
 
-/** The finding worth leading with: the one that costs them the most. */
-function headline(findings) {
+/*
+  A phrasing that only applies when something was actually measured.
+
+  "Not responsive" turned out to cover two opposite symptoms. A page that
+  declares a viewport and overflows it has to be dragged sideways; a page that
+  declares nothing is shrunk to about 40% and comes out too small to read.
+  Nothing overflows in the second case and nothing is tiny in the first, and
+  the phrasings were picked by a hash of the business name - so roughly half
+  the time the email described a symptom the owner would open their phone and
+  fail to find.
+
+  That is the one mistake this file cannot afford. Being wrong about a
+  stranger's business, in writing, is worse than not writing at all.
+*/
+const when = (test, say) => ({ test, say });
+
+/**
+ * The finding worth leading with.
+ *
+ * Usually the one that costs them the most points. One exception, set on
+ * purpose: a site that takes four seconds or more before anything appears
+ * leads with that, whatever else is wrong with it. It is the one fault an
+ * owner can check in five seconds on their own phone, and the one where the
+ * cost is plainest - the visitor has gone to the next business before the
+ * page arrives. Anything else wrong with the site follows as an "also".
+ */
+const SLOW_HEADLINE_MS = 4000;
+function headline(findings, audit = {}) {
+  const slow = findings.find(f => f.id === "slow_lcp");
+  if (slow && audit.lcpMs != null && audit.lcpMs >= SLOW_HEADLINE_MS) return slow;
   return [...findings].sort((a, b) => b.points - a.points)[0] ?? null;
 }
+
+/**
+ * One more fault, said in a sentence, after the headline. Kept to the ones a
+ * person sees for themselves, and gated on the measurement like everything
+ * else - an "also" that is not true is still not true.
+ */
+const ALSO = {
+  not_responsive: [
+    when(a => a.mobileOverflowPct >= 10 || a.mobileCutOff >= 3,
+      () => `On top of that, on a phone the page runs off the side of the screen, so it has to be dragged around to read.`),
+    when(a => a.effectiveBodyPx != null && a.effectiveBodyPx < 9,
+      () => `On top of that, on a phone the whole page gets shrunk down, so the writing is too small to read without zooming in.`),
+  ],
+  looks_dated: [() => `The design also looks quite a bit older than the business is.`],
+  poor_layout: [() => `The page is also laid out in a way that makes it hard to see what you do at a glance.`],
+  slow_lcp: [a => `It also takes about ${(a.lcpMs / 1000).toFixed(1)} seconds before anything shows up, which loses people who will not wait.`],
+  no_contact: [() => `It is also not obvious how to call you without scrolling down.`],
+  stale_copyright: [a => `And the bottom of the page still says ${a.copyrightYear}.`],
+};
 
 /**
  * How each problem is described to an owner - in terms of what it costs them,
@@ -80,21 +127,7 @@ function headline(findings) {
  * broken. Several phrasings each, chosen by the business, so two owners who
  * know each other do not compare notes and find the same letter.
  */
-/*
-  A phrasing that only applies when something was actually measured.
 
-  "Not responsive" turned out to cover two opposite symptoms. A page that
-  declares a viewport and overflows it has to be dragged sideways; a page that
-  declares nothing is shrunk to about 40% and comes out too small to read.
-  Nothing overflows in the second case and nothing is tiny in the first, and
-  the phrasings were picked by a hash of the business name - so roughly half
-  the time the email described a symptom the owner would open their phone and
-  fail to find.
-
-  That is the one mistake this file cannot afford. Being wrong about a
-  stranger's business, in writing, is worse than not writing at all.
-*/
-const when = (test, say) => ({ test, say });
 
 const OBSERVE = {
   not_responsive: [
@@ -141,10 +174,8 @@ const OBSERVE = {
     () => `Someone landing on the page cannot see how to call you without scrolling.`,
   ],
   slow_lcp: [
-    a => `It takes about ${(a.lcpMs / 1000).toFixed(1)} seconds before anything shows up on the screen.`,
-    a => a.lcpMs >= 4000
-      ? `There is a pause of several seconds before the page shows anything at all.`
-      : `There is a noticeable wait before the page shows anything.`,
+    a => `When I loaded your site, it took about ${(a.lcpMs / 1000).toFixed(1)} seconds before anything showed up on the screen.`,
+    a => `Your site takes about ${(a.lcpMs / 1000).toFixed(1)} seconds to show anything when it first opens.`,
   ],
   layout_shift: [
     () => `While it is loading, things jump around on the screen - so you go to tap something and it moves.`,
@@ -218,6 +249,15 @@ const CONSEQUENCE = {
     `Someone who has to hunt for a phone number usually does not hunt for long.`,
   ],
   slow_lcp: [
+    /*
+      A cited figure, not a measurement of their site - Google's research on
+      mobile pages, widely published - so it is said as Google's finding and
+      written in words: the number check is for figures about their site.
+    */
+    when(a => a.lcpMs >= SLOW_HEADLINE_MS,
+      `Google's own research found that more than half of people leave a page on their phone if it takes longer than three seconds - and on a search results page, the next business is one tap away.`),
+    when(a => a.lcpMs >= SLOW_HEADLINE_MS,
+      `Most people will not wait that long. Google found more than half leave a phone page that takes over three seconds, and they usually go straight to the next business in the search results.`),
     `People leave a page that keeps them waiting, and most of them do not come back.`,
   ],
   looks_dated: [
@@ -263,9 +303,11 @@ const SHORT_FIX = {
 };
 
 /** Two or three things, as a sentence rather than a list. */
-function whatNeedsDoing(findings) {
+function whatNeedsDoing(findings, first = null) {
   const bits = [...findings]
-    .sort((a, b) => b.points - a.points)
+    // The headline's fix leads, so the letter does not open on speed and
+    // then list speed last.
+    .sort((a, b) => (b.id === first?.id) - (a.id === first?.id) || b.points - a.points)
     .map(f => SHORT_FIX[f.id])
     .filter(Boolean)
     .slice(0, 3);
@@ -336,7 +378,7 @@ export function draftEmail(lead, sender = {}) {
   // every real lead produced an email with no measurement in it at all -
   // which is the one thing the email exists to carry.
   const findings = lead.hits ?? lead.audit?.findings ?? lead.findings ?? [];
-  const lead_ = headline(findings);
+  const lead_ = headline(findings, lead.audit ?? {});
 
   const from = sender.name ?? "Brennen";
   const email = sender.email ?? "mbonyxstudios@gmail.com";
@@ -394,6 +436,7 @@ export function draftEmail(lead, sender = {}) {
   // Tied to what the email is actually about. Picked at random it promised
   // "Your website on a phone" above a letter about obsolete software.
   const SUBJECTS = {
+    slow_lcp: [`How long your website takes to load`, `Your website's loading time`, `A few seconds on your website`],
     not_responsive: [`Your website on a phone`, `Your site on a phone screen`, `How your website looks on a phone`],
     looks_dated: [`The look of your website`, `Something I noticed about your website`, `Your website's design`],
     dead_platform: [`What your website is built on`, `Something worth knowing about your site`],
@@ -412,10 +455,27 @@ export function draftEmail(lead, sender = {}) {
   // business and is held to the measurements; the sign-off is contact details
   // and a legal requirement, and its house number is not a claim about
   // anyone's website.
-  const summary = whatNeedsDoing(findings);
+  const summary = whatNeedsDoing(findings, lead_);
+
+  /*
+    The next thing wrong, as an "also" - so a slow site's letter still
+    mentions that it breaks on a phone, without the phone leading. Only the
+    faults worth a sentence, and only one: a list of everything wrong reads
+    like an audit, not a letter.
+  */
+  let also = null;
+  const next = [...findings]
+    .filter(f => f.id !== lead_?.id && ALSO[f.id] && f.points >= 8)
+    .sort((a, b) => b.points - a.points)[0];
+  if (next) {
+    try {
+      const say = pickTrue(ALSO[next.id], business + "also", audit);
+      also = typeof say === "function" ? (say(audit) ?? null) : (say ?? null);
+    } catch { also = null; }
+  }
 
   const claims = [
-    [opener, observation, consequence].filter(Boolean).join(" "),
+    [opener, observation, consequence, also].filter(Boolean).join(" "),
     ...(summary ? [``, summary] : []),
     ``,
     `I build websites for local businesses - I am based in Liberty, so I am nearby rather than a company in another state. You can see some of my work at ${site}.`,
@@ -512,7 +572,7 @@ const SYMPTOM_CLAIMS = [
   },
   {
     what: "a wait before the page shows anything",
-    said: /before anything shows|noticeable wait|pause of several seconds/i,
+    said: /before anything (shows|showed|appears|appeared)|to show anything|noticeable wait|pause of several seconds/i,
     measured: a => a.lcpMs != null && a.lcpMs > 1500,
   },
   {

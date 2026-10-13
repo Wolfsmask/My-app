@@ -27,13 +27,73 @@ test("prefers the business over whoever built the site", () => {
   assert.equal(r.email, "info@bucknersheating.com");
 });
 
-test("will not guess when nothing is on their domain", () => {
-  // An owner on gmail is common and real, but there is no way to tell theirs
-  // from their nephew's who built the site. Offered as a maybe, never used.
+test("a Gmail address on their own site is theirs", () => {
+  /*
+    This used to be refused - "no way to tell theirs from the designer's" -
+    and it was the single biggest reason half the drafts said "no email" for
+    businesses whose address was the first thing on their homepage. A free
+    address printed on a business's own contact line is the business's.
+    What identifies a designer is the words around it, tested below.
+  */
   const r = pickBusinessEmail(["bucknershvac@gmail.com", "mate@yahoo.com"], SITE);
+  assert.equal(r.email, "bucknershvac@gmail.com", "the one that matches their name wins");
+  assert.equal(r.confident, true);
+  assert.match(r.why, /gmail\.com address/);
+});
+
+test("a designer's credit line is never taken for the business", () => {
+  const credit = { address: "pixelco.design@gmail.com", source: "text", context: "© 2025 Buckner's. Website by Pixel Co — pixelco.design@gmail.com" };
+  // Alone, it is refused outright and not even offered as a maybe.
+  const alone = pickBusinessEmail([credit], SITE);
+  assert.equal(alone.email, null);
+  assert.deepEqual(alone.candidates, []);
+
+  // And a context-free sighting of the same address - from the page's joined
+  // text - must not launder it. That is exactly how it slipped through.
+  const laundered = pickBusinessEmail([credit, { address: "pixelco.design@gmail.com", source: "text" }], SITE);
+  assert.equal(laundered.email, null);
+
+  // Next to the owner's own address, the owner's is chosen.
+  const both = pickBusinessEmail([credit, { address: "bucknershvac@gmail.com", source: "mailto", context: "Email us: bucknershvac@gmail.com" }], SITE);
+  assert.equal(both.email, "bucknershvac@gmail.com");
+
+  for (const words of ["Designed by Pixel Co", "Site by Pixel", "Powered by Pixel Co", "Web design by Pixel Co", "SEO by Pixel"]) {
+    assert.equal(pickBusinessEmail([{ address: "p@gmail.com", context: `${words} p@gmail.com` }], SITE).email, null, words);
+  }
+});
+
+test("a template's placeholder Gmail is not anyone's address", () => {
+  for (const addr of ["yourname@gmail.com", "email@gmail.com", "you@yahoo.com", "john.doe@gmail.com", "name@outlook.com"]) {
+    assert.equal(pickBusinessEmail([addr], SITE).email, null, addr);
+  }
+});
+
+test("a domain that shares their business name counts as theirs", () => {
+  // bucknersheating.com, with the office on bucknershvac.com.
+  const r = pickBusinessEmail(["hello@unrelated-supplier.com", "office@bucknershvac.com"], SITE);
+  assert.equal(r.email, "office@bucknershvac.com");
+  assert.match(r.why, /matching their business name/);
+});
+
+test("an unrelated company's address is offered, never used on its own", () => {
+  // As likely a supplier, a parent company or a booking platform as them.
+  const r = pickBusinessEmail(["orders@acmesupply.com"], SITE);
   assert.equal(r.email, null);
-  assert.equal(r.confident, false);
-  assert.deepEqual(r.candidates, ["bucknershvac@gmail.com", "mate@yahoo.com"]);
+  assert.deepEqual(r.candidates, ["orders@acmesupply.com"]);
+});
+
+test("own domain beats a Gmail address, which beats nothing", () => {
+  const r = pickBusinessEmail(["bucknershvac@gmail.com", "office@bucknersheating.com"], SITE);
+  assert.equal(r.email, "office@bucknersheating.com");
+});
+
+test("Cloudflare's hidden addresses decode", async () => {
+  const { decodeCfEmail } = await import("../src/emails.js");
+  // Key 0x5a, then each character XORed with it - how the page ships it.
+  const hex = "5a" + [..."info@bucknersheating.com"].map(c => (c.charCodeAt(0) ^ 0x5a).toString(16).padStart(2, "0")).join("");
+  assert.equal(decodeCfEmail(hex), "info@bucknersheating.com");
+  assert.equal(decodeCfEmail("zz"), null);
+  assert.equal(decodeCfEmail(""), null);
 });
 
 test("refuses addresses nobody reads", () => {

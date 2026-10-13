@@ -94,6 +94,20 @@ export function createStore(dir) {
     nothing next to re-checking the same site every night.
   */
   const forgotten = new Set(read(file("forgotten.json"), [], note));
+  /*
+    Every address that asked not to be contacted, kept apart from the leads.
+    The privacy policy promises a permanent suppression list, and this is it:
+    it outlives deleting a lead, a reset, and the same business turning up
+    again under another name.
+  */
+  const suppressed = new Set(read(file("suppressed.json"), [], note));
+  /*
+    Every address written to, with the date. Kept separately from the leads
+    for the same reason: deleting a lead after writing to it must not make
+    its address look fresh if the business turns up again.
+  */
+  const sentLog = read(file("sent.json"), [], note);
+  const sentTo = new Set(sentLog.map(e => String(e.to ?? "").toLowerCase()).filter(Boolean));
 
   /*
     One copy of the leads as they were when this window opened.
@@ -302,6 +316,75 @@ export function createStore(dir) {
         .filter(Boolean);
     },
 
+    /**
+     * The result of a fresh look for the business's address, written onto
+     * the saved lead without touching anything the audit measured.
+     */
+    setEmailSearch(url, fields) {
+      const lead = leads.find(l => l.business?.website === url);
+      if (!lead) return false;
+      lead.audit = { ...(lead.audit ?? {}), ...fields };
+      write(file("leads.json"), leads);
+      return true;
+    },
+
+    /** An address picked by hand from the maybes on a draft. */
+    useAddress(url, address) {
+      const lead = leads.find(l => l.business?.website === url);
+      if (!lead) return false;
+      const clean = String(address ?? "").trim().toLowerCase();
+      if (clean && !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(clean)) return false;
+      lead.emailOverride = clean || null;
+      write(file("leads.json"), leads);
+      return true;
+    },
+
+    /**
+     * What happened to the letter for this lead. Once it is set the lead is
+     * never drafted again:
+     *   sent     it went, by Gmail from here or by hand ("Mark as sent")
+     *   dropped  decided against writing to them
+     *   optout   they replied asking not to be contacted - and the address
+     *            goes on the suppression list for good
+     */
+    setMail(url, status, details = {}) {
+      const lead = leads.find(l => l.business?.website === url);
+      if (!lead) return false;
+      if (status === null) { delete lead.mail; write(file("leads.json"), leads); return true; }
+      if (!["sent", "dropped", "optout"].includes(status)) return false;
+      lead.mail = { ...(lead.mail ?? {}), ...details, status, at: details.at ?? new Date().toISOString() };
+      if (status === "sent" && lead.mail.to) {
+        const to = String(lead.mail.to).toLowerCase();
+        sentTo.add(to);
+        sentLog.push({ to, website: url, name: lead.business?.name ?? null, at: lead.mail.at, via: lead.mail.via ?? "by hand" });
+        write(file("sent.json"), sentLog);
+      }
+      if (status === "optout") {
+        for (const a of [lead.mail.to, lead.emailOverride, lead.audit?.contactEmail]) {
+          if (a) suppressed.add(String(a).toLowerCase());
+        }
+        write(file("suppressed.json"), [...suppressed]);
+      }
+      write(file("leads.json"), leads);
+      return true;
+    },
+
+    /** Never write to this address again, whichever business it belongs to. */
+    isSuppressed: address => Boolean(address) && suppressed.has(String(address).toLowerCase()),
+
+    /**
+     * Has any business already been written to at this address? A chain with
+     * five locations sharing one inbox should get one letter, not five.
+     */
+    alreadyMailed: address => Boolean(address) && sentTo.has(String(address).toLowerCase()),
+
+    /** Letters sent today, for the daily limit. Local date, as he lives it. */
+    sentToday(now = new Date()) {
+      const day = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      const today = day(now);
+      return sentLog.filter(e => e.via === "gmail" && e.at && day(new Date(e.at)) === today).length;
+    },
+
     /** Deleted by hand and never to be looked at again. */
     isForgotten: url => forgotten.has(url),
 
@@ -324,6 +407,8 @@ export function createStore(dir) {
       folder: dir,
       damaged,
       forgotten: forgotten.size,
+      suppressed: suppressed.size,
+      mailed: leads.filter(l => l.mail?.status === "sent").length,
       towns: Object.keys(places).length,
       searches: done.size,
       found: found.length,

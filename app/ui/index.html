@@ -74,6 +74,30 @@
   .sendrow .go{padding:10px 20px;font-size:.88rem}
   .sendrow .ghost{padding:10px 18px;font-size:.88rem}
   .to{color:var(--muted);font-size:.78rem;flex:1 1 16rem}
+  /* Buttons keep their words on one line; the address drops to its own line. */
+  .draft .sendrow button{white-space:nowrap;flex:none}
+  .draft .sendrow .to{flex:1 1 100%;margin-top:2px}
+  .draft .meta a{color:var(--gold-l);text-decoration-color:rgba(201,173,114,.35)}
+  #gmailmsg:empty,#sendprogress:empty{display:none}
+  .group{margin:26px 0 12px;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .group b{color:var(--text)}
+  .group.ready b{color:var(--a)}
+  .sendall{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+  .sendall .stop{border-color:rgba(248,113,113,.5);color:#fca5a5;margin-left:8px}
+  .draft.gone{opacity:0;transition:opacity .3s ease}
+  .draft .result{font-size:.82rem;margin-top:10px}
+  .draft .result.ok{color:var(--a)}
+  .draft .result.bad{color:var(--bad)}
+  .draft.noemail pre{display:none}
+  .maybe{display:inline-block;margin:4px 6px 0 0}
+  .why{color:var(--muted);font-size:.74rem}
+  details.howto{margin-top:14px}
+  details.howto summary{cursor:pointer;color:var(--soft);font-size:.84rem}
+  details.howto ol{color:var(--soft);font-size:.84rem;line-height:1.7;padding-left:20px}
+  #gmailbox label{display:block;font-size:.72rem;color:var(--muted);margin-bottom:5px}
+  .sentrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 22px;border-top:1px solid var(--line);font-size:.84rem}
+  .sentrow .who{flex:1 1 14rem}
+  .sentrow .when{color:var(--muted);font-size:.76rem}
   .to strong{color:var(--soft);font-weight:600}
 
   .totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;margin:22px 0 4px;display:none}
@@ -159,7 +183,7 @@
 <body>
 <div class="wrap">
   <header><span class="mark">MB</span><h1>Lead Checker</h1></header>
-  <p class="sub">Finds businesses whose websites need rebuilding. Audits only — it never emails anyone.</p>
+  <p class="sub">Finds businesses whose websites need rebuilding. Nothing is emailed unless you press Send.</p>
 
   <nav class="tabs">
     <button class="tab on" data-tab="find">Find &amp; check</button>
@@ -248,14 +272,56 @@ someothercompany.com"></textarea>
       change it here if it ever moves, and it is remembered on this computer.</p>
   </div>
 
+  <details class="panel narrow" id="gmailbox">
+    <summary>Send from Gmail &mdash; <span id="gmailstate">not set up yet</span></summary>
+    <div class="row three">
+      <div><label for="g-user">Gmail address</label><input id="g-user" autocomplete="username"></div>
+      <div><label for="g-pass">App password</label><input id="g-pass" type="password" autocomplete="current-password" placeholder="16 letters from Google"></div>
+      <div class="row" style="margin-top:0">
+        <div><label for="g-cap">Letters a day</label><input id="g-cap" type="number" min="1" max="200"></div>
+        <div><label for="g-gap">Seconds between</label><input id="g-gap" type="number" min="20" max="1800"></div>
+      </div>
+    </div>
+    <div class="sendrow">
+      <button class="ghost" id="g-save">Save</button>
+      <button class="ghost" id="g-verify">Check it signs in</button>
+      <button class="ghost" id="g-test">Send me a test</button>
+      <button class="tiny danger" id="g-forget">Forget the password</button>
+    </div>
+    <p class="status" id="gmailmsg"></p>
+    <details class="howto">
+      <summary>How to get an app password</summary>
+      <ol>
+        <li>Go to <strong>myaccount.google.com/security</strong> while signed in to the Gmail you send from.</li>
+        <li>Turn on <strong>2-Step Verification</strong> if it is not on already. Google only offers app passwords once it is.</li>
+        <li>Search the settings for <strong>App passwords</strong>, make one called &ldquo;MBOnyx&rdquo;, and copy the 16 letters it shows you.</li>
+        <li>Paste them above and press Save, then <strong>Check it signs in</strong>.</li>
+      </ol>
+      <p class="hint">Your normal Gmail password will not work here &mdash; Google refuses it for programs. The app
+        password is saved only on this computer, in <code>app/out/ui/mail.json</code>, and is never shown again. You can
+        cancel it any time from the same Google page without touching your real password.</p>
+    </details>
+  </details>
+
   <div class="panel">
     <button class="go" id="writeall">Write the emails</button>
-    <p class="hint">One draft for every website you have kept. Read each one before you send it — they are a starting
-      point, not something to fire off unread.</p>
+    <p class="hint">One draft for every website you have kept. Before writing, any site not yet searched the thorough
+      way is searched again for an address &mdash; the homepage and their contact page.</p>
     <p class="status" id="mailstatus"></p>
+    <div class="sendall" id="sendallrow" hidden>
+      <button class="go" id="sendall">Send all</button>
+      <button class="ghost stop" id="sendstop" hidden>Stop</button>
+      <p class="hint" id="sendallnote"></p>
+      <p class="status" id="sendprogress"></p>
+    </div>
   </div>
 
   <div id="drafts"></div>
+
+  <details class="panel narrow" id="sentbox" hidden>
+    <summary>Sent &mdash; <span id="sentcount">0</span></summary>
+    <div id="sentlist"></div>
+  </details>
   </section>
 
   <div class="done" id="done">
@@ -571,80 +637,293 @@ Tier D  under 12 — the site is fine, drop it</pre>
   }
 
   /** Drafts one email per kept website. */
+  const post = async (url, body) => (await fetch(url, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}),
+  })).json();
+
+  let mailData = null;
+
+  /**
+   * Looks for addresses on every lead searched the old way, then writes.
+   *
+   * The old search read the homepage only and refused anything that was not
+   * on their own domain, so half the drafts said "no email" for businesses
+   * whose Gmail address was the first thing on the page. Each lead is searched
+   * the new way once, the first time it would get a letter.
+   */
   async function writeEmails() {
     $('writeall').disabled = true;
-    $('mailstatus').textContent = 'Writing\u2026';
+    $('mailstatus').textContent = 'Writing…';
     try {
-      const data = await (await fetch('/api/emails', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender: readSender() }),
-      })).json();
+      let data = await post('/api/emails', { sender: readSender() });
       if (data.error) throw new Error(data.error);
 
-      if (!data.drafts.length) {
-        $('drafts').innerHTML = '';
-        $('mailstatus').textContent = `Nothing to write yet \u2014 no Tier A or B among the ${data.total} checked. `
-          + `Run Find & check first, or keep a lower-ranked one you think is worth it.`;
-        return;
+      if (data.needSearch) {
+        $('mailstatus').textContent = `Looking for email addresses on ${data.needSearch} site${data.needSearch === 1 ? '' : 's'} — homepage and contact page…`;
+        const res = await fetch('/api/emails/find', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        if (res.ok) {
+          await readStream(res, e => {
+            if (e.type === 'progress') {
+              $('mailstatus').textContent = `Looking for email addresses — ${e.done} of ${e.total} checked, ${e.found} found…`;
+            }
+          });
+        }
+        data = await post('/api/emails', { sender: readSender() });
+        if (data.error) throw new Error(data.error);
       }
-
-      $('drafts').innerHTML = data.drafts.map(d => `
-        <div class="draft">
-          <h4>${esc(d.name)}</h4>
-          <div class="meta">Tier ${esc(d.tier)} &middot; scored ${esc(d.score)}${d.website ? ` &middot; ${safeHref(d.website)
-            ? `<a href="${esc(safeHref(d.website))}" target="_blank" rel="noopener noreferrer">${esc(d.website)}</a>`
-            : esc(d.website)}` : ''}</div>
-          ${d.offerFree ? `<div class="lead__who free">This one offers to build it <strong>free</strong>.
-            Their site says a very small business, and a $900 proposal would be the wrong letter.
-            Read it before you send it \u2014 you are promising to do the work for nothing.</div>` : ''}
-          ${d.warnings.length ? `<div class="warn">${d.warnings.map(esc).join('<br>')}</div>` : ''}
-          <p class="subj"><strong>Subject:</strong> ${esc(d.subject)}</p>
-          <pre>${esc(d.body)}</pre>
-          <div class="sendrow">
-            <button class="go send" data-i="${esc(d.name)}">${d.to ? 'Open in Gmail' : 'Open in Gmail (no address)'}</button>
-            <button class="ghost copy" data-i="${esc(d.name)}">Copy this one</button>
-            <span class="to">${d.to
-              ? `To: <strong>${esc(d.to)}</strong>`
-              : d.maybe.length
-                ? `No address on their own domain. Found on the page: ${d.maybe.map(esc).join(', ')} \u2014 check one is theirs before sending.`
-                : `No email address on their site. Their contact form, or the phone number, may be the only way in.`}</span>
-          </div>
-        </div>`).join('');
-
-      for (const btn of $('drafts').querySelectorAll('.send')) {
-        btn.onclick = () => {
-          const d = data.drafts.find(x => x.name === btn.dataset.i);
-          // Gmail's compose link. It opens a draft with everything filled in
-          // and sends nothing - the last action is always a person pressing
-          // Send, having read it.
-          const url = 'https://mail.google.com/mail/?view=cm&fs=1'
-            + (d.to ? `&to=${encodeURIComponent(d.to)}` : '')
-            + `&su=${encodeURIComponent(d.subject)}`
-            + `&body=${encodeURIComponent(d.body)}`;
-          window.open(url, '_blank', 'noopener');
-        };
-      }
-
-      for (const btn of $('drafts').querySelectorAll('.copy')) {
-        btn.onclick = async () => {
-          const d = data.drafts.find(x => x.name === btn.dataset.i);
-          try {
-            await navigator.clipboard.writeText(`Subject: ${d.subject}\n\n${d.body}`);
-            btn.textContent = 'Copied';
-            setTimeout(() => { btn.textContent = 'Copy this one'; }, 1500);
-          } catch { btn.textContent = 'Select the text above and copy it'; }
-        };
-      }
-
-      const unready = data.drafts.filter(d => d.warnings.length).length;
-      $('mailstatus').textContent = `${data.drafts.length} draft${data.drafts.length === 1 ? '' : 's'} ready`
-        + (unready ? `. ${unready} need something dealt with before sending \u2014 see the yellow notes.` : '.');
+      renderDrafts(data);
     } catch (err) {
       $('mailstatus').innerHTML = `<span class="err">${esc(err.message)}</span>`;
     } finally {
       $('writeall').disabled = false;
     }
+    loadSent();
   }
+
+  function renderDrafts(data) {
+    mailData = data;
+    const { drafts, counts } = data;
+    if (!drafts.length) {
+      $('drafts').innerHTML = '';
+      $('sendallrow').hidden = true;
+      $('mailstatus').textContent = `Nothing to write — every Tier A and B lead has been sent or dropped, or there are none yet among the ${data.total} checked.`;
+      return;
+    }
+
+    const card = d => {
+      const site = d.website && safeHref(d.website)
+        ? `<a href="${esc(safeHref(d.website))}" target="_blank" rel="noopener noreferrer">${esc(d.website)}</a>` : esc(d.website ?? '');
+      const toLine = d.to
+        ? `To: <strong>${esc(d.to)}</strong>${d.toWhy ? ` <span class="why">— ${esc(d.toWhy)}</span>` : ''}`
+        : `<strong>No email address anywhere on their site.</strong> Looked on ${d.pagesSearched.length || 1} page${d.pagesSearched.length === 1 ? '' : 's'}`
+          + `${d.pagesSearched.length ? ': ' + d.pagesSearched.map(u => esc(u.replace(/^https?:\/\//, ''))).join(', ') : ''}.`
+          + `${d.phone ? ` Phone: ${esc(d.phone)}.` : ''} Their contact form is the way in, or leave this one.`;
+      const maybes = d.maybe.length && !d.to
+        ? `<div class="to">Found on their site but not obviously theirs — use one only if you have checked it is:
+            ${d.maybe.map(m => `<button class="tiny maybe" data-use="${esc(m)}">Use ${esc(m)}</button>`).join('')}</div>` : '';
+      const buttons = d.group === 'noEmail'
+        ? `<button class="ghost handsent" data-status="sent">I contacted them another way</button>
+           <button class="tiny" data-status="dropped">Drop</button>`
+        : `${d.sendable ? `<button class="go sendnow">Send now</button>` : ''}
+           <button class="${d.sendable ? 'ghost' : 'go'} gmail">Open in Gmail</button>
+           <button class="ghost copy">Copy</button>
+           <button class="ghost handsent" data-status="sent">I sent it myself</button>
+           <button class="tiny" data-status="dropped">Drop</button>`;
+      return `
+        <div class="draft ${d.group === 'noEmail' ? 'noemail' : ''}" data-site="${esc(d.website)}">
+          <h4>${esc(d.name)}</h4>
+          <div class="meta">Tier ${esc(d.tier)} &middot; scored ${esc(d.score)} &middot; ${site}</div>
+          ${d.offerFree ? `<div class="lead__who free">This one offers to build it <strong>free</strong>.
+            Their site says a very small business, and a $900 proposal would be the wrong letter.
+            Read it before you send it — you are promising to do the work for nothing.</div>` : ''}
+          ${d.group === 'attention' && d.warnings.length ? `<div class="warn">${d.warnings.map(esc).join('<br>')}</div>` : ''}
+          ${d.group !== 'noEmail' ? `<p class="subj"><strong>Subject:</strong> ${esc(d.subject)}</p><pre>${esc(d.body)}</pre>` : ''}
+          <div class="sendrow">${buttons}<span class="to">${toLine}</span></div>
+          ${maybes}
+          <p class="result"></p>
+        </div>`;
+    };
+
+    const section = (group, title, note) => {
+      const list = drafts.filter(d => d.group === group);
+      if (!list.length) return '';
+      const body = list.map(card).join('');
+      return group === 'noEmail'
+        ? `<details class="panel narrow"><summary>${title} — ${list.length}. ${note}</summary><div style="padding:0 18px 8px">${body}</div></details>`
+        : `<p class="group ${group}"><b>${list.length}</b> ${title}</p>${note ? `<p class="hint" style="margin:-6px 0 12px">${note}</p>` : ''}${body}`;
+    };
+    $('drafts').innerHTML =
+      section('ready', 'ready to send', 'Each has a real address off their own site and nothing that needs fixing first.')
+      + section('attention', 'need a look before sending', 'Each has an address, but something in the yellow note needs dealing with. These are never sent by Send all.')
+      + section('noEmail', 'No email anywhere on their site', 'Never sent — there is nobody to send to.');
+
+    wireDrafts();
+    updateMailStatus();
+  }
+
+  function updateMailStatus() {
+    if (!mailData) return;
+    const left = [...$('drafts').querySelectorAll('.draft:not(.gone)')];
+    const ready = left.filter(c => c.querySelector('.sendnow')).length;
+    const { counts } = mailData;
+    $('mailstatus').textContent = `${ready} ready to send`
+      + (counts.attention ? `, ${counts.attention} need a look` : '')
+      + (counts.noEmail ? `, ${counts.noEmail} with no email on their site` : '') + '.';
+    const m = mailData.mail;
+    $('sendallrow').hidden = !ready;
+    $('sendall').textContent = `Send all ${ready}, one at a time`;
+    const room = Math.max(0, m.dailyCap - (mailData.sentToday ?? 0));
+    $('sendallnote').textContent = m.hasPassword
+      ? `One every ${Math.round(m.gapSeconds * 0.67)}–${Math.round(m.gapSeconds * 1.33)} seconds, up to ${m.dailyCap} a day (${room} left today). `
+        + `Keep this tab open — closing it stops the sending. Every letter lands in your Gmail Sent folder.`
+      : `Set up "Send from Gmail" above first.`;
+    $('sendall').disabled = !m.hasPassword || !room;
+  }
+
+  /** Takes a card out of the list once its letter is dealt with. */
+  function retire(cardEl, note, ok = true) {
+    const r = cardEl.querySelector('.result');
+    if (r) { r.textContent = note; r.className = `result ${ok ? 'ok' : 'bad'}`; }
+    if (!ok) return;
+    cardEl.querySelectorAll('button').forEach(b => { b.disabled = true; });
+    setTimeout(() => { cardEl.classList.add('gone'); setTimeout(() => { cardEl.remove(); updateMailStatus(); }, 320); }, 900);
+  }
+
+  function wireDrafts() {
+    for (const el of $('drafts').querySelectorAll('.draft')) {
+      const site = el.dataset.site;
+      const d = mailData.drafts.find(x => x.website === site);
+
+      el.querySelector('.sendnow')?.addEventListener('click', async e => {
+        e.target.disabled = true; e.target.textContent = 'Sending…';
+        const r = await post('/api/mail/send', { website: site, sender: readSender() });
+        if (r.ok) { mailData.sentToday = r.sentToday; retire(el, r.message); loadSent(); }
+        else { e.target.disabled = false; e.target.textContent = 'Send now'; retire(el, r.message, false); }
+      });
+
+      el.querySelector('.gmail')?.addEventListener('click', () => {
+        // Gmail's compose window, filled in. Nothing is sent from here -
+        // press "I sent it myself" afterwards and it leaves the list.
+        const url = 'https://mail.google.com/mail/?view=cm&fs=1'
+          + (d.to ? `&to=${encodeURIComponent(d.to)}` : '')
+          + `&su=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.body)}`;
+        window.open(url, '_blank', 'noopener');
+      });
+
+      el.querySelector('.copy')?.addEventListener('click', async e => {
+        try {
+          await navigator.clipboard.writeText(`Subject: ${d.subject}\n\n${d.body}`);
+          e.target.textContent = 'Copied';
+          setTimeout(() => { e.target.textContent = 'Copy'; }, 1500);
+        } catch { e.target.textContent = 'Select the text and copy it'; }
+      });
+
+      for (const b of el.querySelectorAll('[data-status]')) {
+        b.addEventListener('click', async () => {
+          const status = b.dataset.status;
+          const r = await post('/api/mail/mark', { website: site, status, sender: readSender() });
+          if (!r.ok) return retire(el, 'Could not save that.', false);
+          retire(el, status === 'sent' ? 'Marked as sent — it will not be written again.' : 'Dropped — it will not be written again.');
+          if (status === 'sent') loadSent();
+        });
+      }
+
+      for (const b of el.querySelectorAll('[data-use]')) {
+        b.addEventListener('click', async () => {
+          if (!confirm(`Send this letter to ${b.dataset.use}?\n\nOnly do this if you have checked it is their address.`)) return;
+          const r = await post('/api/mail/use', { website: site, address: b.dataset.use });
+          if (r.ok) writeEmails();
+        });
+      }
+    }
+  }
+
+  /* --- Send all, one at a time -------------------------------------------- */
+
+  let sending = null;
+  $('sendall').onclick = async () => {
+    if (!confirm('Send every letter in "ready to send", one at a time?\n\nKeep this tab open. You can stop at any point.')) return;
+    sending = new AbortController();
+    $('sendall').hidden = true; $('sendstop').hidden = false; $('writeall').disabled = true;
+    let countdown = null;
+    try {
+      const res = await fetch('/api/mail/send-all', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sender: readSender() }), signal: sending.signal,
+      });
+      if (!res.ok) throw new Error('Letters are already being sent from another tab.');
+      await readStream(res, e => {
+        clearInterval(countdown);
+        if (e.type === 'start') $('sendprogress').textContent = `Sending ${e.total}…`;
+        if (e.type === 'letter') {
+          const el = [...$('drafts').querySelectorAll('.draft')].find(c => c.dataset.site === e.website);
+          if (el) retire(el, e.message, e.ok);
+          $('sendprogress').textContent = `${e.index} of ${e.total}: ${e.ok ? 'sent to' : 'not sent —'} ${e.ok ? e.to : e.message}`;
+          if (e.ok) loadSent();
+        }
+        if (e.type === 'waiting') {
+          let left = e.seconds;
+          const tick = () => { $('sendprogress').textContent = `Next: ${e.next}, in ${left--}s. You can stop here.`; };
+          tick(); countdown = setInterval(tick, 1000);
+        }
+        if (e.type === 'stopped') $('sendprogress').textContent = e.reason;
+        if (e.type === 'done') $('sendprogress').textContent = `Done — ${e.sent} sent. ${e.sentToday} today in total.`;
+        if (e.type === 'error') $('sendprogress').textContent = e.message;
+      });
+    } catch (err) {
+      if (err.name !== 'AbortError') $('sendprogress').textContent = err.message;
+      else $('sendprogress').textContent = 'Stopped. Nothing more will be sent.';
+    } finally {
+      clearInterval(countdown);
+      sending = null;
+      $('sendall').hidden = false; $('sendstop').hidden = true; $('writeall').disabled = false;
+      updateMailStatus();
+    }
+  };
+  $('sendstop').onclick = () => sending?.abort();
+
+  /* --- Gmail settings ------------------------------------------------------ */
+
+  function showGmail(st) {
+    $('g-user').value = st.user ?? '';
+    $('g-pass').value = '';
+    $('g-pass').placeholder = st.hasPassword ? 'saved — type a new one to replace it' : '16 letters from Google';
+    $('g-cap').value = st.dailyCap;
+    $('g-gap').value = st.gapSeconds;
+    $('gmailstate').textContent = st.hasPassword ? `set up as ${st.user}` : 'not set up yet';
+    $('gmailbox').open = !st.hasPassword;
+    if (mailData) { mailData.mail = st; updateMailStatus(); }
+  }
+  const loadGmail = async () => { try { showGmail(await (await fetch('/api/mail/settings')).json()); } catch {} };
+  const saveGmail = () => post('/api/mail/settings', {
+    user: $('g-user').value, pass: $('g-pass').value, dailyCap: $('g-cap').value, gapSeconds: $('g-gap').value,
+  });
+  $('g-save').onclick = async () => { showGmail(await saveGmail()); $('gmailmsg').textContent = 'Saved.'; };
+  $('g-verify').onclick = async () => {
+    $('gmailmsg').textContent = 'Signing in…';
+    showGmail(await saveGmail());
+    const r = await post('/api/mail/verify');
+    $('gmailmsg').innerHTML = r.ok ? esc(r.message) : `<span class="err">${esc(r.message)}</span>`;
+  };
+  $('g-test').onclick = async () => {
+    $('gmailmsg').textContent = 'Sending a test to yourself…';
+    showGmail(await saveGmail());
+    const r = await post('/api/mail/test', { sender: readSender() });
+    $('gmailmsg').innerHTML = r.ok ? esc(r.message) : `<span class="err">${esc(r.message)}</span>`;
+  };
+  $('g-forget').onclick = async () => {
+    if (!confirm('Remove the saved app password from this computer?')) return;
+    showGmail(await post('/api/mail/settings', { forgetPassword: true }));
+    $('gmailmsg').textContent = 'Forgotten. Letters cannot be sent from here until you add one again.';
+  };
+  loadGmail();
+
+  /* --- What has gone out ---------------------------------------------------- */
+
+  async function loadSent() {
+    try {
+      const rows = await (await fetch('/api/mail/sent')).json();
+      $('sentbox').hidden = !rows.length;
+      $('sentcount').textContent = String(rows.filter(r => r.status === 'sent').length);
+      $('sentlist').innerHTML = rows.map(r => `
+        <div class="sentrow" data-site="${esc(r.website)}">
+          <span class="who"><strong>${esc(r.name)}</strong> — ${esc(r.to ?? 'contacted another way')}</span>
+          <span class="when">${esc(new Date(r.at).toLocaleString())}${r.via === 'gmail' ? ' · sent from here' : ''}</span>
+          ${r.status === 'optout'
+            ? `<span class="why">Asked not to be contacted — on the do-not-email list for good.</span>`
+            : `<button class="tiny danger" data-optout>They asked not to be contacted</button>`}
+        </div>`).join('');
+      for (const b of $('sentlist').querySelectorAll('[data-optout]')) {
+        b.onclick = async () => {
+          const site = b.closest('.sentrow').dataset.site;
+          if (!confirm('Put this business on the do-not-email list for good?')) return;
+          await post('/api/mail/mark', { website: site, status: 'optout' });
+          loadSent();
+        };
+      }
+    } catch { /* nothing sent yet */ }
+  }
+  loadSent();
 
   $('writeall').onclick = writeEmails;
 

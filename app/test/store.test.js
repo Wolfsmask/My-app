@@ -217,7 +217,7 @@ test("reset clears everything, and only on an explicit ask", () => {
   s.addLead({ business: { name: "Arctic Air", website: "https://a.test" }, tier: "B" });
 
   s.reset();
-  const { folder, damaged, forgotten, skippedReasons, tiers, ...counts } = s.summary();
+  const { folder, damaged, forgotten, suppressed, mailed, skippedReasons, tiers, ...counts } = s.summary();
   assert.deepEqual(counts, { towns: 0, searches: 0, found: 0, withSite: 0, audited: 0, kept: 0, closed: 0, awaitingReview: 0, pending: 0 });
   assert.equal(createStore(dir).found.length, 0, "and it stays cleared after a restart");
 });
@@ -340,4 +340,48 @@ test("a reset does not undo a deletion", () => {
 
   s.reset();
   assert.equal(createStore(dir).isForgotten("https://bin.test"), true);
+});
+
+
+/* --------------------------------------------------------------- the outbox */
+
+test("a lead that has been written to is remembered, and so is the address", () => {
+  const s = createStore(dir);
+  s.addBusiness({ name: "Joe's", town: "Liberty, MO", website: "https://joes.test" });
+  s.addLead({ business: { name: "Joe's", website: "https://joes.test" }, tier: "A" });
+  assert.equal(s.alreadyMailed("joes@gmail.com"), false);
+
+  s.setMail("https://joes.test", "sent", { to: "Joes@Gmail.com", via: "gmail" });
+  assert.equal(s.leads[0].mail.status, "sent");
+  assert.equal(s.alreadyMailed("joes@gmail.com"), true, "case does not make it a new address");
+  assert.equal(s.sentToday(), 1);
+
+  // Deleting the lead afterwards must not make the address look fresh.
+  s.forget(["https://joes.test"]);
+  assert.equal(createStore(dir).alreadyMailed("joes@gmail.com"), true);
+});
+
+test("someone who asks not to be contacted is never written to again", () => {
+  /*
+    The privacy policy promises a permanent suppression list. It has to
+    outlive the lead, a reset, and the same address turning up under another
+    business.
+  */
+  const s = createStore(dir);
+  s.addBusiness({ name: "No Thanks Co", town: "Liberty, MO", website: "https://nothanks.test" });
+  s.addLead({ business: { name: "No Thanks Co", website: "https://nothanks.test" }, tier: "B", audit: { contactEmail: "owner@nothanks.test" } });
+  s.setMail("https://nothanks.test", "sent", { to: "owner@nothanks.test", via: "gmail" });
+  s.setMail("https://nothanks.test", "optout");
+
+  assert.equal(s.isSuppressed("OWNER@nothanks.test"), true);
+  s.reset();
+  assert.equal(createStore(dir).isSuppressed("owner@nothanks.test"), true, "a reset does not undo it");
+});
+
+test("an address picked by hand is kept, and nonsense is refused", () => {
+  const s = createStore(dir);
+  s.addLead({ business: { name: "X", website: "https://x.test" }, tier: "A" });
+  assert.equal(s.useAddress("https://x.test", "Office@X-Supply.com"), true);
+  assert.equal(createStore(dir).leads[0].emailOverride, "office@x-supply.com");
+  assert.equal(s.useAddress("https://x.test", "not an address"), false);
 });

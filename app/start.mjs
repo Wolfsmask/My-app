@@ -70,9 +70,21 @@ function header() {
 }
 
 // --- 1. The libraries the checker is built on -------------------------------
-if (!fs.existsSync(path.join(here, 'node_modules', 'playwright'))) {
+/*
+  Every library package.json asks for, not just Playwright.
+
+  Checking only for Playwright meant an update that added a library - the
+  Gmail sender, say - was copied over a folder that already had Playwright,
+  the install never ran, and the app died on start with "Cannot find package"
+  for anyone who updated rather than installed fresh.
+*/
+const wanted = Object.keys(JSON.parse(fs.readFileSync(path.join(here, 'package.json'), 'utf8')).dependencies ?? {});
+const missing = wanted.filter(name => !fs.existsSync(path.join(here, 'node_modules', ...name.split('/'), 'package.json')));
+if (missing.length) {
   header();
-  step('Installing the parts the checker needs.');
+  step(fs.existsSync(path.join(here, 'node_modules'))
+    ? `Adding what this version needs (${missing.join(', ')}).`
+    : 'Installing the parts the checker needs.');
   step('This takes a few minutes. Leave the window open.');
   say();
   if (!await run('npm', ['install'])) {

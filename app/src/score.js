@@ -193,11 +193,13 @@ export const PERFORMANCE = [
       at somewhere over a second, and by five or six they have gone. So it
       is nothing under 1.5s, and full marks by 6s.
 
-      Fourteen points: more than the plumbing, well under how the site looks
-      or whether it works on a phone. Slow is a reason to mention, not a
-      reason to write.
+      Twenty-five points at full marks, by six seconds. It was fourteen, as
+      supporting evidence; it is now treated as what it is to the owner - the
+      visitor gone to a competitor before the page arrives - so a properly
+      slow site counts close to a phone that does not work. A 2-second page
+      still only earns a few points: graded, not a cliff.
     */
-    points: 14,
+    points: 25,
     label: "Slow to show anything",
     test: a => a.lcpMs != null && a.lcpMs > 1500,
     scale: a => Math.max(0.3, Math.min(1, (a.lcpMs - 1500) / 4500)),

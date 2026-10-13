@@ -293,3 +293,53 @@ test("the sign-off is not held to the website's measurements", () => {
   assert.equal(claimsAreMeasured(d, lead.audit).ok, true);
   assert.match(d.body, /PO Box 42/, "the address really is in the letter");
 });
+
+/* ---------------------------------------- a slow site leads with being slow */
+
+test("a site that takes 4 seconds or more leads with that, and the phone is an also", () => {
+  /*
+    What he asked for: if it is true that the site takes about five seconds,
+    that is the headline - the visitor has gone to a competitor before it
+    loads - and not fitting a phone becomes the add-on.
+  */
+  const slowAndBroken = {
+    business: { name: "Halstead Plumbing", town: "Liberty, MO" },
+    score: 70,
+    hits: [
+      { id: "not_responsive", points: 40, label: "Breaks on a phone", evidence: "On a phone: the page lays out 980px wide." },
+      { id: "slow_lcp", points: 21, label: "Slow to show anything", evidence: "The main content takes 5.2 seconds to appear. Google counts anything over 2.5s as slow." },
+    ],
+    audit: { lcpMs: 5200, mobileOverflowPct: 151, mobileCutOff: 8, mobileScrollWidth: 980, effectiveBodyPx: 16 },
+  };
+  const d = draftEmail(slowAndBroken, { address: "PO Box 84, Liberty, MO 64069" });
+  const first = d.claims.split("\n")[0];
+  assert.match(first, /5\.2 seconds/, "the measured time, said plainly");
+  assert.match(first, /more than half of people leave/i, "and what it costs them");
+  assert.match(first, /On top of that, on a phone the page runs off the side/, "the phone problem follows as the also");
+  assert.ok(first.indexOf("5.2 seconds") < first.indexOf("On top of that"), "slow first, phone second");
+  assert.match(d.subject, /load/i);
+  assert.equal(numbersAreReal(d, d.facts).ok, true, JSON.stringify(numbersAreReal(d, d.facts)));
+  assert.equal(claimsAreMeasured(d, slowAndBroken.audit).ok, true);
+});
+
+test("a site that loads quickly is never told it is slow", () => {
+  // Only if it is true. 2.1 seconds is not the five-second story.
+  const quickButBroken = {
+    business: { name: "Wide Load Haulage", town: "Liberty, MO" },
+    score: 55,
+    hits: [
+      { id: "not_responsive", points: 40, label: "Breaks on a phone", evidence: "On a phone: the page lays out 980px wide." },
+      { id: "slow_lcp", points: 4, label: "Slow to show anything", evidence: "The main content takes 2.1 seconds to appear." },
+    ],
+    audit: { lcpMs: 2100, mobileOverflowPct: 151, mobileCutOff: 8, mobileScrollWidth: 980, effectiveBodyPx: 16 },
+  };
+  const d = draftEmail(quickButBroken, { address: "PO Box 84" });
+  assert.match(d.claims.split("\n")[0], /runs off the side|wider than the screen|off the edge/, "the phone leads");
+  assert.doesNotMatch(d.claims, /more than half of people leave|three seconds/);
+});
+
+test("the slow sentence is caught if the page was not actually slow", () => {
+  const draft = { claims: "When I loaded your site, it took about 5.2 seconds before anything showed up on the screen." };
+  assert.equal(claimsAreMeasured(draft, { lcpMs: 700 }).ok, false);
+  assert.equal(claimsAreMeasured(draft, { lcpMs: 5200 }).ok, true);
+});
