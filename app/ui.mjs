@@ -103,6 +103,8 @@ async function sendOneLetter(website, sender, settings = loadMailSettings(OUT)) 
  * business's server.
  */
 const store = createStore(OUT);
+// Everything saved before this version was emailed by hand; see the store.
+const migrated = store.migrateOldSaves();
 
 /**
  * Searches everything, and remembers what it already searched.
@@ -706,7 +708,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/api/mail/sent') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(store.leads
-      .filter(l => l.mail?.status === 'sent' || l.mail?.status === 'optout')
+      .filter(l => (l.mail?.status === 'sent' || l.mail?.status === 'optout') && !l.mail.hidden)
       .sort((a, b) => String(b.mail.at).localeCompare(String(a.mail.at)))
       .map(l => ({ name: l.business?.name, website: l.business?.website, to: l.mail.to, at: l.mail.at, via: l.mail.via, status: l.mail.status }))));
     return;
@@ -775,7 +777,8 @@ const server = http.createServer(async (req, res) => {
     // but they are done with, and putting two thousand of them back on the
     // page every time it opens is not "saved", it is clutter.
     const rows = store.leads
-      .filter(l => l.review !== 'confirmed')
+      // Emailed before the app could send: done with, and kept out of sight.
+      .filter(l => l.review !== 'confirmed' && !l.mail?.hidden)
       .sort((a, z) => (z.score ?? -1) - (a.score ?? -1))
       .map(l => ({
         name: l.business?.name, website: l.business?.website,
@@ -946,6 +949,9 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, '127.0.0.1', () => {
   const url = `http://127.0.0.1:${PORT}`;
   console.log(`\n  MBOnyx lead checker\n  ${url}\n\n  Leave this window open while you use it.\n  Close it, or press Ctrl+C, when you are finished.\n`);
+  if (migrated) {
+    console.log(`  ${migrated} business${migrated === 1 ? '' : 'es'} saved before this version recorded as already emailed.\n  None of them will be written to again, and they are kept out of every list.\n`);
+  }
   open(url);
 });
 

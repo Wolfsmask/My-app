@@ -369,6 +369,59 @@ export function createStore(dir) {
       return true;
     },
 
+    /**
+     * Marks many letters at once, with one write rather than one per lead.
+     * For the day the app learns to send: everything already emailed by hand
+     * before that has to be recorded, or Send all writes to them again.
+     */
+    markManySent(urls, via = "by hand", { hidden = false } = {}) {
+      const wanted = new Set(urls);
+      const at = new Date().toISOString();
+      let marked = 0;
+      for (const lead of leads) {
+        if (!wanted.has(lead.business?.website) || lead.mail?.status) continue;
+        const to = lead.emailOverride ?? lead.audit?.contactEmail ?? null;
+        lead.mail = { status: "sent", via, to, at, ...(hidden ? { hidden: true } : {}) };
+        if (to) {
+          sentTo.add(String(to).toLowerCase());
+          sentLog.push({ to: String(to).toLowerCase(), website: lead.business.website, name: lead.business?.name ?? null, at, via });
+        }
+        marked++;
+      }
+      if (marked) {
+        write(file("leads.json"), leads);
+        write(file("sent.json"), sentLog);
+      }
+      return marked;
+    },
+
+    /**
+     * Once, the first time this version opens his saved work: everything he
+     * kept before the app could send email has already been emailed by hand
+     * from Gmail, so it is recorded as sent and hidden from every list.
+     *
+     * Without this, Send all would write to every one of those businesses a
+     * second time. They stay on disk - that is what stops them being found
+     * and checked again - and their addresses go in the sent log, so the same
+     * business turning up under another name is not written to either.
+     *
+     * A marker file makes it happen exactly once. Leads found after it are
+     * new and get letters as normal.
+     */
+    migrateOldSaves() {
+      const marker = file("migrations.json");
+      const done = read(marker, {}, note);
+      if (done.oldSavesMarkedSent) return 0;
+      const urls = leads
+        .filter(l => !l.mail?.status && l.review !== "confirmed"
+          && (l.tier === "A" || l.tier === "B" || l.review === "keep"))
+        .map(l => l.business?.website)
+        .filter(Boolean);
+      const count = urls.length ? this.markManySent(urls, "before the app could send", { hidden: true }) : 0;
+      write(marker, { ...done, oldSavesMarkedSent: new Date().toISOString(), count });
+      return count;
+    },
+
     /** Never write to this address again, whichever business it belongs to. */
     isSuppressed: address => Boolean(address) && suppressed.has(String(address).toLowerCase()),
 

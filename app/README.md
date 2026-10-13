@@ -174,8 +174,15 @@ template placeholders like `yourname@gmail.com`, and anything in a **"website by
 by"** line, which is the web designer's. An unrelated company's address is shown as a maybe for
 you to choose by hand, never used on its own.
 
-Leads saved before this was added are searched again the first time you press **Write the
-emails**.
+#### Saves from before the app could send
+
+Everything you saved before this version was emailed by hand from Gmail. The first time this
+version starts, every saved Tier A, Tier B and hand-kept lead is recorded as **already
+emailed** and kept out of every list — no drafts, not on the Find & check page, not in Sent.
+They stay on disk, which is what stops them being found and checked again, and their
+addresses count as written to, so the same business turning up under another name is not
+written to either. This happens once (`app/out/ui/migrations.json` records it); everything
+found afterwards gets letters as normal.
 
 #### The three groups
 

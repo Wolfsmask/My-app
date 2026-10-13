@@ -385,3 +385,41 @@ test("an address picked by hand is kept, and nonsense is refused", () => {
   assert.equal(createStore(dir).leads[0].emailOverride, "office@x-supply.com");
   assert.equal(s.useAddress("https://x.test", "not an address"), false);
 });
+
+test("marking many as sent records each once, and skips ones already settled", () => {
+  const s = createStore(dir);
+  for (const [n, to] of [["A", "a@a.test"], ["B", null], ["C", "c@c.test"]]) {
+    s.addLead({ business: { name: n, website: `https://${n}.test` }, tier: "A", audit: { contactEmail: to } });
+  }
+  s.setMail("https://C.test", "dropped");
+  assert.equal(s.markManySent(["https://A.test", "https://B.test", "https://C.test"]), 2, "the dropped one stays dropped");
+  assert.equal(s.alreadyMailed("a@a.test"), true);
+  assert.equal(s.leads.find(l => l.business.name === "C").mail.status, "dropped");
+  assert.equal(s.markManySent(["https://A.test"]), 0, "twice is still once");
+});
+
+test("saves from before sending existed are recorded as emailed, once, and hidden", () => {
+  /*
+    He emailed his whole saved list by hand from Gmail before the app could
+    send. The first time this version opens it, all of them are marked sent -
+    or Send all would write to every one a second time - and hidden.
+  */
+  for (const [n, tier, extra] of [["Old A", "A"], ["Old B", "B"], ["Kept C", "C", { review: "keep" }], ["Old D", "D"], ["Closed A", "A", { review: "confirmed" }]]) {
+    const s = createStore(dir);
+    s.addLead({ business: { name: n, website: `https://${n.replace(" ", "")}.test` }, tier, audit: { contactEmail: `${n.replace(" ", "").toLowerCase()}@x.test` }, ...extra });
+  }
+  const s = createStore(dir);
+  assert.equal(s.migrateOldSaves(), 3, "every A, B and hand-kept lead - not D, not closed");
+  for (const l of s.leads.filter(l => ["Old A", "Old B", "Kept C"].includes(l.business.name))) {
+    assert.equal(l.mail.status, "sent");
+    assert.equal(l.mail.hidden, true);
+  }
+  assert.equal(s.leads.find(l => l.business.name === "Old D").mail, undefined);
+  assert.equal(s.alreadyMailed("olda@x.test"), true, "and the address counts as written to");
+  assert.equal(s.sentToday(), 0, "these were not sent today through Gmail, so they do not use up the daily limit");
+
+  // Exactly once: leads found after it are new, and get letters as normal.
+  s.addLead({ business: { name: "New A", website: "https://NewA.test" }, tier: "A" });
+  assert.equal(createStore(dir).migrateOldSaves(), 0);
+  assert.equal(createStore(dir).leads.find(l => l.business.name === "New A").mail, undefined);
+});

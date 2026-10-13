@@ -34,6 +34,9 @@ const asked = [];
 
 before(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "mbonyx-ui-"));
+  // A store that has already been through the one-time migration of saves
+  // from before sending existed; these leads stand for new work.
+  fs.writeFileSync(path.join(dir, "migrations.json"), JSON.stringify({ oldSavesMarkedSent: "2026-10-01T00:00:00Z" }));
   fs.writeFileSync(path.join(dir, "leads.json"), JSON.stringify([
     lead("Saved A", "A", 62, "keep"),        // saved on a previous night
     lead("Saved B", "B", 31, "keep"),
@@ -105,3 +108,4 @@ test("a bulk delete warns with the number that will actually go", async () => {
   const state = await (await fetch(`${BASE}/api/state`)).json();
   assert.equal(state.tiers.D, undefined, "all five are gone");
 });
+

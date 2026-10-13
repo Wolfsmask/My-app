@@ -44,6 +44,9 @@ before(async () => {
   if (!up) return;
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "mbonyx-mail-"));
   smtp = await startFakeSmtp();
+  // A store that has already been through the one-time migration of saves
+  // from before sending existed; these leads stand for new work.
+  fs.writeFileSync(path.join(dir, "migrations.json"), JSON.stringify({ oldSavesMarkedSent: "2026-10-01T00:00:00Z" }));
   fs.writeFileSync(path.join(dir, "leads.json"), JSON.stringify([
     // Saved before the finder was fixed: searched the old way, no address.
     lead("Joe's Plumbing", `${FIX}/email-gmail.html`, { audit: { emailSearchVersion: 1, contactEmail: null } }),
