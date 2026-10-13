@@ -240,12 +240,12 @@ someothercompany.com"></textarea>
   <div class="panel" id="you">
     <label>Your details — these go at the bottom of every email</label>
     <div class="row three">
-      <div><input id="s-name" placeholder="Brennen"></div>
-      <div><input id="s-email" placeholder="mbonyxstudios@gmail.com"></div>
-      <div><input id="s-addr" placeholder="PO Box 123, Liberty, MO 64068"></div>
+      <div><input id="s-name" placeholder="Your name"></div>
+      <div><input id="s-email" placeholder="Your email"></div>
+      <div><input id="s-addr" placeholder="Your postal address"></div>
     </div>
-    <p class="hint">US law requires a real postal address in a commercial email — a PO box counts, and one costs a few
-      dollars a month at the post office. Until you have one, the drafts below are for practice, not for sending.</p>
+    <p class="hint">US law requires a real postal address in a commercial email. Your PO box is filled in &mdash;
+      change it here if it ever moves, and it is remembered on this computer.</p>
   </div>
 
   <div class="panel">
@@ -954,8 +954,21 @@ Tier D  under 12 — the site is fine, drop it</pre>
   const readSender = () => Object.fromEntries(
     Object.entries(SENDER_KEYS).map(([id, key]) => [key, $(id).value.trim()]).filter(([, v]) => v));
 
+  /*
+    Filled in from the start, so a draft is ready to send without typing
+    anything. A saved value wins; an empty one does not, because an empty
+    postal address is never a choice anyone means to make - it is a box
+    that was cleared by accident, and it makes every draft unsendable.
+  */
+  const SENDER_DEFAULTS = {
+    's-name': 'Brennen',
+    's-email': 'mbonyxstudios@gmail.com',
+    's-addr': 'PO Box 84, Liberty, MO 64069',
+  };
   for (const id of Object.keys(SENDER_KEYS)) {
-    try { $(id).value = localStorage.getItem('mbonyx.' + id) ?? ''; } catch {}
+    let saved = null;
+    try { saved = localStorage.getItem('mbonyx.' + id); } catch {}
+    $(id).value = saved && saved.trim() ? saved : SENDER_DEFAULTS[id];
     $(id).oninput = () => { try { localStorage.setItem('mbonyx.' + id, $(id).value); } catch {} };
   }
 

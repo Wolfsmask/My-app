@@ -55,7 +55,15 @@
     "areaServed": "US",
     "url": "https://mbonyx.netlify.app/",
     "email": "mbonyxstudios@gmail.com",
-    "priceRange": "$900-$2400",
+    "priceRange": "$900-$3200",
+    "address": {
+      "@type": "PostalAddress",
+      "postOfficeBoxNumber": "84",
+      "addressLocality": "Liberty",
+      "addressRegion": "MO",
+      "postalCode": "64069",
+      "addressCountry": "US"
+    },
     "serviceType": "Web Design and Development"
   }
   </script>
@@ -1625,14 +1633,26 @@
     }
 
     /* Compositor-only: opacity and transform, nothing that forces a repaint. */
+    /*
+      Movement only, never a fade.
+
+      This paragraph is the largest block of text on the first screen, so it
+      is what Largest Contentful Paint measures. Fading it in from opacity 0
+      deferred its LCP entry: the fade runs on the compositor, the main thread
+      never repaints it while it happens, and Chrome only recorded it at the
+      next real repaint - when intro-complete removed the animation at about
+      1.9s. Four loads in six then reported 2.07-2.12s against a hero that
+      says "under two seconds".
+
+      Visible from the first frame and merely settling 14px into place, it is
+      recorded the moment it paints.
+    */
     @keyframes copyRise {
       0% {
-        opacity: 0;
-        transform: translate3d(0, 22px, 0);
+        transform: translate3d(0, 14px, 0);
       }
 
       100% {
-        opacity: 1;
         transform: translate3d(0, 0, 0);
       }
     }
@@ -2902,6 +2922,14 @@
       line-height: 1.55;
     }
 
+    /* "(optional)" beside a label, in normal case so it reads as an aside. */
+    .field__optional {
+      color: var(--color-text-muted);
+      font-weight: 500;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
     @keyframes conditionalFieldReveal {
       from {
         opacity: 0;
@@ -3692,7 +3720,7 @@
                 <span class="work-card__kind">Home Services</span>
                 <h3 class="work-card__name">Northpoint Heating &amp; Air</h3>
                 <p class="work-card__note">Emergency-service design set in condensed signage type. The phone number rides
-                  a sticky header so it is on screen at every scroll position, and the licence
+                  a sticky header so it is on screen at every scroll position, and the license
                   number sits where a skeptic looks first.</p>
                 <div class="work-card__tags">
                 <span class="work-card__tag">Condensed type</span>
@@ -3860,7 +3888,7 @@
           business, and it was my first real client. The other five are demonstration
           sites created to show range across industries; those businesses are not real.
           Each of the five is hand-coded, mobile-tested, and shows its main content in
-          under 0.2 seconds on a throttled 4G phone. I would rather tell you which is
+          under 0.3 seconds on a throttled 4G phone. I would rather tell you which is
           which than borrow someone else's screenshots.</span>
         </p>
       </section>
@@ -3872,7 +3900,7 @@
               <span class="section-kicker">Clear from day one</span>
               <h2 class="section-heading">My Process</h2>
               <p class="section-description">
-                A focused three-step system that keeps your project strategic, efficient, and easy to understand.
+                Three steps, one fixed price, and at every point you know exactly what happens next.
               </p>
             </div>
           </div>
@@ -3883,9 +3911,10 @@
                 <span class="process-step__number">Step 01</span>
                 <span class="process-step__icon" aria-hidden="true">◇</span>
               </div>
-              <h3 class="process-step__title">Discovery Strategy</h3>
+              <h3 class="process-step__title">Discovery &amp; Strategy</h3>
               <p class="process-step__description">
-                I map out your business goals and who you are actually trying to reach.
+                I learn how your business wins customers and who you are actually trying to
+                reach, then send you a written plan and a fixed quote before anything is built.
               </p>
             </article>
 
@@ -3896,7 +3925,8 @@
               </div>
               <h3 class="process-step__title">Premium Build</h3>
               <p class="process-step__description">
-                I design and custom-code your high-converting layout.
+                I design and hand-code the site, and you see it working on your own phone while
+                it is being built &mdash; not just a mockup at the end.
               </p>
             </article>
 
@@ -3907,7 +3937,8 @@
               </div>
               <h3 class="process-step__title">Launch &amp; Handoff</h3>
               <p class="process-step__description">
-                Your lightning-fast, flawless site goes live.
+                The site goes live and everything is handed to you: the code, the domain and the
+                logins. It is yours outright from that day.
               </p>
             </article>
           </div>
@@ -3918,7 +3949,7 @@
         <div class="section-header" data-reveal>
           <div class="section-header__copy">
             <span class="section-kicker">Straightforward investment</span>
-            <h2 class="section-heading">Investment</h2>
+            <h2 class="section-heading">Pricing</h2>
             <p class="section-description">
               One fixed price, agreed before I start. No hourly billing, no change-order
               games, and every tier ships fast — speed is not an upsell.
@@ -3995,7 +4026,7 @@
               </div>
               <div class="pricing-card__feature">
                 <span class="pricing-card__check" aria-hidden="true">✓</span>
-                <span>Photo optimisation and gallery</span>
+                <span>Photo optimization and gallery</span>
               </div>
               <div class="pricing-card__feature">
                 <span class="pricing-card__check" aria-hidden="true">✓</span>
@@ -4123,8 +4154,9 @@
               <span class="referral__step-n">Step 02</span>
               <h3>They name you</h3>
               <p>
-                When they get in touch, they put your business in the "who referred you"
-                box on the inquiry form. I confirm it with you before anything starts.
+                When they get in touch, they put your name or your business in the "who
+                referred you" box on the inquiry form. I confirm it with you before anything
+                starts.
               </p>
             </div>
             <div class="referral__step">
@@ -4193,7 +4225,7 @@
               <p class="faq-answer">
                 No. Every site is written by hand. This page and the five builds under Work
                 are the proof: measured on a throttled 4G phone, this page shows its main
-                content in about one second and each concept build does it in under 0.2.
+                content in about half a second and each concept build does it in under 0.3.
                 Hand-coding is also why nothing breaks when a plugin updates itself at 3am.
               </p>
             </details>
@@ -4277,6 +4309,10 @@
                 <span class="contact__details-value">Liberty, Missouri — working with clients anywhere in the US</span>
               </li>
               <li>
+                <span class="contact__details-label">Mail</span>
+                <span class="contact__details-value">PO Box 84, Liberty, MO 64069</span>
+              </li>
+              <li>
                 <span class="contact__details-label">Reply time</span>
                 <span class="contact__details-value">Within one business day</span>
               </li>
@@ -4349,7 +4385,7 @@
             </div>
 
             <div class="field">
-              <label class="field__label" for="referralSource">Where Did You Hear About Us?</label>
+              <label class="field__label" for="referralSource">How Did You Hear About Me?</label>
               <select
                 class="field__input"
                 id="referralSource"
@@ -4373,7 +4409,7 @@
               hidden
             >
               <label class="field__label" for="referralBusiness">
-                What Business Referred You?
+                Who Referred You? <span class="field__optional">(optional)</span>
               </label>
               <input
                 class="field__input"
@@ -4381,11 +4417,11 @@
                 id="referralBusiness"
                 name="referralBusiness"
                 autocomplete="organization"
-                placeholder="Business name"
+                placeholder="Their name or their business"
               >
               <p class="field__hint">
-                If another business sent you here, tell me who — they earn 15% of your
-                project once it is finished. <a href="#referrals">How it works</a>.
+                If someone sent you here, tell me who — they earn 15% of your project once
+                it is finished. <a href="#referrals">How it works</a>.
               </p>
             </div>
 
@@ -4893,18 +4929,27 @@
         });
       }
 
-      /* Reveal the referring-business field only when relevant. */
+      /*
+        Reveal the "who referred you" box for a friend or another business owner.
+
+        It used to open only for a business owner, while the referral program
+        promises to pay anyone - "open to anyone, not just past clients". A
+        visitor sent by a friend chose "A friend", the box never appeared, the
+        friend could not be named, and the friend was never paid. Optional in
+        both cases: a visitor who would rather not name anyone should not be
+        stopped from sending the form.
+      */
       const syncReferralBusinessField = () => {
         if (!referralSourceSelect || !referralBusinessField || !referralBusinessInput) {
           return;
         }
 
         const shouldShow =
-          referralSourceSelect.value === "A Fellow Business Owner";
+          referralSourceSelect.value === "A Fellow Business Owner" ||
+          referralSourceSelect.value === "A Friend";
 
         referralBusinessField.hidden = !shouldShow;
         referralBusinessField.setAttribute("aria-hidden", String(!shouldShow));
-        referralBusinessInput.required = shouldShow;
 
         if (!shouldShow) {
           referralBusinessInput.value = "";

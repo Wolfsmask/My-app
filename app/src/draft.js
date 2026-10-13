@@ -341,7 +341,9 @@ export function draftEmail(lead, sender = {}) {
   const from = sender.name ?? "Brennen";
   const email = sender.email ?? "mbonyxstudios@gmail.com";
   const site = sender.site ?? "https://mbonyx.netlify.app";
-  const address = (sender.address ?? "").trim();
+  // The PO box, rented for exactly this. An explicitly empty address still
+  // gets the warning below; only a missing one falls back to the box.
+  const address = (sender.address ?? "PO Box 84, Liberty, MO 64069").trim();
 
   // "HVAC / heating & cooling" is a dropdown label, not something a person
   // says, so everything after the slash is dropped. "manual" and "found" are

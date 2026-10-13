@@ -16,6 +16,7 @@ const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || u
 console.log('\n  page                            FCP     LCP    load   transfer   (4G + 2x CPU throttle)');
 console.log('  ' + '─'.repeat(82));
 let worstLcp = 0;
+const lcpOf = {};
 for (const path of PAGES) {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   /*
@@ -46,8 +47,35 @@ for (const path of PAGES) {
     return { fcp: fcp ? Math.round(fcp.startTime) : null, lcp: window.__lcp || null };
   });
   worstLcp = Math.max(worstLcp, m.lcp ?? 0);
+  lcpOf[path] = m.lcp ?? Infinity;
   console.log(`  ${path.padEnd(32)}${String(m.fcp ?? '-').padStart(5)}ms${String(m.lcp ?? '-').padStart(7)}ms${String(load).padStart(6)}ms${String((bytes/1024).toFixed(0)).padStart(8)}KB`);
   await ctx.close();
 }
 await b.close();
-console.log(`\n  Worst LCP: ${worstLcp}ms  — the copy claims "under two seconds": ${worstLcp < 2000 ? 'TRUE' : 'FALSE'}\n`);
+/*
+  Every speed the site claims, checked against what was just measured.
+
+  This used to print FALSE and exit 0, and the suite counted that as a pass -
+  which is how the homepage drifted back over two seconds while its own hero
+  said "under two seconds" and every audit came back green. A claim that is
+  not true now fails the run.
+
+  The thresholds are the words on the page:
+    hero          "loads in under two seconds"
+    FAQ           "this page shows its main content in about half a second"
+    work section  "each concept build ... in under 0.3 seconds"
+*/
+const builds = Object.entries(lcpOf).filter(([p]) => p.startsWith('/work/'));
+const worstBuild = Math.max(...builds.map(([, v]) => v));
+const claims = [
+  ['"loads in under two seconds" (hero)', worstLcp < 2000, `worst page ${worstLcp}ms`],
+  ['"about half a second" (FAQ, this page)', lcpOf['/'] <= 800, `homepage ${lcpOf['/']}ms`],
+  ['"under 0.3 seconds" (each concept build)', worstBuild < 300, `slowest build ${worstBuild}ms`],
+];
+console.log('');
+for (const [what, ok, measured] of claims) {
+  console.log(`  ${ok ? 'TRUE ' : 'FALSE'}  ${what.padEnd(44)} ${measured}`);
+}
+const broken = claims.filter(([, ok]) => !ok).length;
+console.log(broken ? `\n  ${broken} speed claim(s) on the site are not true.\n` : `\n  Every speed claim on the site holds.\n`);
+process.exit(broken ? 1 : 0);
