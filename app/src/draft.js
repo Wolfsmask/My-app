@@ -89,10 +89,12 @@ function headline(findings, audit = {}) {
  */
 const ALSO = {
   not_responsive: [
-    when(a => a.mobileOverflowPct >= 10 || a.mobileCutOff >= 3,
+    when(a => a.mobileOverflowPct >= 10 && a.mobileCutOff >= 2,
       () => `On top of that, on a phone the page runs off the side of the screen, so it has to be dragged around to read.`),
-    when(a => a.effectiveBodyPx != null && a.effectiveBodyPx < 9,
+    when(a => a.phoneUnreadable === true,
       () => `On top of that, on a phone the whole page gets shrunk down, so the writing is too small to read without zooming in.`),
+    when(a => a.phoneUntappable === true && a.phoneUnreadable !== true,
+      () => `On top of that, on a phone it shows the desktop page shrunk down, so the links are too small to tap without zooming in.`),
   ],
   looks_dated: [() => `The design also looks quite a bit older than the business is.`],
   poor_layout: [() => `The page is also laid out in a way that makes it hard to see what you do at a glance.`],
@@ -132,15 +134,15 @@ const ALSO = {
 const OBSERVE = {
   not_responsive: [
     // Declared a viewport and overflowed it: you drag the page sideways.
-    when(a => a.mobileOverflowPct >= 10 || a.mobileCutOff >= 3,
+    when(a => a.mobileOverflowPct >= 10 && a.mobileCutOff >= 2,
       () => `Pulled up on a phone, the page runs off the side of the screen and has to be dragged around to read.`),
-    when(a => a.mobileOverflowPct >= 10 || a.mobileCutOff >= 3,
+    when(a => a.mobileOverflowPct >= 10 && a.mobileCutOff >= 2,
       () => `On a phone it is wider than the screen, so parts of it sit off the edge until you drag them into view.`),
-    // Declared nothing, so the browser shrank the whole page to fit.
-    when(a => a.effectiveBodyPx != null && a.effectiveBodyPx < 9,
-      () => `On a phone the whole page is shrunk down to fit, so the writing comes out too small to read without zooming in.`),
-    when(a => a.effectiveBodyPx != null && a.effectiveBodyPx < 9,
-      () => `It was not built with phones in mind, so a phone squeezes the desktop version onto the screen and everything ends up tiny.`),
+    // Declared nothing, so the browser shrank the whole desktop page to fit.
+    when(a => a.phoneUnreadable === true,
+      () => `On a phone the whole desktop page is shrunk down to fit, so the writing comes out too small to read without zooming in.`),
+    when(a => a.phoneUntappable === true && a.phoneUnreadable !== true,
+      () => `On a phone it shows the full desktop page shrunk down to fit the screen, so the links and buttons come out tiny and have to be zoomed in on before you can tap them.`),
   ],
   looks_dated: [
     a => (a.visualAgeSignals ?? 3) >= 5
@@ -212,10 +214,12 @@ const OBSERVE = {
 
 const CONSEQUENCE = {
   not_responsive: [
-    when(a => a.mobileOverflowPct >= 10 || a.mobileCutOff >= 3,
+    when(a => a.mobileOverflowPct >= 10 && a.mobileCutOff >= 2,
       `Most people looking for you are on a phone, and a page they have to drag around usually means they back out and call the next name on the list.`),
-    when(a => a.effectiveBodyPx != null && a.effectiveBodyPx < 9,
+    when(a => a.phoneUnreadable === true,
       `Most people looking for you are on a phone, and if they cannot read it without zooming in, a good number of them will not bother - they will call the next name on the list.`),
+    when(a => a.phoneUntappable === true && a.phoneUnreadable !== true,
+      `Most people looking for you are on a phone, and a page they have to zoom into just to press a link is one a lot of them give up on.`),
     // True whichever way it fails, so no guard on this one.
     `That matters more than it used to - most people find a local business on their phone now, and they do not persevere with a page that is hard to use.`,
   ],
@@ -548,12 +552,22 @@ const SYMPTOM_CLAIMS = [
   {
     what: "the page having to be dragged sideways on a phone",
     said: /runs off the side|drag(ged)? (it )?around|wider than the screen|off the edge|sit off the edge/i,
-    measured: a => a.mobileOverflowPct >= 10 || a.mobileCutOff >= 3,
+    measured: a => a.phoneConfirmed === true && a.mobileOverflowPct >= 10 && a.mobileCutOff >= 2,
   },
   {
     what: "the page being shrunk too small to read on a phone",
-    said: /shrunk down|squeezes the desktop|everything ends up tiny|too small to read/i,
-    measured: a => (a.effectiveBodyPx != null && a.effectiveBodyPx < 9) || a.textTooSmall === true,
+    said: /too small to read|everything ends up tiny/i,
+    measured: a => (a.phoneConfirmed === true && a.phoneUnreadable === true) || a.textTooSmall === true,
+  },
+  {
+    what: "a phone showing the desktop page shrunk down",
+    said: /shrunk down|squeezes the desktop|desktop page/i,
+    measured: a => a.phoneConfirmed === true && (a.phoneUnreadable === true || a.phoneUntappable === true),
+  },
+  {
+    what: "links too small to tap on a phone",
+    said: /too small to tap|zoomed in on before you can tap/i,
+    measured: a => (a.phoneConfirmed === true && a.phoneUntappable === true) || a.tapTargetsTooSmall === true,
   },
   {
     what: "a browser security warning",

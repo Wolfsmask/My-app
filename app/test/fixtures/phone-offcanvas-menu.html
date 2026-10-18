@@ -1,0 +1,30 @@
+<!doctype html>
+<!--
+  Fits a phone. Everything a visitor reads is on the screen.
+
+  But its menu drawer is parked just past the right-hand edge with plain
+  absolute positioning, and a "special offer" panel waits off to the side
+  behind a transform until a button slides it in - and nothing clips either
+  of them. So the page technically reaches past the screen, and a checker
+  counting text past the edge sees four menu links and a heading out there.
+  None of that is page content a visitor is missing.
+-->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kearney Family Chiropractic</title>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; font-size: 17px; line-height: 1.6; }
+  .wrap { padding: 20px; }
+  .drawer { position: absolute; top: 0; left: 100%; width: 280px; background: #223; padding: 20px; }
+  .drawer a { color: #fff; display: block; padding: 10px 0; }
+  .offer { position: absolute; top: 200px; right: 0; width: 300px; transform: translateX(110%); background: #fe8; padding: 16px; }
+</style></head>
+<body>
+  <nav class="drawer" id="site-menu"><a href="#">Home page</a><a href="#">Adjustments</a><a href="#">Massage therapy</a><a href="#">Book a visit</a></nav>
+  <div class="offer"><h2>New patient special this month</h2><p>First adjustment and consultation for one low price.</p></div>
+  <div class="wrap">
+    <h1>Kearney Family Chiropractic</h1>
+    <p>Gentle care for back pain, neck pain and headaches. Most insurance accepted.</p>
+    <p><a href="tel:8165550111">Call (816) 555-0111</a></p>
+    <p>Open weekdays 8 to 6 and Saturday mornings. Walk-ins welcome.</p>
+  </div>
+</body></html>

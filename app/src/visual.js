@@ -170,7 +170,12 @@ export function interpretStructure(s) {
     datedSignals,
     usesWebFonts: webFontsUsed,
     inlineStyleRatio: Math.round(inlineRatio * 100) / 100,
-    textTooSmall: s.bodyFontSize > 0 && s.bodyFontSize < 14,
+    /*
+      Under 12px - Google's own line for "not legible" on a phone. It was 14,
+      which caught plenty of perfectly readable 13px sites and put "too small
+      to read" in a letter the owner could disprove by looking.
+    */
+    textTooSmall: s.bodyFontSize > 0 && s.bodyFontSize < 12,
     // Needs a real sample before it means anything, and a clear majority —
     // one cramped button on an otherwise fine site is not a reason to call.
     tapTargetsTooSmall: s.tappableCount >= 5 && s.tinyTapTargets / s.tappableCount > 0.5,

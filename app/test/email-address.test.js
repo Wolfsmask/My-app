@@ -146,3 +146,19 @@ test("survives a site address that is not a proper URL", () => {
   assert.equal(r.email, null);
   assert.deepEqual(r.candidates, ["info@bucknersheating.com"]);
 });
+
+test("a local internet provider's address is the business's, like a Gmail one", () => {
+  // Plenty of long-running businesses still use the address that came with
+  // their connection. These were treated as some other company's, so the
+  // draft said "no email" with the address sitting on the page.
+  for (const addr of ["bucknershvac@everestkc.net", "bucknershvac@kc.rr.com", "bucknershvac@swbell.net",
+    "bucknershvac@centurytel.net", "bucknershvac@mchsi.com", "bucknershvac@tampabay.rr.com"]) {
+    const r = pickBusinessEmail([addr], SITE);
+    assert.equal(r.email, addr, addr);
+    assert.match(r.why, /address listed on/);
+  }
+  // A lookalike that merely ends in the same letters is not a provider.
+  assert.equal(pickBusinessEmail(["office@evilrr.com"], SITE).email, null);
+  // And a template placeholder on a provider is still a placeholder.
+  assert.equal(pickBusinessEmail(["yourname@kc.rr.com"], SITE).email, null);
+});

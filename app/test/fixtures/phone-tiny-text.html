@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+  A desktop page that genuinely cannot be read on a phone.
+
+  No viewport tag, so a phone lays it out at 980px and shrinks it to 40%.
+  Phones enlarge the text of wide blocks to compensate, which is why most old
+  desktop pages stay readable - but this one sets its text small inside
+  narrow columns, which phones do not enlarge, so it really does arrive at
+  about 4px. That is the case "too small to read" is for, and only that.
+-->
+<html lang="en"><head><meta charset="utf-8"><title>Old Town Hardware</title>
+<style>
+  body { margin: 0; font-family: Verdana, sans-serif; width: 960px; }
+  .cols { display: flex; gap: 20px; padding: 20px; }
+  .col { width: 210px; font-size: 11px; line-height: 1.4; }
+</style></head>
+<body>
+  <h1 style="font-size:20px;padding:0 20px">Old Town Hardware</h1>
+  <div class="cols">
+    <div class="col">Hand tools, power tools, and a key-cutting counter that has been here since 1971.</div>
+    <div class="col">Paint mixed to order, with colour matching from a chip or a photo of your wall.</div>
+    <div class="col">Plumbing and electrical parts, and somebody who can tell you which one you need.</div>
+    <div class="col">Open Monday to Saturday, eight to six. Delivery in town for orders over fifty dollars.</div>
+  </div>
+</body></html>

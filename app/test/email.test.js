@@ -194,12 +194,16 @@ test("dated design needs a cluster of signals, not just one", () => {
 
   const ancient = {
     fontFamilies: ["Verdana", "Arial"], usesFlexOrGrid: false, layoutTables: 3,
-    semanticTagCount: 0, inlineStyledElements: 90, elementCount: 200, bodyFontSize: 12,
+    semanticTagCount: 0, inlineStyledElements: 90, elementCount: 200, bodyFontSize: 11,
     tappableCount: 10, tinyTapTargets: 8, missingAlt: 4, h1Count: 0, headingSkips: 2,
   };
   const a = interpretStructure(ancient);
   assert.equal(a.looksDated, true);
   assert.equal(a.textTooSmall, true);
+  // Google's line is 12px. 13px was being called "too small to read", which
+  // an owner can disprove by looking at their own site.
+  assert.equal(interpretStructure({ ...ancient, bodyFontSize: 13 }).textTooSmall, false);
+  assert.equal(interpretStructure({ ...ancient, bodyFontSize: 12 }).textTooSmall, false);
   assert.equal(a.tapTargetsTooSmall, true);
   assert.equal(a.hasStructureProblems, true);
 });

@@ -31,20 +31,27 @@ export const EMBARRASSMENT = [
       It now fails only on things a thumb runs into — having to drag the page
       sideways, and content hanging off the edge of the screen.
     */
-    test: a => a.isResponsive === false,
+    /*
+      And only when a second, independent look agreed (phoneConfirmed). An
+      audit from before the second look existed has no such field, so it
+      scores nothing here; saved leads carrying the old verdict are checked
+      again before any letter is written about them.
+    */
+    test: a => a.isResponsive === false && a.phoneConfirmed === true,
     // Untidy and unusable are not the same email. A page 12% too wide is worth
     // a fraction of one that runs half off the screen with the nav hanging out.
     scale: a => a.notResponsiveSeverity ?? 0.5,
+    // Only what the verdict was actually based on - each part says which
+    // measurement it is, so the report and the letter cannot drift apart.
     evidence: a => {
       const bits = [];
-      if (a.mobileOverflowPct >= 10) bits.push(`the page lays out ${a.mobileScrollWidth}px wide and has to be dragged sideways to read`);
-      if (a.mobileCutOff >= 3) bits.push(`${a.mobileCutOff} things run off the right-hand edge, the worst by ${a.mobileCutOffWorstPx}px`);
-      if (a.effectiveBodyPx != null && a.effectiveBodyPx < 9) {
-        bits.push(`the whole page is shrunk to fit, so ${a.bodyFontSize ?? "the body"}px text arrives at about ${a.effectiveBodyPx}px`);
+      if (a.mobileOverflowPct >= 10 && a.mobileCutOff >= 2) {
+        bits.push(`the page reaches ${a.mobileScrollWidth}px wide on a ${a.mobileScreenWidth ?? 390}px screen - ${a.mobileCutOff} bits of text or buttons sit past the right-hand edge, the furthest ${a.mobileCutOffWorstPx}px out - so it has to be dragged sideways to read`);
       }
-      if (a.effectiveTapPx != null && a.effectiveTapPx < 24) bits.push(`links end up about ${a.effectiveTapPx}px tall, too small for a thumb`);
+      if (a.phoneUnreadable) bits.push(`the full desktop page is shrunk to fit, so the main text shows at about ${a.effectiveBodyPx}px`);
+      if (a.phoneUntappable) bits.push(`the full desktop page is shrunk to fit, so links show about ${a.effectiveTapPx}px tall - too small to tap without zooming in`);
       return bits.length
-        ? `On a phone: ${bits.join("; ")}.`
+        ? `On a phone (checked twice, as an Android phone and as an iPhone): ${bits.join("; ")}.`
         : `Does not work on a phone screen.`;
     },
   },
@@ -157,7 +164,7 @@ export const DESIGN = [
     points: 6,
     label: "Body text too small to read on a phone",
     test: a => a.textTooSmall === true,
-    evidence: a => `Body text is ${a.bodyFontSize}px. Below 14px is uncomfortable on a phone and readers give up.`,
+    evidence: a => `Body text is ${a.bodyFontSize}px. Google treats anything under 12px as too small to read on a phone.`,
   },
   {
     id: "tiny_tap_targets",

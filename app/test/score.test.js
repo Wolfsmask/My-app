@@ -11,7 +11,7 @@ const YEAR = new Date().getFullYear();
  * load can examine, not of whatever happened to be measurable.
  */
 const awful = {
-  isResponsive: false, mobileScrollWidth: 980,
+  isResponsive: false, phoneConfirmed: true, mobileScrollWidth: 980,
   mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1,
   sslValid: false, sslExpiredAt: "2024-03-03",
   copyrightYear: YEAR - 8,
@@ -66,7 +66,7 @@ test("a healthy site scores 0 and is dropped as tier D", () => {
 
 test("embarrassment outweighs performance, which is the whole point", () => {
   // Only mobile broken, everything else fine.
-  const mobileOnly = score({ ...fine, isResponsive: false, mobileScrollWidth: 1200, mobileOverflowPct: 208, mobileCutOff: 9, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
+  const mobileOnly = score({ ...fine, isResponsive: false, phoneConfirmed: true, mobileScrollWidth: 1200, mobileOverflowPct: 208, mobileCutOff: 9, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
   // Only slow, everything else fine.
   const slowOnly = score({ ...fine, lcpMs: 9000, lighthousePerf: 18, pageWeightBytes: 9e6, usesModernImages: false });
 
@@ -98,8 +98,8 @@ test("a check that could not run never raises the score", () => {
   // measurable, so a page where one check ran and failed scored 100 out of
   // 100 and came out Tier A - the same single fault on a fully measured page
   // scored 25. An unexaminable page must rank low, not high.
-  const thin = score({ isResponsive: false, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
-  const full = score({ ...fine, isResponsive: false, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
+  const thin = score({ isResponsive: false, phoneConfirmed: true, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
+  const full = score({ ...fine, isResponsive: false, phoneConfirmed: true, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
 
   assert.equal(thin.score, full.score, "the same fault scores the same either way");
   assert.ok(thin.tier !== "A", `a page examined once must not be tier A (was ${thin.score})`);
@@ -127,9 +127,9 @@ test("evidence quotes the real measurement, never a guess", () => {
     and saying "the page is too wide" would be plainly false.
   */
   const shrunk = score({
-    ...fine, isResponsive: false, notResponsiveSeverity: 0.9,
+    ...fine, isResponsive: false, phoneConfirmed: true, notResponsiveSeverity: 0.9,
     mobileOverflowPct: 0, mobileCutOff: 0, mobileZoom: 0.4,
-    bodyFontSize: 12, effectiveBodyPx: 4.8,
+    bodyFontSize: 12, effectiveBodyPx: 4.8, phoneUnreadable: true, phoneConfirmed: true,
   }).hits.find(h => h.id === "not_responsive");
   assert.match(shrunk.evidence, /4\.8px/);
   assert.match(shrunk.evidence, /shrunk to fit/);
@@ -161,7 +161,7 @@ test("how it looks and whether it works on a phone outweigh the plumbing", () =>
   });
   assert.equal(plumbingOnly.tier, "D", `technical nits alone scored ${plumbingOnly.score}`);
 
-  const phone = score({ ...fine, isResponsive: false, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
+  const phone = score({ ...fine, isResponsive: false, phoneConfirmed: true, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
   const looks = score({ ...fine, looksDated: true, visualAgeShare: 1, visualAgeMarkers: [{ when: 'pre-2008', why: 'laid out with tables' }] });
   assert.ok(phone.score > plumbingOnly.score * 3, "the phone test dominates");
   assert.ok(looks.score > plumbingOnly.score * 3, "so does how it looks");
@@ -196,10 +196,10 @@ test("adding a check does not quietly lower every other score", () => {
   // Scores used to be a share of every check there was, so the same site
   // scored lower today than yesterday purely because the checker had learnt
   // to look at one more thing. They are measured against a fixed bar now.
-  const phoneOnly = score({ ...fine, isResponsive: false, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
+  const phoneOnly = score({ ...fine, isResponsive: false, phoneConfirmed: true, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
   assert.equal(phoneOnly.score, 40, "the phone test is worth 40 points, whatever else exists");
 
-  const withNewCheck = score({ ...fine, isResponsive: false, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1, poorLayout: false, poorLayoutSignals: 0 });
+  const withNewCheck = score({ ...fine, isResponsive: false, phoneConfirmed: true, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, mobileCutOffWorstPx: 590, notResponsiveSignals: 4, notResponsiveSeverity: 1, poorLayout: false, poorLayoutSignals: 0 });
   assert.equal(withNewCheck.score, phoneOnly.score, "a check that passes changes nothing");
 });
 
@@ -219,9 +219,9 @@ test("the sites a person would actually rebuild come out worth contacting", () =
   // months" - when they plainly needed rebuilding.
   const base = { ...fine };
   const worthDoing = [
-    ["unreadable on a phone", { isResponsive: false, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, notResponsiveSignals: 4, notResponsiveSeverity: 1 }],
+    ["unreadable on a phone", { isResponsive: false, phoneConfirmed: true, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, notResponsiveSignals: 4, notResponsiveSeverity: 1 }],
     ["old software, still mobile-friendly", { looksDated: true, visualAgeShare: 1, visualAgeMarkers: [{ when: "pre-2008", why: "laid out with tables" }], copyrightYear: YEAR - 9, platformIsObsolete: true }],
-    ["unreadable on a phone and a decade old", { isResponsive: false, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, notResponsiveSignals: 4, notResponsiveSeverity: 1, looksDated: true, visualAgeShare: 0.67, visualAgeMarkers: [{ when: "pre-2012", why: "no semantic layout tags" }], copyrightYear: YEAR - 8 }],
+    ["unreadable on a phone and a decade old", { isResponsive: false, phoneConfirmed: true, mobileScrollWidth: 980, mobileOverflowPct: 151, mobileCutOff: 8, notResponsiveSignals: 4, notResponsiveSeverity: 1, looksDated: true, visualAgeShare: 0.67, visualAgeMarkers: [{ when: "pre-2012", why: "no semantic layout tags" }], copyrightYear: YEAR - 8 }],
   ];
   for (const [label, over] of worthDoing) {
     const r = score({ ...base, ...over });
@@ -293,7 +293,7 @@ test("obsolete platforms are recognised and named", () => {
   the browser side is covered by test/audit.e2e.test.js.
 */
 test("a page wider than the phone screen is not responsive", () => {
-  const r = score({ ...fine, isResponsive: false, mobileScrollWidth: 940, mobileScreenWidth: 390, mobileOverflowPct: 141, mobileCutOff: 7, mobileCutOffWorstPx: 550, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
+  const r = score({ ...fine, isResponsive: false, phoneConfirmed: true, mobileScrollWidth: 940, mobileScreenWidth: 390, mobileOverflowPct: 141, mobileCutOff: 7, mobileCutOffWorstPx: 550, notResponsiveSignals: 4, notResponsiveSeverity: 1 });
   const hit = r.hits.find(h => h.id === "not_responsive");
   assert.ok(hit, "overflowing page must be flagged");
   assert.match(hit.evidence, /940px/);
@@ -442,4 +442,39 @@ test("a business whose own site says it has closed is not a lead", () => {
   // website in years, and those are the best leads there are.
   assert.equal(disqualify(site, { vitality: { state: "quiet" } }), null);
   assert.equal(disqualify(site, { vitality: { state: "active" } }), null);
+});
+
+
+test("the phone verdict needs words past the edge that can be reached, not a wide page", async () => {
+  const { phoneVerdict } = await import("../src/audit.js");
+  const base = { zoom: 1, screenWidth: 390, textPx: 16, tapPx: 44, cutOffSample: [], hasViewportMeta: true };
+  // Two bits of text 120px out: dragging sideways is real.
+  assert.equal(phoneVerdict({ ...base, maxScrollX: 120, cutOffCount: 2, cutOffWorstPx: 120 }).isResponsive, false);
+  // One stray word is not "drag the page around to read it".
+  assert.equal(phoneVerdict({ ...base, maxScrollX: 120, cutOffCount: 1, cutOffWorstPx: 120 }).isResponsive, true);
+  // Nothing reachable past the edge, however wide the page claims to be.
+  assert.equal(phoneVerdict({ ...base, maxScrollX: 0, cutOffCount: 0, cutOffWorstPx: 0 }).isResponsive, true);
+
+  // A shrunk page is only a problem when it is hard to use as shrunk.
+  const shrunk = { ...base, zoom: 0.4, hasViewportMeta: false, maxScrollX: 0, cutOffCount: 0, cutOffWorstPx: 0 };
+  assert.equal(phoneVerdict({ ...shrunk, textPx: 50, tapPx: 70 }).isResponsive, true, "big type and big buttons survive the shrink");
+  assert.equal(phoneVerdict({ ...shrunk, textPx: 25, tapPx: 15 }).phoneUntappable, true);
+  assert.equal(phoneVerdict({ ...shrunk, textPx: 25, tapPx: 15 }).phoneUnreadable, false, "10px on screen is small, not unreadable");
+  assert.equal(phoneVerdict({ ...shrunk, textPx: 11, tapPx: 70 }).phoneUnreadable, true);
+});
+
+test("a confirmed-false phone result is never scored", () => {
+  const broken = { ...fine, isResponsive: false, phoneConfirmed: true, notResponsiveSeverity: 1, mobileOverflowPct: 140, mobileCutOff: 7 };
+  assert.ok(score({ ...broken, phoneConfirmed: true }).hits.some(h => h.id === "not_responsive"));
+  assert.equal(score({ ...broken, phoneConfirmed: false }).hits.some(h => h.id === "not_responsive"), false);
+  // Saved before the second look existed: one look, so nothing is scored.
+  const { phoneConfirmed, ...oldSave } = broken;
+  assert.equal(score(oldSave).hits.some(h => h.id === "not_responsive"), false);
+});
+
+test("the phone pass says it is a phone, and still says who it is", async () => {
+  const { PHONE_UA, IPHONE_UA, DESKTOP_UA } = await import("../src/audit.js");
+  assert.match(PHONE_UA, /Android.*Mobile/, "sites that pick a layout by device must see a phone");
+  assert.match(IPHONE_UA, /iPhone/);
+  for (const ua of [PHONE_UA, IPHONE_UA, DESKTOP_UA]) assert.match(ua, /MBOnyxAudit\/1\.0 \(\+https:\/\/mbonyx\.netlify\.app\/\)/);
 });

@@ -1,0 +1,60 @@
+<!doctype html>
+<!--
+  Fits a phone perfectly, and was being reported as running off the screen.
+
+  The commonest pattern on modern template sites: content that slides in from
+  the side as you scroll ("animate on scroll"), parked off to the right until
+  then, with overflow-x: hidden on the body so nothing can be dragged into
+  view. A visitor cannot scroll sideways at all. But the body's scrollWidth
+  still counts the parked content, so a checker that reads scrollWidth sees a
+  page 60% wider than the screen.
+
+  Also here, the two other everyday versions of the same thing: a carousel
+  whose next slides wait off to the right inside a clipping box, and a menu
+  drawer parked past the edge until the menu button is pressed.
+-->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Riverside Dental</title>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; font-size: 17px; line-height: 1.6; overflow-x: hidden; }
+  .wrap { padding: 20px; }
+  h1 { font-size: 34px; margin: 0 0 12px; }
+  .slide-in { transform: translateX(240px); transition: transform .6s; background: #eef; padding: 20px; }
+  .slide-in.seen { transform: none; }
+  .deco { position: absolute; right: -160px; top: 120px; width: 300px; height: 300px; border-radius: 50%; background: #fde; }
+  a { display: inline-block; padding: 12px 0; }
+  /* A testimonial carousel: slides two and three wait off to the right,
+     inside a box that clips them. */
+  .carousel { overflow: hidden; margin: 20px 0; }
+  .track { display: flex; width: 300%; }
+  .slide { flex: 0 0 33.333%; box-sizing: border-box; padding: 16px; background: #f4f4f4; }
+  /* A menu drawer parked off the right edge until the menu button is
+     pressed. Not position: fixed, so only the body's clipping hides it. */
+  .drawer { position: absolute; top: 0; right: -320px; width: 300px; background: #222; color: #fff; padding: 20px; }
+  .drawer a { color: #fff; display: block; }
+</style></head>
+<body>
+  <div class="deco" aria-hidden="true"></div>
+  <div class="wrap">
+    <h1>Riverside Dental</h1>
+    <p>Gentle family dentistry in Liberty. New patients welcome, same-week appointments.</p>
+    <p><a href="tel:8165550123">Call (816) 555-0123</a></p>
+    <div class="slide-in"><h2>Why patients stay</h2><p>We explain every step, we publish our prices, and we run on time.</p></div>
+    <div class="slide-in"><h2>Our hours</h2><p>Monday to Friday 8 to 5, Saturdays 8 to 1.</p></div>
+    <div class="slide-in"><h2>Insurance</h2><p>We bill most major insurers directly.</p></div>
+    <div class="carousel"><div class="track">
+      <div class="slide"><p>"The kindest dentist we have ever had, and always on time." - Maria</p></div>
+      <div class="slide"><p>"They explained the cost before they started. No surprises at all." - Dan</p></div>
+      <div class="slide"><p>"My kids actually look forward to their checkups now." - Priya</p></div>
+    </div></div>
+  </div>
+  <nav class="drawer">
+    <a href="#">Home page</a><a href="#">Our services</a><a href="#">Meet the team</a><a href="#">Book an appointment</a>
+  </nav>
+  <script>
+    // How animate-on-scroll libraries behave: each block slides in as it
+    // scrolls into view, and stays.
+    const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) e.target.classList.add("seen"); }));
+    document.querySelectorAll(".slide-in").forEach(el => io.observe(el));
+  </script>
+</body></html>

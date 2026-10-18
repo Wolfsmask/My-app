@@ -187,19 +187,79 @@ test("no responsive code is not a fault if the page still works on a phone",
   assert.equal(score(a).hits.some(h => h.id === "not_responsive"), false);
 });
 
-test("a page shrunk until the text is unreadable is a phone problem",
+test("an old desktop page on a phone is judged by what a phone really shows",
   { skip: !up && "no server on :8899" }, async () => {
-  // The other half of the same rule. Same missing viewport tag, but here the
-  // page is laid out at 980px with small type, so the phone renders it at
-  // 40% and the body text arrives at about 5px. Nothing overflows - measuring
-  // only overflow missed this entirely - and it is unreadable.
+  /*
+    No viewport tag, so the phone shrinks a 980px layout to 40%. This used to
+    be described as "text arrives at about 5px, too small to read" - worked
+    out from the body's base font size. But phones enlarge the main text of
+    old desktop pages to keep it legible, and on this page the paragraphs
+    really show at about 10px. Small, readable. Saying otherwise is the kind
+    of claim an owner disproves by picking up their phone.
+
+    What is true is that the links come out about 6px tall, too small to tap
+    without zooming in - so that is what is said, and only that.
+  */
   const a = await audit("bad-2011");
-  assert.equal(a.mobileOverflowPct, 0, "nothing overflows, which is why overflow alone missed it");
-  assert.ok(a.effectiveBodyPx < 9, `text arrives too small, got ${a.effectiveBodyPx}px`);
-  assert.equal(a.isResponsive, false);
+  assert.ok(a.effectiveBodyPx >= 9, `the main text, as a phone shows it, is readable: ${a.effectiveBodyPx}px`);
+  assert.equal(a.phoneUnreadable, false);
+  assert.equal(a.phoneUntappable, true);
+  assert.equal(a.phoneConfirmed, true, "and a second, independent look agreed");
   const hit = score(a).hits.find(h => h.id === "not_responsive");
-  assert.ok(hit, "must be flagged");
-  assert.match(hit.evidence, /shrunk to fit/, "and the email has to say what is actually wrong");
+  assert.ok(hit);
+  assert.match(hit.evidence, /too small to tap/);
+  assert.doesNotMatch(hit.evidence, /main text/, "no claim about the text");
+});
+
+test("a desktop page whose text really is unreadable on a phone says so",
+  { skip: !up && "no server on :8899" }, async () => {
+  // Small type in narrow columns, which phones do not enlarge.
+  const a = await audit("phone-tiny-text");
+  assert.ok(a.effectiveBodyPx < 6, `got ${a.effectiveBodyPx}px`);
+  assert.equal(a.phoneUnreadable, true);
+  assert.equal(a.phoneConfirmed, true);
+  assert.match(score(a).hits.find(h => h.id === "not_responsive").evidence, /main text shows at about/);
+});
+
+/* ------------------------------ sites that work on phones, wrongly accused */
+
+for (const [fixture, why] of [
+  ["phone-hidden-overflow", "content that slides in from the side, under overflow-x: hidden - nothing can be dragged into view"],
+  ["phone-ua-sniff", "a site that sends phones their own layout - the checker was not saying it was a phone"],
+  ["phone-rem-trick", "html { font-size: 62.5% } makes the body 10px while every paragraph is 17px"],
+  ["phone-offcanvas-menu", "a menu drawer and a slide-in offer parked past the edge, unclipped - everything a visitor reads still fits"],
+]) {
+  test(`works on a phone and is not accused of breaking: ${fixture}`, { skip: !up && "no server on :8899" }, async () => {
+    /*
+      Each of these was reported as broken on phones, and one owner wrote
+      back to say their site works fine and to check my device settings.
+      They were right. ${why}.
+    */
+    const a = await audit(fixture);
+    assert.equal(a.isResponsive, true, why);
+    assert.equal(score(a).hits.some(h => h.id === "not_responsive"), false);
+    assert.equal(score(a).hits.some(h => h.id === "text_too_small"), false, "and no small-text claim either");
+  });
+}
+
+test("one look is never enough: a phone problem the second look cannot see is not claimed",
+  { skip: !up && "no server on :8899" }, async () => {
+  // Broken as an Android phone, fine as an iPhone. The first look alone would
+  // have accused it; the second look overrules.
+  const a = await audit("phone-android-only");
+  assert.equal(a.phoneConfirmed, false);
+  assert.ok(a.phoneOverruled, "and the overruled first look is kept, so it can be checked by hand");
+  assert.equal(a.phoneOverruled.firstLook.isResponsive, false);
+  assert.equal(a.isResponsive, true);
+  assert.equal(score(a).hits.some(h => h.id === "not_responsive"), false);
+});
+
+test("a page that genuinely runs off the screen is still caught, and confirmed",
+  { skip: !up && "no server on :8899" }, async () => {
+  const a = await audit("half-fixed");
+  assert.equal(a.isResponsive, false);
+  assert.equal(a.phoneConfirmed, true);
+  assert.ok(a.mobileCutOff >= 2);
 });
 
 test("a modern template that still looks 2014 is worth contacting",

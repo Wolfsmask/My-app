@@ -1,0 +1,20 @@
+<!doctype html>
+<!--
+  Every way an owner hides an address from spam robots that a person still
+  reads straight through. Each one is a different address so a test can
+  tell which were found.
+-->
+<html lang="en"><head><meta charset="utf-8"><title>Tricks</title>
+<style>.rev{unicode-bidi:bidi-override;direction:rtl}</style></head>
+<body>
+  <!-- invisible characters inside the address -->
+  <p>Office: frontdesk&#8203;@&#8203;smiledental.com</p>
+  <!-- written out with no brackets -->
+  <p>Write to us: hello at smiledental dot com</p>
+  <!-- stored backwards and flipped back by CSS -->
+  <p>Billing: <span class="rev">moc.latnedelims@gnillib</span></p>
+  <!-- kept in an attribute and shown by a script on click -->
+  <p><a href="#" data-email="appointments@smiledental.com" onclick="this.textContent=this.dataset.email;return false">Show our email</a></p>
+  <!-- not an address: an @handle and a time -->
+  <p>Follow us @smiledental. Open at 8 dot 30.</p>
+</body></html>

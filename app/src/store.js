@@ -328,6 +328,20 @@ export function createStore(dir) {
       return true;
     },
 
+    /**
+     * New measurements for a saved lead, and the score that follows from
+     * them. A phone verdict overturned on a second look takes its points with
+     * it, which can drop a lead below the line for a letter at all.
+     */
+    updateAudit(url, fields, rescore) {
+      const lead = leads.find(l => l.business?.website === url);
+      if (!lead) return null;
+      lead.audit = { ...(lead.audit ?? {}), ...fields };
+      if (rescore) Object.assign(lead, rescore(lead.audit));
+      write(file("leads.json"), leads);
+      return lead;
+    },
+
     /** An address picked by hand from the maybes on a draft. */
     useAddress(url, address) {
       const lead = leads.find(l => l.business?.website === url);

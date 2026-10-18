@@ -1,0 +1,24 @@
+<!doctype html>
+<!--
+  The address is in a footer that is only put on the page once you scroll
+  down to it - how plenty of page builders load the bottom of the page. Read
+  the moment the page loads, there is no address; scroll, and there it is.
+-->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Liberty Auto Glass</title>
+<style>body{margin:0;font-family:system-ui,sans-serif} .tall{height:3200px;padding:20px}</style></head>
+<body>
+  <div class="tall"><h1>Liberty Auto Glass</h1><p>Windshield repair and replacement, mobile service across Clay County.</p></div>
+  <div id="sentinel"></div>
+  <footer id="foot"></footer>
+  <script>
+    new IntersectionObserver((es, io) => {
+      if (!es.some(e => e.isIntersecting)) return;
+      io.disconnect();
+      setTimeout(() => {
+        document.getElementById("foot").innerHTML =
+          '<p>Liberty Auto Glass &middot; 12 Main St &middot; <a href="mailto:libertyautoglass@everestkc.net">libertyautoglass@everestkc.net</a></p>';
+      }, 300);
+    }).observe(document.getElementById("sentinel"));
+  </script>
+</body></html>

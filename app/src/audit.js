@@ -10,11 +10,31 @@ import dns from "node:dns/promises";
 import net from "node:net";
 import { structure, interpretStructure, detectOldLibraries, visualAge } from "./visual.js";
 import { vitality, sizeOf, latestYearIn } from "./business.js";
-import { findBusinessEmail } from "./emails.js";
+import { findBusinessEmail, collectEmailsInPage } from "./emails.js";
 
 const UA =
   "Mozilla/5.0 (compatible; MBOnyxAudit/1.0; +https://mbonyx.netlify.app/) " +
   "Chrome/120.0.0.0 Safari/537.36";
+
+/*
+  Who the checker says it is, per device.
+
+  It used to announce itself the same way on the phone pass as everywhere
+  else - without the words "Mobile", "Android" or "iPhone". Sites that choose
+  their layout by asking what device they are talking to (Duda, GoDaddy's
+  builder, WordPress mobile plugins, plenty of hand-rolled scripts) handed it
+  their desktop layout, it measured that on a phone-sized screen, and it told
+  owners their site broke on phones when every real phone got the mobile
+  version. One of them wrote back to say so.
+
+  Each still ends with MBOnyxAudit and the contact address, so nobody is
+  misled about who is visiting; the front of it says which device is being
+  imitated, because that is what decides which page a site sends.
+*/
+const TAG = " MBOnyxAudit/1.0 (+https://mbonyx.netlify.app/)";
+export const PHONE_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36" + TAG;
+export const IPHONE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1" + TAG;
+export const DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" + TAG;
 
 /**
  * Refuses to fetch anything on the local machine or a private network.
@@ -149,6 +169,253 @@ export function detectPlatform(html, headers = {}) {
 // The address picker lives with the rest of the email finding; re-exported
 // here because this is where callers have always imported it from.
 export { pickBusinessEmail } from "./emails.js";
+
+/**
+ * What a phone visitor actually gets. Runs inside the page, on both phone
+ * passes, so the second look measures exactly what the first did.
+ *
+ * Every number here is something a person holding the phone would notice:
+ *
+ *   maxScrollX  How far the page can actually be dragged sideways. Asked by
+ *               trying to scroll, not worked out from widths: a page's width
+ *               counts content that overflow-x: hidden has clipped away, and
+ *               reading the width reported "drag sideways to read" on pages
+ *               that cannot be dragged an inch - every template that slides
+ *               content in from the side on scroll.
+ *   textPx      The size of the text people read, after the phone's own
+ *               enlarging. Phones blow up the main text on old desktop pages
+ *               so it stays legible; the body's base font size ignores that,
+ *               and reading it claimed 5px text on pages showing 10px. Also
+ *               immune to html { font-size: 62.5% }, which makes the body
+ *               10px on sites whose paragraphs are all 17px.
+ *   tapPx       How tall the links and buttons are.
+ *   zoom        How far the browser shrank the page to fit the screen.
+ */
+function measurePhone() {
+  const vv = window.visualViewport;
+  const zoom = vv ? vv.scale : 1;
+  const screenWidth = Math.round(vv ? vv.width : window.innerWidth);
+
+  const visible = el => {
+    const st = getComputedStyle(el);
+    if (st.display === "none" || st.visibility === "hidden" || Number(st.opacity) === 0) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  };
+
+  // Text people read: leaf elements with a sentence's worth in them,
+  // weighted by how much text each holds.
+  const samples = [];
+  for (const el of document.querySelectorAll("body *")) {
+    if (el.childElementCount || /^(SCRIPT|STYLE|NOSCRIPT|SVG)$/.test(el.tagName)) continue;
+    const t = (el.textContent || "").trim();
+    if (t.length < 25 || !visible(el)) continue;
+    samples.push({ px: parseFloat(getComputedStyle(el).fontSize), n: t.length });
+  }
+  samples.sort((a, b) => a.px - b.px);
+  let textPx = null;
+  const total = samples.reduce((a, s) => a + s.n, 0);
+  for (let i = 0, acc = 0; i < samples.length; i++) {
+    acc += samples[i].n;
+    if (acc >= total / 2) { textPx = Math.round(samples[i].px * 10) / 10; break; }
+  }
+
+  const taps = [...document.querySelectorAll("a[href],button,input,select")]
+    .filter(visible).map(el => el.getBoundingClientRect().height).sort((a, b) => a - b);
+  const tapPx = taps.length ? Math.round(taps[Math.floor(taps.length / 2)]) : null;
+
+  /*
+    Words and buttons that sit past the right-hand edge of the screen and can
+    only be reached by dragging the page sideways. That is the claim the
+    letter makes, so it is the thing measured - element by element - rather
+    than the page's width.
+
+    The page's width was the old measure, and it is wrong both ways. It
+    counts content that overflow-x: hidden has clipped away, which no visitor
+    can drag into view; and the browser reports a page that genuinely runs
+    off the screen and a page that is safely clipped with exactly the same
+    widths. So:
+      - only text and things you press count, not decoration;
+      - anything inside a clipped or scrolling box is excluded: a carousel's
+        next slide or a scrollable table is meant to be there, and something
+        clipped cannot be dragged into view anyway;
+      - anything fixed to the screen is excluded: slide-out menus, chat
+        bubbles and cookie bars park themselves off the edge on purpose;
+      - anything hidden from screen readers is excluded, likewise;
+      - anything sitting wholly past the edge inside a menu, or moved there
+        by a transform, is excluded: that is a menu drawer or a slide-in
+        waiting to be opened, not page content cut off. On a page with no
+        clipping it does let the page wobble sideways, but everything a
+        visitor reads still fits, and the letter would say otherwise.
+  */
+  const clipped = el => {
+    for (let p = el.parentElement; p; p = p.parentElement) {
+      const st = getComputedStyle(p);
+      if (/^(auto|scroll|hidden|clip)$/.test(st.overflowX) || /paint|strict|content/.test(st.contain || "")) return true;
+    }
+    return false;
+  };
+  const parked = el => {
+    for (let p = el; p; p = p.parentElement) {
+      const st = getComputedStyle(p);
+      if (st.position === "fixed" || st.position === "sticky") return true;
+      if (p.getAttribute && (p.getAttribute("aria-hidden") === "true" || p.hasAttribute("inert"))) return true;
+    }
+    return false;
+  };
+  const MENU = 'nav, [role="navigation"], [role="dialog"], [class*="menu" i], [id*="menu" i], [class*="drawer" i], '
+    + '[class*="canvas" i], [class*="sidebar" i], [class*="slideout" i], [class*="mobile-nav" i], [class*="flyout" i]';
+  const offStage = (el, r) => {
+    if (r.left < screenWidth - 4) return false;
+    if (el.closest(MENU)) return true;
+    for (let p = el; p && p !== document.body; p = p.parentElement) {
+      const tf = getComputedStyle(p).transform;
+      if (tf && tf !== "none") return true;
+    }
+    return false;
+  };
+  const off = [];
+  let reachRight = screenWidth;
+  for (const el of document.querySelectorAll("body *")) {
+    const isControl = /^(A|BUTTON|INPUT|SELECT|TEXTAREA)$/.test(el.tagName);
+    const ownText = [...el.childNodes].some(n => n.nodeType === 3 && n.nodeValue.trim().length > 1);
+    if (!isControl && !ownText) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 4 || r.height < 4 || r.right <= screenWidth + 8) continue;
+    if (!visible(el) || clipped(el) || parked(el) || offStage(el, r)) continue;
+    off.push({ tag: el.tagName.toLowerCase(), over: Math.round(r.right - screenWidth) });
+    reachRight = Math.max(reachRight, Math.round(r.right));
+  }
+  off.sort((a, b) => b.over - a.over);
+
+  return {
+    zoom: Math.round(zoom * 1000) / 1000,
+    screenWidth,
+    maxScrollX: reachRight - screenWidth,
+    textPx,
+    tapPx,
+    cutOffCount: Math.min(off.length, 40),
+    cutOffWorstPx: off.length ? off[0].over : 0,
+    cutOffSample: off.slice(0, 4).map(o => o.tag),
+    hasViewportMeta: !!document.querySelector('meta[name="viewport"]'),
+  };
+}
+
+/**
+ * Scrolls down the page and back, the way a visitor would, so slide-in
+ * animations and lazily-built sections finish before anything is measured.
+ *
+ * At most two dozen stops, spread over the whole height. A stop per
+ * screenful took 32 seconds on a 360,000px catalogue page, and ran twice.
+ */
+async function scrollThrough() {
+  const h = document.body ? document.body.scrollHeight : 0;
+  const stops = Math.min(24, Math.max(1, Math.ceil(h / Math.max(300, innerHeight * 0.8))));
+  for (let i = 1; i <= stops; i++) {
+    window.scrollTo(0, Math.round((h * i) / stops));
+    await new Promise(r => setTimeout(r, 50));
+  }
+  window.scrollTo(0, 0);
+  await new Promise(r => setTimeout(r, 300));
+}
+
+/**
+ * Turns a phone measurement into a verdict. Pure, so it can be tested
+ * without a browser.
+ *
+ * Two different failures, graded separately and never added together:
+ *
+ *   It overflows: the visitor can drag the page sideways by at least a tenth
+ *   of the screen. Below that it is a stray margin nobody notices.
+ *
+ *   It is shrunk: the browser shrank a desktop layout to fit (zoom under
+ *   0.9), and the result is genuinely hard to use - the text people read
+ *   lands under 9px, or the links under 20px tall. A page that is shrunk but
+ *   still readable and tappable is not called broken: the owner looks at it
+ *   on their phone, it works, and the letter would be wrong.
+ */
+export function phoneVerdict(m) {
+  if (!m) return {};
+  const ramp = (v, from, to) => Math.max(0, Math.min(1, (v - from) / (to - from)));
+  const overflowPct = m.screenWidth ? Math.round((m.maxScrollX / m.screenWidth) * 100) : 0;
+  const shrunkPage = m.zoom < 0.9;
+  const effText = m.textPx == null ? null : Math.round(m.textPx * m.zoom * 10) / 10;
+  const effTap = m.tapPx == null ? null : Math.round(m.tapPx * m.zoom);
+
+  /*
+    Overflowing means at least two separate bits of text or buttons out past
+    the edge, reaching at least a tenth of a screen further. One stray word
+    or a button 20px over is not "drag the page around to read it".
+  */
+  const cutOff = m.cutOffCount;
+  let broken = 0;
+  const overflows = overflowPct >= 10 && cutOff >= 2;
+  if (overflows) broken = 0.5 + 0.5 * Math.max(ramp(overflowPct, 10, 100), ramp(cutOff, 2, 12));
+
+  let shrunk = 0;
+  const unreadable = shrunkPage && effText != null && effText < 9;
+  const untappable = shrunkPage && effTap != null && effTap < 20;
+  if (unreadable) shrunk = 0.5 + 0.5 * ramp(9 - effText, 0, 4);
+  if (untappable) shrunk = Math.max(shrunk, 0.4 + 0.3 * ramp(20 - effTap, 0, 12));
+
+  const severity = Math.round(Math.max(broken, shrunk) * 100) / 100;
+  return {
+    mobileScreenWidth: m.screenWidth,
+    mobileScrollWidth: m.screenWidth + m.maxScrollX,
+    mobileOverflowPct: overflows ? overflowPct : 0,
+    mobileCutOff: overflows ? cutOff : 0,
+    mobileCutOffWorstPx: overflows ? m.cutOffWorstPx : 0,
+    mobileCutOffSample: overflows ? m.cutOffSample : [],
+    mobileZoom: m.zoom,
+    mainTextPx: m.textPx,
+    effectiveBodyPx: effText,
+    effectiveTapPx: effTap,
+    phoneUnreadable: unreadable,
+    phoneUntappable: untappable,
+    notResponsiveSeverity: severity,
+    notResponsiveSignals: [overflows, overflows && cutOff >= 3, unreadable, untappable].filter(Boolean).length,
+    isResponsive: severity === 0,
+    hasViewportMeta: m.hasViewportMeta,
+  };
+}
+
+/** A fresh load, settled the way a person's visit settles, then measured. */
+async function loadAndMeasure(browser, target, contextOptions, { timeoutMs = 30000, measure = measurePhone, settleMs = 2000, extra = null } = {}) {
+  const context = await browser.newContext({ ignoreHTTPSErrors: true, ...contextOptions });
+  try {
+    const page = await context.newPage();
+    const resp = await page.goto(target, { waitUntil: "load", timeout: timeoutMs });
+    if (resp && resp.status() >= 400) return null;
+    await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
+    // Scroll to the bottom and back: plenty of pages finish laying out, and
+    // load their footers, only once they are scrolled.
+    await page.evaluate(scrollThrough).catch(() => {});
+    await page.waitForTimeout(settleMs);
+    const m = await page.evaluate(measure);
+    return extra ? { ...m, ...(await extra(page)) } : m;
+  } catch {
+    return null;
+  } finally {
+    await context.close().catch(() => {});
+  }
+}
+
+/**
+ * The second look, before anyone is told their site breaks on a phone.
+ *
+ * A fresh load in a new browser context, as an iPhone this time, given
+ * longer to settle and scrolled through first. The phone problem stands only
+ * if this look agrees. If it does not, or the page will not load a second
+ * time, nothing is claimed: telling an owner something about their own site
+ * that they can disprove by picking up their phone is the worst thing this
+ * tool can do.
+ */
+export async function confirmPhone(browser, target, { timeoutMs = 30000 } = {}) {
+  const m = await loadAndMeasure(browser, target, {
+    viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, userAgent: IPHONE_UA,
+  }, { timeoutMs, settleMs: 1500 });
+  return m ? phoneVerdict(m) : null;
+}
 
 /**
  * How the page is laid out, as opposed to how old its code is.
@@ -327,7 +594,7 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
       deviceScaleFactor: 2,
       isMobile: true,
       hasTouch: true,
-      userAgent: UA,
+      userAgent: PHONE_UA,
       ignoreHTTPSErrors: true, // we already recorded the cert state above
     });
     const page = await context.newPage();
@@ -493,78 +760,7 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
           return true;
         });
 
-      /*
-        What is actually cut off at the right edge of the phone screen.
-
-        Whether a page has a viewport meta tag says what the author intended,
-        not what the visitor gets. Plenty of sites written before responsive
-        design was standard still fit a phone perfectly and work fine; plenty
-        of sites with the tag still push their header half off the screen.
-        Only the second kind is worth telling someone about, so this counts
-        the things a thumb cannot reach rather than reading the markup.
-
-        Three kinds of false positive have to be excluded or this counts every
-        site on the internet:
-          - anything inside a deliberately scrollable strip (a carousel, a
-            wide table in a scroll box) is meant to extend past the edge;
-          - a hidden slide-in menu parked off to the right is not visible;
-          - an element that starts past the right edge entirely is off-stage,
-            not cut in half.
-      */
-      const cutOff = (() => {
-        const clipped = el => {
-          for (let p = el.parentElement; p; p = p.parentElement) {
-            const st = getComputedStyle(p);
-            if (st.overflowX === "auto" || st.overflowX === "scroll" || st.overflowX === "hidden") return true;
-          }
-          return false;
-        };
-        const items = [];
-        for (const el of document.querySelectorAll("body *")) {
-          const r = el.getBoundingClientRect();
-          if (r.width < 24 || r.height < 12) continue;
-          // Starts off-screen: a parked drawer, not a broken layout.
-          if (r.left >= screenWidth - 4) continue;
-          if (r.right <= screenWidth + 8) continue;
-          const st = getComputedStyle(el);
-          if (st.display === "none" || st.visibility === "hidden" || Number(st.opacity) === 0) continue;
-          const ink = (el.innerText || "").trim().length > 0
-            || /^(IMG|SVG|VIDEO|CANVAS|INPUT|BUTTON|SELECT|TEXTAREA)$/.test(el.tagName)
-            || (st.backgroundImage && st.backgroundImage !== "none");
-          if (!ink) continue;
-          if (clipped(el)) continue;
-          items.push({ tag: el.tagName.toLowerCase(), over: Math.round(r.right - screenWidth) });
-        }
-        /*
-          A cut-off parent drags all of its children into the list, so twenty
-          "elements off screen" can be one broken header. Only the outermost
-          offender at each overhang is interesting, and the count is capped so
-          one runaway table cannot outweigh everything else.
-        */
-        items.sort((a, b) => b.over - a.over);
-        return {
-          count: Math.min(items.length, 40),
-          worstPx: items.length ? items[0].over : 0,
-          sample: items.slice(0, 4).map(i => i.tag),
-        };
-      })();
-
       return {
-        mobileZoom: Math.round(zoom * 1000) / 1000,
-        physicalWidth,
-        bodyFontPx: document.body ? parseFloat(getComputedStyle(document.body).fontSize) || null : null,
-        // The typical tappable thing, after the browser's zoom is applied.
-        medianTapPx: (() => {
-          const hs = [...document.querySelectorAll("a[href],button,input,select")]
-            .map(el => el.getBoundingClientRect().height).filter(h => h > 0).sort((a, b) => a - b);
-          return hs.length ? Math.round(hs[Math.floor(hs.length / 2)]) : null;
-        })(),
-        cutOffCount: cutOff.count,
-        cutOffWorstPx: cutOff.worstPx,
-        cutOffSample: cutOff.sample,
-        scrollWidth: Math.max(doc.scrollWidth, document.body ? document.body.scrollWidth : 0),
-        clientWidth: screenWidth,
-        hasViewportMeta: !!document.querySelector('meta[name="viewport"]'),
         hasContactAboveFold: contactable,
         brokenImages: [...document.images].filter(i => i.complete && i.naturalWidth === 0).length,
         imageCount: document.images.length,
@@ -581,94 +777,33 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
     });
 
     /*
-      Does the page work on a phone, judged on what the visitor gets.
+      Does the page work on a phone - measured, then confirmed.
 
-      This used to require a viewport meta tag: no tag meant "not responsive"
-      however well the page actually behaved. That is the wrong question. A
-      site written in 2009 with a fixed 960px layout that happens to scale
-      down cleanly is usable — you can read it, you can tap the phone number,
-      it is simply not fashionable. A site whose header runs 300px off the
-      side of the screen is not, tag or no tag.
-
-      So it is measured two ways, both of them things a visitor feels:
-      how far you have to drag the page sideways, and how much is hanging
-      off the edge while you do.
+      The first look is this load. If it says the page breaks on a phone, a
+      second, independent look must agree before anything is claimed: a fresh
+      load as an iPhone, given longer and scrolled through. See confirmPhone
+      for why the bar is that high.
     */
-    out.mobileScrollWidth = measured.scrollWidth;
-    out.mobileScreenWidth = measured.clientWidth;
-    out.mobileOverflowPct = measured.clientWidth
-      ? Math.max(0, Math.round(((measured.scrollWidth - measured.clientWidth) / measured.clientWidth) * 100))
-      : null;
-    out.mobileCutOff = measured.cutOffCount;
-    out.mobileCutOffWorstPx = measured.cutOffWorstPx;
-    out.mobileCutOffSample = measured.cutOffSample;
-    /*
-      10% is the line because it is roughly where dragging starts: below that
-      you are looking at rounding, a stray margin or one wide image, and the
-      page still reads in one column. Three cut-off elements rather than one
-      for the same reason — a single overhanging banner is untidy, a header, a
-      nav and a hero all hanging off is a broken page.
-    */
-    out.mobileZoom = measured.mobileZoom;
-    // What the visitor's eye actually receives, after the browser shrank the
-    // page to fit. 17px text on a page zoomed to 0.4 arrives as 7px.
-    out.effectiveBodyPx = measured.bodyFontPx == null ? null
-      : Math.round(measured.bodyFontPx * measured.mobileZoom * 10) / 10;
-    out.effectiveTapPx = measured.medianTapPx == null ? null
-      : Math.round(measured.medianTapPx * measured.mobileZoom);
-
-    /*
-      Four ways a page fails a phone, in the order a visitor meets them.
-
-      10% of overflow is where dragging starts; below that it is a stray
-      margin. Three cut-off elements rather than one, because a single
-      overhanging banner is untidy and a header, a nav and a hero all hanging
-      off is a broken page. 9px is where text stops being readable without
-      pinching, and 24px is where a thumb stops landing on the right link.
-    */
-    /*
-      Two different failures, graded separately and never added together.
-
-      A page fails a phone in one of two ways, and they are mutually
-      exclusive. Either it declares a viewport and then overflows it, so the
-      visitor drags sideways - or it declares nothing, the browser lays it out
-      at 980px and shrinks the result to fit, so nothing overflows and
-      everything is too small to read. Counting "how many of four signals"
-      capped the worst page on the fixtures at half marks, because no page can
-      ever be both. Each track is scored on how bad it is, and the worse of
-      the two wins.
-    */
-    const ramp = (value, from, to) => Math.max(0, Math.min(1, (value - from) / (to - from)));
-
-    let broken = 0;
-    if (out.mobileOverflowPct >= 10) broken = 0.5 + 0.5 * ramp(out.mobileOverflowPct, 10, 100);
-    if (out.mobileCutOff >= 3) broken = Math.max(broken, 0.5 + 0.5 * ramp(out.mobileCutOff, 3, 12));
-
-    let shrunk = 0;
-    if (out.effectiveBodyPx != null && out.effectiveBodyPx < 9) shrunk = 0.5 + 0.5 * ramp(9 - out.effectiveBodyPx, 0, 4);
-    /*
-      Tap size counts here only when the browser actually shrank the page.
-
-      At zoom 1 the median link height is mostly a property of prose - an
-      inline link inside a paragraph is one line tall, about 21px, on every
-      well-built site there is, and this flagged one of our own concept builds
-      because of it. Whether buttons are comfortable to hit is the small
-      tap-target check's job. This track is about what shrink-to-fit did, so
-      it only applies where there was shrinking.
-    */
-    if (out.mobileZoom < 0.95 && out.effectiveTapPx != null && out.effectiveTapPx < 24) {
-      shrunk = Math.max(shrunk, 0.4 + 0.4 * ramp(24 - out.effectiveTapPx, 0, 16));
+    // Scrolled through first, as a visitor would: slide-in animations and
+    // lazy layouts finish only once their part of the page has been seen.
+    await page.evaluate(scrollThrough).catch(() => {});
+    const firstLook = phoneVerdict(await page.evaluate(measurePhone));
+    Object.assign(out, firstLook);
+    out.phoneCheckVersion = 2;
+    if (!firstLook.isResponsive) {
+      const second = await confirmPhone(browser, out.finalUrl || target, { timeoutMs });
+      if (second && !second.isResponsive) {
+        // Both looks agree. Report the milder of the two, so every number in
+        // the letter is one both looks would stand behind.
+        Object.assign(out, second.notResponsiveSeverity < firstLook.notResponsiveSeverity ? second : firstLook);
+        out.phoneConfirmed = true;
+      } else {
+        // Overruled, or could not be checked a second time: nothing claimed.
+        Object.assign(out, second ?? {}, { isResponsive: true, notResponsiveSeverity: 0, notResponsiveSignals: 0 });
+        out.phoneConfirmed = false;
+        out.phoneOverruled = { firstLook, secondLook: second ?? "could not load a second time" };
+      }
     }
-
-    out.notResponsiveSeverity = Math.round(Math.max(broken, shrunk) * 100) / 100;
-    out.notResponsiveSignals = [
-      out.mobileOverflowPct >= 10,
-      out.mobileCutOff >= 3,
-      out.effectiveBodyPx != null && out.effectiveBodyPx < 9,
-      out.mobileZoom < 0.95 && out.effectiveTapPx != null && out.effectiveTapPx < 24,
-    ].filter(Boolean).length;
-    out.isResponsive = out.notResponsiveSeverity === 0;
-    out.hasViewportMeta = measured.hasViewportMeta;
     out.hasContactAboveFold = measured.hasContactAboveFold;
     out.brokenImages = measured.brokenImages;
     out.title = measured.title;
@@ -705,32 +840,25 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
       either side. Measured at phone width the content-width signal came back
       100% on a page that was plainly badly laid out, so it never fired at all.
     */
-    // Nothing measured is the honest default: a page that will not resize is
-    // one whose layout was not looked at, not one that passed.
-    let layout = {};
-    try {
-      await page.setViewportSize({ width: 1280, height: 900 });
-      // Re-measuring alone is not enough: a page that lays out on scroll or
-      // resize needs a moment to settle before it is looked at.
-      await page.waitForTimeout(250);
-      layout = await page.evaluate(measureLayout);
-    } catch {
-      // Left unmeasured rather than guessed at.
-    } finally {
-      /*
-        Back to the phone before anything else is measured.
+    /*
+      Measured from a separate load as a desktop browser, not by stretching
+      the phone page to 1280px.
 
-        Everything after this - font sizes, tap targets, the dated-design
-        markers - is about how the site behaves on a phone, and it reads the
-        live page. Leaving the window at 1280 measured all of it on a desktop,
-        where the mobile stylesheet does not apply: this site's own body text
-        came out at 13.9px and it was flagged for text too small to read on a
-        phone, on a page that is 16px on a phone. A measurement taken at the
-        wrong size is worse than none.
-      */
-      await page.setViewportSize({ width: 390, height: 844 }).catch(() => {});
-      await page.waitForTimeout(150);
-    }
+      Stretching the phone page meant a site that sends phones a different
+      layout was judged on its phone layout at desktop width - a narrow
+      column marooned in white, "badly laid out" - and it needed the window
+      put back afterwards, which once went wrong and measured every phone
+      number on a desktop. A desktop's own load gets the desktop's own page.
+    */
+    // The same load also reads the desktop page's email addresses: some
+    // sites leave the address out of their phone version, and this saves
+    // loading the desktop page a second time just to look.
+    const layout = await loadAndMeasure(browser, out.finalUrl || target, {
+      viewport: { width: 1280, height: 900 }, userAgent: DESKTOP_UA,
+    }, {
+      timeoutMs, measure: measureLayout, settleMs: 600,
+      extra: async p => ({ desktopEmails: await p.evaluate(collectEmailsInPage).catch(() => null), desktopUrl: p.url() }),
+    }) ?? {};
 
     out.emptyFirstScreen = layout.emptyFirstScreen;
     out.contentWidthPct = layout.contentWidthPct;
@@ -799,6 +927,11 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
     // Runs in the page that is already open, so it costs nothing extra.
     const struct = await structure(page);
     const interpreted = interpretStructure(struct);
+    // On a page the browser shrank to fit, small text is the phone check's
+    // finding, measured after the phone's own text enlarging. Claiming it a
+    // second time here, from the un-enlarged size, was how "too small to
+    // read" got said about pages showing perfectly readable text.
+    if (out.mobileZoom != null && out.mobileZoom < 0.9) interpreted.textTooSmall = false;
     Object.assign(out, struct, interpreted);
 
     /*
@@ -844,7 +977,15 @@ export async function auditSite(url, { browser, timeoutMs = 30000, screenshotPat
       homepage is finished with - including the screenshot, which would
       otherwise be of the contact page.
     */
-    Object.assign(out, emailFields(await findBusinessEmail(page, out.finalUrl || target)));
+    /*
+      Sites that pick a layout by device can leave the address out of the
+      phone version - a slimmed footer, a contact page without the email.
+      What the desktop version of the homepage showed is read alongside, and
+      its contact links are followed too, before anything is called "none".
+    */
+    Object.assign(out, emailFields(await findBusinessEmail(page, out.finalUrl || target, {
+      also: layout.desktopEmails ? { ...layout.desktopEmails, url: layout.desktopUrl } : null,
+    })));
   } catch (e) {
     out.fetchFailed = true;
     out.error = e.message.split("\n")[0].slice(0, 200);
@@ -912,6 +1053,10 @@ function emailFields(found) {
     // own - shown on the draft so they can be chosen by hand.
     emailCandidates: (found.candidates ?? []).filter(a => a !== found.email).slice(0, 5),
     emailPagesSearched: found.searched ?? [],
+    // The site showed a "checking your browser" screen or refused the visit:
+    // not the same as having no address, and not reported as if it were.
+    emailSearchBlocked: Boolean(found.blocked),
+    emailSearchError: null,
     emailSearchVersion: found.version ?? 1,
   };
 }
@@ -924,23 +1069,80 @@ function emailFields(found) {
  * one field would cost a dozen seconds each and change scores nobody asked to
  * change.
  */
-export async function searchEmails(url, { browser, timeoutMs = 25000, allowLocal = false } = {}) {
+export async function searchEmails(url, { browser, timeoutMs = 25000, allowLocal = false, maxPages = 5, guessPages = true } = {}) {
   const owned = !browser;
   browser = browser || (await launchBrowser());
   let context;
   try {
     const target = url.startsWith("http") ? url : `https://${url}`;
     await assertPublicTarget(new URL(target).hostname, { allowLocal });
-    context = await browser.newContext({ viewport: { width: 1280, height: 900 }, userAgent: UA, ignoreHTTPSErrors: true });
+    // An ordinary desktop browser that still says who it is. The old
+    // "compatible; MBOnyxAudit" string read as a bot, and some sites answer
+    // bots with a challenge screen or a stripped page.
+    context = await browser.newContext({ viewport: { width: 1280, height: 900 }, userAgent: DESKTOP_UA, ignoreHTTPSErrors: true });
     const page = await context.newPage();
     const resp = await page.goto(target, { waitUntil: "domcontentloaded", timeout: timeoutMs });
-    if (resp && resp.status() >= 400) return { ...emailFields({ email: null, candidates: [], searched: [target], version: 2 }), error: `server returned ${resp.status()}` };
-    await page.waitForTimeout(1500);
-    return emailFields(await findBusinessEmail(page, page.url()));
+    if (resp && resp.status() >= 400) {
+      // 403 and 503 with a challenge page are a refusal, not a missing site.
+      const blocked = (resp.status() === 403 || resp.status() === 503)
+        && Boolean(await page.evaluate(collectEmailsInPage).then(r => r.blocked).catch(() => false));
+      return { ...emailFields({ email: null, candidates: [], searched: [target], blocked, version: 0 }), error: `server returned ${resp.status()}` };
+    }
+    await page.waitForLoadState("networkidle", { timeout: 2500 }).catch(() => {});
+    return emailFields(await findBusinessEmail(page, page.url(), { maxPages, guessPages }));
   } catch (e) {
     return { ...emailFields({ email: null, candidates: [], searched: [], version: 0 }), error: e.message.split("\n")[0].slice(0, 160) };
   } finally {
     await context?.close().catch(() => {});
+    if (owned) await browser.close().catch(() => {});
+  }
+}
+
+/**
+ * The phone check on its own, for leads checked before it looked twice.
+ *
+ * Their verdicts came from a single look, by a browser that did not say it
+ * was a phone, reading widths that count clipped content - the combination
+ * behind the letter one owner answered with "it does adjust, check your
+ * device settings". Nothing from that check is trusted until it has been
+ * redone this way.
+ */
+export async function recheckPhone(url, { browser, timeoutMs = 30000, allowLocal = false } = {}) {
+  const owned = !browser;
+  browser = browser || (await launchBrowser());
+  try {
+    const target = url.startsWith("http") ? url : `https://${url}`;
+    await assertPublicTarget(new URL(target).hostname, { allowLocal });
+    const first = await loadAndMeasure(browser, target, {
+      viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, userAgent: PHONE_UA,
+    }, { timeoutMs, settleMs: 1500, extra: page => structure(page) });
+    if (!first) return { error: "could not load the page" };
+    const firstLook = phoneVerdict(first);
+    // The text and button sizes were read from the same old load, through a
+    // browser that did not say it was a phone and against a 14px line, so
+    // they are redone here too.
+    const sizes = interpretStructure(first);
+    const redone = {
+      bodyFontSize: first.bodyFontSize,
+      tappableCount: first.tappableCount,
+      tinyTapTargets: first.tinyTapTargets,
+      textTooSmall: sizes.textTooSmall && !(firstLook.mobileZoom < 0.9),
+      tapTargetsTooSmall: sizes.tapTargetsTooSmall,
+      phoneCheckVersion: 2,
+    };
+    if (firstLook.isResponsive) return { ...firstLook, ...redone, phoneConfirmed: null, phoneOverruled: null };
+    const second = await confirmPhone(browser, target, { timeoutMs });
+    if (second && !second.isResponsive) {
+      return { ...(second.notResponsiveSeverity < firstLook.notResponsiveSeverity ? second : firstLook), ...redone, phoneConfirmed: true, phoneOverruled: null };
+    }
+    return {
+      ...(second ?? {}), ...redone, isResponsive: true, notResponsiveSeverity: 0, notResponsiveSignals: 0,
+      phoneConfirmed: false,
+      phoneOverruled: { firstLook, secondLook: second ?? "could not load a second time" },
+    };
+  } catch (e) {
+    return { error: e.message.split("\n")[0].slice(0, 160) };
+  } finally {
     if (owned) await browser.close().catch(() => {});
   }
 }

@@ -1,0 +1,18 @@
+<!doctype html>
+<!--
+  Picks its layout by asking what device it is talking to, and the phone
+  version leaves the footer address out. Read only as a phone, it has no
+  address; the desktop version has one.
+-->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smithville Septic</title></head>
+<body>
+  <h1>Smithville Septic</h1>
+  <p>Pumping, inspections and repairs. Call (816) 555-0177.</p>
+  <footer id="foot"></footer>
+  <script>
+    if (!/Mobile|Android|iPhone/.test(navigator.userAgent)) {
+      document.getElementById("foot").innerHTML = '<p>Email: <a href="mailto:smithvilleseptic@swbell.net">smithvilleseptic@swbell.net</a></p>';
+    }
+  </script>
+</body></html>

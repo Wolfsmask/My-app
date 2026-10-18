@@ -20,6 +20,25 @@
  *   - Some owners write it out - "info [at] example [dot] com" - to dodge
  *     spam bots, and the old reader only knew the @ form.
  *
+ * And a second round, after he found addresses on sites still marked "no
+ * email":
+ *
+ *   - Local internet providers' addresses (everestkc.net, kc.rr.com,
+ *     swbell.net...) were treated as some unrelated company's, so they were
+ *     only ever offered as a maybe - and a draft with only maybes said "no
+ *     email address anywhere". Those drafts are now their own group.
+ *   - Footers that load as you scroll, and contact pages built by script,
+ *     were read before they had arrived.
+ *   - Only links saying "contact" or "about" were followed. "Get a quote",
+ *     "Book", "Schedule", "Request an estimate" and the privacy page - which
+ *     very often has the address - were not.
+ *   - Addresses kept in attributes, broken up by invisible characters, or
+ *     written "info at example dot com" were missed.
+ *   - A site whose menu is built by script has no links to follow; the
+ *     usual contact page addresses are now tried.
+ *   - A page that blocked the check (a "checking your browser" screen) was
+ *     reported as having no address. It is now reported as blocked.
+ *
  * Still refused: noreply and postmaster addresses, website builders' own
  * support addresses, template placeholders, and anything in a designer's
  * credit line. Writing to the wrong person is still worse than writing to
@@ -34,7 +53,22 @@ const FREEMAIL = new Set([
   "comcast.net", "att.net", "sbcglobal.net", "bellsouth.net", "verizon.net",
   "charter.net", "cox.net", "earthlink.net", "frontier.com", "windstream.net",
   "centurylink.net", "embarqmail.com", "q.com", "gmx.com", "mail.com", "zoho.com",
+  // Internet providers - plenty of long-running small businesses still use
+  // the address that came with their connection. Kansas City and Missouri
+  // ones first, then the big national ones.
+  "everestkc.net", "swbell.net", "centurytel.net", "mchsi.com", "grm.net", "socket.net",
+  "fidnet.com", "iland.net", "mediacombb.net", "sbcglobal.com", "kc.surewest.net", "surewest.net",
+  "prodigy.net", "pacbell.net", "ameritech.net", "flash.net", "nvbell.net", "wans.net",
+  "juno.com", "netzero.net", "netzero.com", "aim.com", "optonline.net", "optimum.net",
+  "suddenlink.net", "cableone.net", "sparklight.net", "tds.net", "wowway.com", "rcn.com",
+  "knology.net", "bresnan.net", "hughes.net", "peoplepc.com", "frontiernet.net", "roadrunner.com",
+  "twc.com", "spectrum.net", "xfinity.com", "mindspring.com", "excite.com", "lycos.com",
+  "fastmail.com", "hey.com", "pm.me", "tutanota.com", "zohomail.com", "yahoo.co.uk", "hotmail.co.uk",
 ]);
+
+/** Providers that hand out an address per region: someone@kc.rr.com. */
+const FREEMAIL_SUFFIX = /\.(rr\.com|res\.rr\.com|centurytel\.net|tds\.net|frontier\.com)$/i;
+const isFreemail = domain => FREEMAIL.has(domain) || FREEMAIL_SUFFIX.test("." + domain);
 
 /** Addresses nobody reads, and builders' own support desks. */
 const NEVER = /^(noreply|no-reply|donotreply|do-not-reply|mailer-daemon|postmaster|abuse|webmaster@wordpress|sentry|support@(wix|squarespace|godaddy|weebly|shopify|duda))/i;
@@ -123,7 +157,7 @@ export function pickBusinessEmail(candidates, siteUrl) {
     */
     const registered = domain.split(".").slice(-2)[0] ?? "";
     const related = !ownDomain && siteTokens.some(t => sharedPrefix(t, registered) >= 6);
-    const free = FREEMAIL.has(domain);
+    const free = isFreemail(domain);
     if (free && PLACEHOLDER_LOCAL.test(local)) continue;
     // A designer's line is a reason to refuse anything that is not plainly
     // the business's own domain.
@@ -188,12 +222,17 @@ export function pickBusinessEmail(candidates, siteUrl) {
 export function collectEmailsInPage() {
   const RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
   const SPELLED = /([a-z0-9._%+-]+)\s*[\[\(\{]\s*at\s*[\]\)\}]\s*([a-z0-9-]+(?:\s*(?:[\[\(\{]\s*dot\s*[\]\)\}]|\.)\s*[a-z0-9-]+)+)/gi;
+  // "info at riversidedental dot com" - no brackets, so it must end in a
+  // real ending spelled out, or "meet us at noon" would count.
+  const WORDY = /\b([a-z0-9._%+-]{2,})\s+at\s+([a-z0-9-]{2,}(?:\s+dot\s+[a-z0-9-]{2,})*\s+dot\s+(?:com|net|org|us|biz|info|co))\b/gi;
+  // Invisible characters dropped into an address to throw off scrapers.
+  const INVISIBLE = /[­​-‍⁠﻿]/g;
   const found = [];
   const add = (address, source, el) => {
     if (!address) return;
     const block = el && el.closest ? (el.closest("p,li,td,address,dd,section,footer,header,div") || el) : null;
     const context = block ? String(block.innerText || block.textContent || "").replace(/\s+/g, " ").trim().slice(0, 240) : "";
-    found.push({ address: String(address).trim(), source, context });
+    found.push({ address: String(address).replace(INVISIBLE, "").trim(), source, context });
   };
   const decodeCf = hex => {
     if (!/^[0-9a-f]{4,}$/i.test(hex || "") || hex.length % 2) return null;
@@ -201,6 +240,14 @@ export function collectEmailsInPage() {
     let s = "";
     for (let i = 2; i < hex.length; i += 2) s += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16) ^ key);
     return s;
+  };
+  const scanText = (raw, el, source) => {
+    const t = String(raw || "").replace(INVISIBLE, "");
+    for (const m of t.matchAll(RE)) add(m[0], source, el);
+    for (const m of t.matchAll(SPELLED)) {
+      add(m[1] + "@" + m[2].replace(/\s*(?:[\[\(\{]\s*dot\s*[\]\)\}]|\.)\s*/gi, "."), "spelled out", el);
+    }
+    for (const m of t.matchAll(WORDY)) add(m[1] + "@" + m[2].replace(/\s+dot\s+/gi, "."), "spelled out", el);
   };
 
   for (const a of document.querySelectorAll('a[href^="mailto:" i]')) {
@@ -216,26 +263,42 @@ export function collectEmailsInPage() {
   const root = document.body || document.documentElement;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let node, visited = 0;
-  while ((node = walker.nextNode()) && visited++ < 6000) {
+  while ((node = walker.nextNode()) && visited++ < 8000) {
     const t = node.nodeValue || "";
     if (!t.includes("@") && !/\bat\b/i.test(t)) continue;
-    const tag = node.parentElement && node.parentElement.tagName;
+    const parent = node.parentElement;
+    const tag = parent && parent.tagName;
     if (tag === "SCRIPT" || tag === "STYLE" || tag === "NOSCRIPT") continue;
-    for (const m of t.matchAll(RE)) add(m[0], "text", node.parentElement);
-    for (const m of t.matchAll(SPELLED)) {
-      add(m[1] + "@" + m[2].replace(/\s*(?:[\[\(\{]\s*dot\s*[\]\)\}]|\.)\s*/gi, "."), "spelled out", node.parentElement);
+    scanText(t, parent, "text");
+    // Written backwards in the source and flipped back by CSS, so a person
+    // reads it the right way round and a scraper reads "moc.elpmaxe@ofni".
+    if (parent && t.includes("@")) {
+      const cs = getComputedStyle(parent);
+      if (cs.unicodeBidi === "bidi-override" && cs.direction === "rtl") scanText([...t].reverse().join(""), parent, "text");
     }
   }
   // An address split across elements - <span>info</span>@<span>site.com</span>
   // - is only whole in the joined text.
-  for (const m of String((document.body && document.body.innerText) || "").matchAll(RE)) add(m[0], "text", null);
-  for (const s of document.querySelectorAll('script[type="application/ld+json"]')) {
-    for (const m of String(s.textContent || "").matchAll(RE)) add(m[0], "structured data", null);
+  scanText((document.body && document.body.innerText) || "", null, "text");
+  // Kept in an attribute and put on screen by a script, or shown on hover.
+  let looked = 0;
+  for (const el of document.querySelectorAll("body *")) {
+    if (looked++ > 6000) break;
+    for (const at of el.attributes) {
+      if (!at.value || !at.value.includes("@") || at.value.length > 300) continue;
+      if (/^(data-|title$|aria-label$|alt$|content$)/i.test(at.name)) scanText(at.value, el, "attribute");
+    }
   }
+  for (const s of document.querySelectorAll('script[type="application/ld+json"]')) scanText(s.textContent, null, "structured data");
   for (const m of String((document.head && document.head.innerHTML) || "").matchAll(RE)) add(m[0], "page header", null);
 
-  // Pages on the same site worth opening if this one has nothing: contact
-  // first, then about and location pages.
+  /*
+    Pages on the same site worth opening if this one has nothing. Contact
+    first, then the pages people use to get in touch without calling them
+    "contact" - quotes, estimates, bookings - then about and location pages,
+    and last the privacy and legal pages, which very often carry the address
+    because the law expects one there.
+  */
   const here = location.hostname.replace(/^www\./, "");
   const current = location.href.split("#")[0];
   const ranked = [];
@@ -243,51 +306,120 @@ export function collectEmailsInPage() {
     let u;
     try { u = new URL(a.getAttribute("href"), location.href); } catch { continue; }
     if (!/^https?:$/.test(u.protocol) || u.hostname.replace(/^www\./, "") !== here) continue;
-    if (/\.(pdf|jpe?g|png|gif|zip|docx?)$/i.test(u.pathname)) continue;
+    if (/\.(pdf|jpe?g|png|gif|zip|docx?|xlsx?|mp4|mp3)$/i.test(u.pathname)) continue;
     u.hash = "";
     if (u.href === current) continue;
-    const label = ((a.innerText || a.getAttribute("aria-label") || "") + " " + u.pathname).toLowerCase();
-    const rank = /contact|get in touch|reach us|email us/.test(label) ? 0
-      : /about|our story|who we are|location|find us|visit us|our team|staff/.test(label) ? 1 : -1;
+    const label = ((a.innerText || a.textContent || a.getAttribute("aria-label") || a.getAttribute("title") || "") + " " + u.pathname).toLowerCase();
+    const rank = /contact|get in touch|reach us|email us|write to us|message us|send us/.test(label) ? 0
+      : /quote|estimate|inquir|enquir|request|book|schedul|appointment|reserv|connect|reach out/.test(label) ? 1
+      : /about|our story|who we are|location|find us|visit us|direction|hours|our team|meet|staff|service area|support|help|faq/.test(label) ? 2
+      : /privacy|terms|legal|imprint|impressum|disclaimer/.test(label) ? 3 : -1;
     if (rank >= 0) ranked.push({ url: u.href, rank });
   }
   ranked.sort((a, b) => a.rank - b.rank);
-  const contactLinks = [...new Set(ranked.map(r => r.url))].slice(0, 6);
+  const contactLinks = [...new Set(ranked.map(r => r.url))].slice(0, 10);
 
-  return { candidates: found.slice(0, 120), contactLinks };
+  /*
+    A "checking your browser" screen, or a firewall's refusal, is not a site
+    with no address - it is a site that would not let the check in. Only the
+    unmistakable ones: a contact form that merely uses a captcha is a normal
+    page.
+  */
+  const title = String(document.title || "").trim();
+  const opening = String((document.body && document.body.innerText) || "").slice(0, 1500);
+  const blocked = /^(just a moment|attention required|access denied|security check|one more step|please wait|ddos protection|request rejected|forbidden)\b/i.test(title)
+    || Boolean(document.querySelector("#challenge-form, #challenge-running, #cf-challenge-running, .cf-browser-verification, #cf-error-details, #sucuri_challenge"))
+    || (opening.length < 1500 && /(checking your browser|verify(ing)? you are (a )?human|enable javascript and cookies to continue|sucuri website firewall|access to this page has been denied)/i.test(opening));
+
+  return { candidates: found.slice(0, 160), contactLinks, blocked };
 }
+
+/** Gives a page the chance to finish: lazy footers, script-built contact blocks. */
+async function settle(page, { waitMs = 1500 } = {}) {
+  // Short waits throughout: plenty of sites never go quiet (analytics, chat
+  // widgets), and a long wait on each of six pages adds up across a night.
+  await page.waitForLoadState("networkidle", { timeout: waitMs }).catch(() => {});
+  await page.evaluate(async () => {
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    const step = Math.max(400, innerHeight);
+    for (let i = 0, y = 0; i < 16 && y < document.documentElement.scrollHeight; i++, y += step) {
+      scrollTo(0, y);
+      await wait(60);
+    }
+    scrollTo(0, document.documentElement.scrollHeight);
+    await wait(400);
+  }).catch(() => {});
+  await page.waitForLoadState("networkidle", { timeout: 1000 }).catch(() => {});
+}
+
+/** Where a site whose menu is built by script usually keeps the address. */
+const USUAL_PAGES = ["/contact", "/contact-us", "/about"];
 
 /**
  * Looks on the page the browser is already on, then - only if nothing usable
- * turned up - opens up to three contact and about pages on the same site.
+ * turned up - opens up to five contact, quote, about and privacy pages on the
+ * same site.
+ *
+ * Each page is read once straight away and, if that finds nothing, again
+ * after scrolling to the bottom and letting it finish, because footers that
+ * load as you scroll are where small businesses keep their address.
  *
  * Navigates the page it is given, so the caller must be finished with it.
  */
-export async function findBusinessEmail(page, siteUrl, { maxPages = 3, timeoutMs = 15000 } = {}) {
+export async function findBusinessEmail(page, siteUrl, { maxPages = 5, timeoutMs = 15000, guessPages = true, also = null } = {}) {
   const searched = [];
   const all = [];
-  const look = async url => {
-    const r = await page.evaluate(collectEmailsInPage).catch(() => ({ candidates: [], contactLinks: [] }));
-    searched.push(url);
+  let blocked = false;
+  // Read elsewhere already - the desktop version of the same homepage.
+  for (const c of also?.candidates ?? []) all.push({ ...c, foundOn: also.url ?? siteUrl });
+  const read = async url => {
+    const r = await page.evaluate(collectEmailsInPage).catch(() => ({ candidates: [], contactLinks: [], blocked: false }));
     for (const c of r.candidates) all.push({ ...c, foundOn: url });
+    return r;
+  };
+  const look = async url => {
+    let r = await read(url);
+    if (!pickBusinessEmail(all, siteUrl).email && !r.blocked) {
+      await settle(page);
+      const again = await read(url);
+      r = { ...again, contactLinks: [...new Set([...r.contactLinks, ...again.contactLinks])] };
+    }
+    searched.push(url);
     return r;
   };
 
   const first = await look(page.url());
+  blocked = Boolean(first.blocked);
   let pick = pickBusinessEmail(all, siteUrl);
-  for (const link of first.contactLinks) {
-    if (pick.email || searched.length > maxPages) break;
+
+  const queue = [...new Set([...first.contactLinks, ...(also?.contactLinks ?? [])])];
+  if (!queue.length && !blocked && guessPages) {
+    try {
+      const origin = new URL(page.url()).origin;
+      queue.push(...USUAL_PAGES.map(p => origin + p));
+    } catch { /* not a URL */ }
+  }
+  let opened = 0;
+  for (const link of queue) {
+    if (pick.email || blocked || opened >= maxPages) break;
+    if (searched.includes(link)) continue;
+    opened++;
     try {
       const resp = await page.goto(link, { waitUntil: "domcontentloaded", timeout: timeoutMs });
-      if (resp && resp.status() >= 400) { searched.push(link); continue; }
+      // A guessed page that does not exist is not a page that was searched.
+      if (resp && resp.status() >= 400) { if (!USUAL_PAGES.some(p => link.endsWith(p))) searched.push(link); continue; }
       // Contact pages built by script need a moment, and so do Cloudflare's
       // decoders on the ones that are not.
-      await page.waitForTimeout(1200);
+      await page.waitForLoadState("networkidle", { timeout: 2500 }).catch(() => {});
+      await page.waitForTimeout(400);
     } catch {
       continue;
     }
-    await look(link);
+    const r = await look(link);
+    // Links found on the contact page itself - "Request a quote" leading to
+    // the one form page with the address - go on the end of the list.
+    for (const l of r.contactLinks) if (!queue.includes(l)) queue.push(l);
     pick = pickBusinessEmail(all, siteUrl);
   }
-  return { ...pick, searched, version: 2 };
+  return { ...pick, searched, blocked: blocked && !pick.email, version: 3 };
 }

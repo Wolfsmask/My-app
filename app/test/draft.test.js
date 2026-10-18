@@ -233,7 +233,7 @@ test("a page that overflows is described as overflowing, never as too small", ()
     hits: [{ id: "not_responsive", points: 40, label: "Breaks on a phone", evidence: "On a phone: the page lays out 980px wide." }],
     audit: {
       mobileOverflowPct: 151, mobileCutOff: 8, mobileScrollWidth: 980,
-      effectiveBodyPx: 16, mobileZoom: 1,
+      effectiveBodyPx: 16, mobileZoom: 1, phoneConfirmed: true,
     },
   };
   const a = draftEmail(overflowing, { address: "PO Box 1" });
@@ -248,7 +248,7 @@ test("a page that is shrunk is described as shrunk, never as overflowing", () =>
     score: 55,
     hits: [{ id: "not_responsive", points: 40, label: "Breaks on a phone", evidence: "On a phone: the whole page is shrunk to fit." }],
     // Nothing overflows here. The browser laid it out at 980 and scaled it.
-    audit: { mobileOverflowPct: 0, mobileCutOff: 0, mobileZoom: 0.4, bodyFontSize: 12, effectiveBodyPx: 4.8 },
+    audit: { mobileOverflowPct: 0, mobileCutOff: 0, mobileZoom: 0.4, bodyFontSize: 12, effectiveBodyPx: 4.8, phoneUnreadable: true, phoneConfirmed: true },
   };
   const b = draftEmail(shrunk, { address: "PO Box 1" });
   assert.match(b.claims, /shrunk down|squeezes the desktop|too small to read|everything ends up tiny/);
@@ -276,7 +276,7 @@ test("a symptom nobody measured is caught before the email is called ready", () 
   assert.match(bad.unsupported.join("; "), /blurry/);
 
   // And the same sentences against a site where all three are true.
-  const real = { mobileOverflowPct: 60, mobileCutOff: 5, sslValid: false, stretchedImages: 2 };
+  const real = { phoneConfirmed: true, mobileOverflowPct: 60, mobileCutOff: 5, sslValid: false, stretchedImages: 2 };
   assert.equal(claimsAreMeasured(draft, real).ok, true);
 });
 
@@ -309,7 +309,7 @@ test("a site that takes 4 seconds or more leads with that, and the phone is an a
       { id: "not_responsive", points: 40, label: "Breaks on a phone", evidence: "On a phone: the page lays out 980px wide." },
       { id: "slow_lcp", points: 21, label: "Slow to show anything", evidence: "The main content takes 5.2 seconds to appear. Google counts anything over 2.5s as slow." },
     ],
-    audit: { lcpMs: 5200, mobileOverflowPct: 151, mobileCutOff: 8, mobileScrollWidth: 980, effectiveBodyPx: 16 },
+    audit: { lcpMs: 5200, phoneConfirmed: true, mobileOverflowPct: 151, mobileCutOff: 8, mobileScrollWidth: 980, effectiveBodyPx: 16 },
   };
   const d = draftEmail(slowAndBroken, { address: "PO Box 84, Liberty, MO 64069" });
   const first = d.claims.split("\n")[0];
@@ -342,4 +342,22 @@ test("the slow sentence is caught if the page was not actually slow", () => {
   const draft = { claims: "When I loaded your site, it took about 5.2 seconds before anything showed up on the screen." };
   assert.equal(claimsAreMeasured(draft, { lcpMs: 700 }).ok, false);
   assert.equal(claimsAreMeasured(draft, { lcpMs: 5200 }).ok, true);
+});
+
+
+test("a phone problem only one look saw is never put in a letter", () => {
+  /*
+    The backstop for the reply that said "it does adjust - check your device
+    settings". If a phone sentence ever reaches a draft without a confirmed
+    result behind it, the draft is held back from sending.
+  */
+  const drag = { claims: "Pulled up on a phone, the page runs off the side of the screen and has to be dragged around to read." };
+  const measured = { mobileOverflowPct: 140, mobileCutOff: 7 };
+  assert.equal(claimsAreMeasured(drag, { ...measured, phoneConfirmed: true }).ok, true);
+  assert.equal(claimsAreMeasured(drag, { ...measured, phoneConfirmed: false }).ok, false);
+
+  const tiny = { claims: "On a phone it shows the full desktop page shrunk down to fit the screen, so the links and buttons come out tiny and have to be zoomed in on before you can tap them." };
+  assert.equal(claimsAreMeasured(tiny, { phoneUntappable: true, phoneConfirmed: true }).ok, true);
+  assert.equal(claimsAreMeasured(tiny, { phoneUntappable: true, phoneConfirmed: false }).ok, false);
+  assert.equal(claimsAreMeasured(tiny, { phoneUntappable: false, phoneConfirmed: true }).ok, false);
 });

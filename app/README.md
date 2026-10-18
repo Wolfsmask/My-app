@@ -158,21 +158,35 @@ phrasings, so a town's worth of these do not read as the same letter with the na
 
 #### Where the address comes from
 
-It reads the homepage, and if there is nothing usable there it opens their **contact page**,
-then an about page — up to three pages. On each it reads:
+It reads the homepage, scrolling to the bottom so footers that only load as you scroll get
+read too. If there is nothing usable there it opens up to five more pages on the same site:
+the **contact page** first, then pages people use to get in touch without calling them
+"contact" (*Get a quote*, *Free estimate*, *Book*, *Schedule*), then about and location pages,
+and last the privacy page, which often carries the address. A site whose menu is built by
+script, with no links to follow, gets `/contact`, `/contact-us` and `/about` tried. If the
+check found nothing while looking as a phone, it looks again as a desktop browser, because
+some sites leave the address out of their phone version.
+
+On each page it reads:
 
 * `mailto:` links, and addresses written in the text;
 * addresses hidden by **Cloudflare**, which shows visitors the address but leaves the page
   saying `[email protected]` — common on WordPress sites;
-* addresses written out to dodge spam bots, like `info [at] example [dot] com`;
+* addresses written out to dodge spam bots, like `info [at] example [dot] com` or
+  `info at example dot com`, broken up with invisible characters, or stored backwards;
+* addresses kept in an attribute and shown by a script on click;
 * the business details some sites carry for Google.
 
 It takes, in order: an address on their own domain; one on a domain that shares their business
-name; or a Gmail, Yahoo, Outlook or similar address printed on their site — that is the
-business's, overwhelmingly. It refuses `noreply@` addresses, website builders' support desks,
-template placeholders like `yourname@gmail.com`, and anything in a **"website by" / "designed
-by"** line, which is the web designer's. An unrelated company's address is shown as a maybe for
-you to choose by hand, never used on its own.
+name; or a Gmail, Yahoo, Outlook or internet-provider address (everestkc.net, kc.rr.com,
+swbell.net, centurytel.net and the like) printed on their site — that is the business's,
+overwhelmingly. It refuses `noreply@` addresses, website builders' support desks, template
+placeholders like `yourname@gmail.com`, and anything in a **"website by" / "designed by"**
+line, which is the web designer's. An unrelated company's address is shown for you to check
+and pick by hand, never used on its own.
+
+Leads saved before this version that came back with no address are searched again the new
+way the next time you press **Write the emails**.
 
 #### Saves from before the app could send
 
@@ -184,15 +198,19 @@ addresses count as written to, so the same business turning up under another nam
 written to either. This happens once (`app/out/ui/migrations.json` records it); everything
 found afterwards gets letters as normal.
 
-#### The three groups
+#### The four groups
 
 * **Ready to send** — a real address and nothing that needs fixing.
 * **Need a look** — there is an address, but something in the yellow note needs dealing with
   (nothing specific measured, or that address already got a letter for another business).
   These are never sent by Send all.
-* **No email anywhere on their site** — it looked on the homepage and the contact page and
-  found none. These are never sent; there is nobody to send to. Their contact form is the way
-  in if you want one.
+* **Found an address that may be theirs** — there is an address on their site, but on some
+  other company's domain, so it could be a supplier's or a parent company's. Check it, click
+  **Use**, and the letter moves up to ready. Never sent until you do.
+* **No email found on their site** — it looked everywhere above and found none. These are
+  never sent; there is nobody to send to. Their contact form is the way in if you want one.
+  If the site showed a "checking your browser" screen, or would not load, the draft says that
+  instead of claiming there is no address.
 
 #### Sending
 
@@ -386,7 +404,7 @@ an owner reply, an embarrassing one does.
 | Badly laid out | 40 |
 | The design looks dated | 35 |
 | Puts customers off on sight (`--vision` only, ≤4/10) | 8 |
-| Body text under 14px | 6 |
+| Body text under 12px (Google's line for "too small to read") | 6 |
 | Buttons too small to tap | 5 |
 | Heading and semantic structure problems | 2 |
 
@@ -446,6 +464,25 @@ There are two ways a page actually fails, and they never happen together:
   Nothing overflows; everything is simply too small. 17px text arrives at 7px.
 
 Each is graded on how bad it is and the worse of the two is what counts.
+
+**Checked twice, as a real phone.** One owner answered a letter about their
+phone layout with "it does adjust — check your device settings", and they were
+right. Three things caused it, all fixed:
+
+* The checker did not say it was a phone. Sites that choose a layout by asking
+  what device is visiting (Duda, GoDaddy's builder, WordPress mobile plugins)
+  sent it their desktop layout. It now visits as an Android phone, still
+  naming itself as MBOnyxAudit with a contact address.
+* It read the page's total width, which counts content the page itself hides
+  — slide-in animations parked off to the side, carousel slides, menu drawers.
+  No visitor can scroll to those. It now counts only text and buttons a
+  visitor could actually drag into view, after scrolling the page through.
+* It judged text size before the phone's own text enlarging.
+
+A page that fails the first look is loaded again from scratch, as an iPhone,
+and given longer to settle. **Only if both looks agree** is anything said
+about a phone. Leads saved before this check are looked at again before any
+letter about their phone layout can be sent.
 
 ### The design looks dated
 
@@ -547,10 +584,12 @@ npm run serve &                   # from the repo root; the e2e tests need it
 cd app && npm test
 ```
 
-17 tests. The unit tests cover scoring, tier boundaries, copyright parsing and platform
-detection. The end-to-end tests drive a real browser against three fixture sites in
-`test/fixtures/` — a 2011 table-layout site, a half-modernised one, and a genuinely good
-one — and assert the scoring separates them. They skip themselves if no server is running.
+215 tests. The unit tests cover scoring, tier boundaries, copyright parsing, platform
+detection, letter wording and which drafts may be sent. The end-to-end tests drive a real
+browser against the fixture sites in `test/fixtures/` — old, half-modernised and good sites;
+sites that work on phones but fooled the old phone check; and the ways an email address
+hides on a page — and send through a fake mail server so nothing leaves the machine. They
+skip themselves if no server is running (`node tools/serve.mjs 8899 .` from the repo root).
 
 ### A bug these tests caught
 
@@ -586,7 +625,10 @@ business name like `=HYPERLINK(...)` comes straight from Google Places.
   more than that for images, fonts and scripts, so throttling these harder
   than that was courtesy aimed at the wrong thing; it also made an average
   audit take 14 seconds instead of 6.
-- Honest User-Agent identifying the crawler with a contact URL
-- Homepage only — no crawling, no login walls, no scraping of personal data
+- Honest User-Agent: it names the device it imitates (sites pick their layout by it) and
+  still ends with `MBOnyxAudit/1.0` and a contact URL
+- The homepage, plus at most five of the site's own contact, quote, about or privacy pages
+  when looking for an address — no crawling beyond that, no login walls, no scraping of
+  personal data
 
 You are measuring someone's public homepage, not stress-testing their server.

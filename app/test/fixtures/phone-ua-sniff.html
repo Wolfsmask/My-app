@@ -1,0 +1,37 @@
+<!doctype html>
+<!--
+  A site that decides which layout to show by asking what device it is on.
+
+  Website builders that do "dynamic serving" - Duda, GoDaddy's old builder,
+  WordPress mobile plugins - send the phone layout only to a browser that says
+  it is a phone. The checker used to announce itself without the words
+  "Mobile" or "Android" or "iPhone", so it was handed the desktop layout,
+  measured that on a phone-sized screen, and reported a site that works
+  perfectly on every real phone as broken on phones.
+
+  This page does the same thing in the browser: anything that does not say it
+  is a phone gets a fixed 1000px desktop layout.
+-->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smith Roofing</title>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; font-size: 17px; line-height: 1.6; }
+  .desktop .page { width: 1000px; }
+  .desktop .cols { display: flex; gap: 40px; }
+  .page { padding: 20px; box-sizing: border-box; }
+  a { display: inline-block; padding: 12px 0; }
+</style>
+<script>
+  if (!/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) document.documentElement.className = "desktop";
+</script></head>
+<body>
+  <div class="page">
+    <h1>Smith Roofing</h1>
+    <div class="cols">
+      <div><h2>Repairs</h2><p>Leaks, storm damage and flashing, usually fixed the same week.</p></div>
+      <div><h2>Replacements</h2><p>Full tear-off and replacement with a written ten-year warranty.</p></div>
+      <div><h2>Inspections</h2><p>Free after any storm, with photos of everything we find.</p></div>
+    </div>
+    <p><a href="tel:8165550144">Call (816) 555-0144</a></p>
+  </div>
+</body></html>

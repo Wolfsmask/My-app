@@ -56,6 +56,9 @@ before(async () => {
     lead("Ready One", "https://ready-one.test", { audit: { contactEmail: "office@ready-one.test" } }),
     lead("Ready Two", "https://ready-two.test", { audit: { contactEmail: "office@ready-two.test" } }),
     lead("Ready Three", "https://ready-three.test", { audit: { contactEmail: "office@ready-three.test" } }),
+    // An address on their site, but on another company's domain: shown to
+    // check and pick, not filed under "no email".
+    lead("Johnson Plumbing", "https://johnson-plumbing.test", { audit: { emailSearchVersion: 3, contactEmail: null, emailCandidates: ["office@johnsonfamilyservices.com"] } }),
     // Has an address but nothing specific was measured: needs a look.
     { ...lead("Vague Co", "https://vague.test", { audit: { contactEmail: "hi@vague.test" } }), hits: [] },
   ]));
@@ -112,6 +115,13 @@ test("writing first finds the addresses the old search missed", { skip }, async 
   assert.match(by("Northland Lawn").to, /No email address anywhere on their site/);
 
   assert.equal(by("Vague Co").canSend, false, "a letter with nothing specific in it is never sent automatically");
+
+  // Found something, just not clearly theirs: its own group, with a Use button.
+  assert.equal(by("Johnson Plumbing").noEmail, false);
+  assert.equal(by("Johnson Plumbing").canSend, false);
+  assert.match(by("Johnson Plumbing").to, /Found an address on their site, but it is not clearly theirs/);
+  assert.equal(await page.locator('.draft:has(h4:text-is("Johnson Plumbing")) [data-use="office@johnsonfamilyservices.com"]').count(), 1);
+  assert.match(await page.textContent("#drafts"), /found an address that may be theirs/);
   assert.equal(all.filter(c => c.canSend).length, 5);
 });
 
@@ -160,8 +170,10 @@ test("Send all goes one at a time, and Stop stops it", { skip }, async () => {
 test("nothing sent or dropped is ever written again", { skip }, async () => {
   await page.click("#writeall");
   await page.waitForTimeout(1500);
-  const names = (await cards()).map(c => c.name);
-  assert.deepEqual(names, ["Northland Lawn"], "only the one with no address is left, and it cannot be sent");
+  const left = await cards();
+  assert.deepEqual(left.map(c => c.name).sort(), ["Johnson Plumbing", "Northland Lawn"],
+    "only the two without a usable address are left: one to check and pick, one with none");
+  assert.equal(left.some(c => c.canSend), false, "and neither can be sent");
 });
 
 test("the sent list records everything, and an opt-out is permanent", { skip }, async () => {

@@ -19,8 +19,8 @@ import { discoverFile, discoverOsm, locate, OSM_CATEGORIES } from './src/discove
 import { resolveWebsite } from './src/resolve.js';
 import { REGIONS, citiesFor, ALL_CITIES } from './src/places.js';
 import { createStore } from './src/store.js';
-import { auditSite, launchBrowser, searchEmails } from './src/audit.js';
-import { buildDrafts, wantsLetter } from './src/outbox.js';
+import { auditSite, launchBrowser, searchEmails, recheckPhone } from './src/audit.js';
+import { buildDrafts, wantsLetter, needsEmailSearch, needsPhoneCheck } from './src/outbox.js';
 import { loadMailSettings, saveMailSettings, publicSettings, createTransport, explainMailError, sendLetter } from './src/mailer.js';
 import { score, disqualify, qualifies } from './src/score.js';
 import { toCsv, toHtml } from './src/report.js';
@@ -523,9 +523,10 @@ const server = http.createServer(async (req, res) => {
         counts: {
           ready: drafts.filter(d => d.group === 'ready').length,
           attention: drafts.filter(d => d.group === 'attention').length,
+          pick: drafts.filter(d => d.group === 'pick').length,
           noEmail: drafts.filter(d => d.group === 'noEmail').length,
         },
-        needSearch: store.leads.filter(l => wantsLetter(l) && (l.audit?.emailSearchVersion ?? 1) < 2).length,
+        needSearch: store.leads.filter(l => wantsLetter(l) && l.business?.website && (needsEmailSearch(l) || needsPhoneCheck(l))).length,
         sentToday: store.sentToday(),
         mail: publicSettings(settings),
       }));
@@ -536,9 +537,12 @@ const server = http.createServer(async (req, res) => {
   }
 
   /*
-    Looks again for the address of every lead about to get a letter whose
-    site was searched the old way - homepage only, own domain only. Streams,
-    and stops when the tab closes, like everything else that takes a while.
+    Before letters are written, looks again at every lead about to get one
+    that was checked the old way: its address, if the old search came back
+    empty, and its phone verdict, if the letter would mention one - each
+    redone the new way, and a phone problem kept only if two looks agree.
+    Streams, and stops when the tab closes, like everything else that takes
+    a while.
   */
   if (req.method === 'POST' && url.pathname === '/api/emails/find') {
     await readJson(req);
@@ -548,7 +552,7 @@ const server = http.createServer(async (req, res) => {
     res.on('close', () => { stop.abort(); searchingEmails = false; });
     res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' });
 
-    const todo = store.leads.filter(l => wantsLetter(l) && l.business?.website && (l.audit?.emailSearchVersion ?? 1) < 2);
+    const todo = store.leads.filter(l => wantsLetter(l) && l.business?.website && (needsEmailSearch(l) || needsPhoneCheck(l)));
     let browser;
     try {
       send(res, { type: 'start', total: todo.length });
@@ -558,13 +562,32 @@ const server = http.createServer(async (req, res) => {
       const worker = async () => {
         while (queue.length && !stop.signal.aborted) {
           const lead = queue.shift();
-          const r = await searchEmails(lead.business.website, { browser, allowLocal: ALLOW_LOCAL });
-          // A site that could not be reached keeps its old answer and is
-          // tried again next time, rather than being written off as "none".
-          if (!r.error || r.contactEmail) store.setEmailSearch(lead.business.website, r);
-          if (r.contactEmail) found++;
+          let email = lead.audit?.contactEmail ?? null;
+          if (needsEmailSearch(lead)) {
+            const r = await searchEmails(lead.business.website, { browser, allowLocal: ALLOW_LOCAL });
+            // A site that could not be reached keeps its old answer and is
+            // tried again next time, rather than being written off as "none".
+            if (!r.error || r.contactEmail) store.setEmailSearch(lead.business.website, r);
+            // Kept at its old version so it is tried again next time, but the
+            // draft says the site could not be read instead of "no email".
+            else store.setEmailSearch(lead.business.website, { emailSearchError: r.error, emailSearchBlocked: r.emailSearchBlocked });
+            email = r.contactEmail ?? email;
+          }
+          if (needsPhoneCheck(lead)) {
+            const p = await recheckPhone(lead.business.website, { browser, allowLocal: ALLOW_LOCAL });
+            // Could not load it again: the old verdicts are not trusted, so
+            // they are marked unconfirmed and claim nothing.
+            const fields = p.error
+              ? { phoneConfirmed: false, textTooSmall: false, tapTargetsTooSmall: false, phoneCheckVersion: 2 }
+              : p;
+            store.updateAudit(lead.business.website, fields, a => {
+              const s = score(a);
+              return { score: s.score, tier: s.tier, hits: s.hits, earned: s.earned, confidence: s.confidence };
+            });
+          }
+          if (email) found++;
           done++;
-          send(res, { type: 'progress', done, total: todo.length, found, name: lead.business.name, email: r.contactEmail ?? null });
+          send(res, { type: 'progress', done, total: todo.length, found, name: lead.business.name, email });
         }
       };
       await Promise.all([worker(), worker(), worker()]);

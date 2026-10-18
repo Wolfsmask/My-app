@@ -1,0 +1,28 @@
+<!doctype html>
+<!--
+  Breaks for one kind of phone and not another.
+
+  A script here hands anything saying "Android" a fixed 1000px layout and
+  everything else - an iPhone included - a page that fits. It stands in for
+  the cases where one look at a page cannot be trusted on its own: a script
+  that misfires once, a layout that settles late, a site that treats devices
+  differently. The phone check must look a second time, independently, and
+  claim nothing unless both looks agree.
+-->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Liberty Bakery</title>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; font-size: 17px; line-height: 1.6; }
+  .page { padding: 20px; box-sizing: border-box; }
+  .wide .page { width: 1000px; }
+  .wide .cols { display: flex; gap: 40px; }
+</style>
+<script>if (/Android/.test(navigator.userAgent)) document.documentElement.className = "wide";</script></head>
+<body><div class="page">
+  <h1>Liberty Bakery</h1>
+  <div class="cols">
+    <div><h2>Breads</h2><p>Sourdough, rye and a seeded loaf, baked every morning before six.</p></div>
+    <div><h2>Cakes</h2><p>Birthday and wedding cakes to order, with a week's notice.</p></div>
+    <div><h2>Coffee</h2><p>Drip and espresso from a roaster two streets away.</p></div>
+  </div>
+</div></body></html>

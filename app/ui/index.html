@@ -659,12 +659,12 @@ Tier D  under 12 — the site is fine, drop it</pre>
       if (data.error) throw new Error(data.error);
 
       if (data.needSearch) {
-        $('mailstatus').textContent = `Looking for email addresses on ${data.needSearch} site${data.needSearch === 1 ? '' : 's'} — homepage and contact page…`;
+        $('mailstatus').textContent = `Checking ${data.needSearch} site${data.needSearch === 1 ? '' : 's'} again first — the email address, and whether a phone problem holds up on a second look…`;
         const res = await fetch('/api/emails/find', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
         if (res.ok) {
           await readStream(res, e => {
             if (e.type === 'progress') {
-              $('mailstatus').textContent = `Looking for email addresses — ${e.done} of ${e.total} checked, ${e.found} found…`;
+              $('mailstatus').textContent = `Checking again — ${e.done} of ${e.total} done, ${e.found} with an email address…`;
             }
           });
         }
@@ -693,13 +693,20 @@ Tier D  under 12 — the site is fine, drop it</pre>
     const card = d => {
       const site = d.website && safeHref(d.website)
         ? `<a href="${esc(safeHref(d.website))}" target="_blank" rel="noopener noreferrer">${esc(d.website)}</a>` : esc(d.website ?? '');
+      const pages = `${d.pagesSearched.length || 1} page${d.pagesSearched.length === 1 ? '' : 's'}`
+        + `${d.pagesSearched.length ? ': ' + d.pagesSearched.map(u => esc(u.replace(/^https?:\/\//, ''))).join(', ') : ''}`;
+      const phone = d.phone ? ` Phone: ${esc(d.phone)}.` : '';
       const toLine = d.to
         ? `To: <strong>${esc(d.to)}</strong>${d.toWhy ? ` <span class="why">— ${esc(d.toWhy)}</span>` : ''}`
-        : `<strong>No email address anywhere on their site.</strong> Looked on ${d.pagesSearched.length || 1} page${d.pagesSearched.length === 1 ? '' : 's'}`
-          + `${d.pagesSearched.length ? ': ' + d.pagesSearched.map(u => esc(u.replace(/^https?:\/\//, ''))).join(', ') : ''}.`
-          + `${d.phone ? ` Phone: ${esc(d.phone)}.` : ''} Their contact form is the way in, or leave this one.`;
+        : d.group === 'pick'
+          ? `<strong>Found an address on their site, but it is not clearly theirs</strong> — it is not on their own domain or a regular email provider, so it could be a supplier's or a parent company's. Looked on ${pages}.`
+        : d.searchBlocked
+          ? `<strong>Their site would not let the check in</strong> — it showed a "checking your browser" screen, so it could not be read. Open it yourself to look.${phone}`
+        : d.searchError
+          ? `<strong>Could not load their site to look</strong> (${esc(d.searchError)}). It is tried again next time you press Write emails.${phone}`
+          : `<strong>No email address anywhere on their site.</strong> Looked on ${pages}.${phone} Their contact form is the way in, or leave this one.`;
       const maybes = d.maybe.length && !d.to
-        ? `<div class="to">Found on their site but not obviously theirs — use one only if you have checked it is:
+        ? `<div class="to">Check it is theirs, then:
             ${d.maybe.map(m => `<button class="tiny maybe" data-use="${esc(m)}">Use ${esc(m)}</button>`).join('')}</div>` : '';
       const buttons = d.group === 'noEmail'
         ? `<button class="ghost handsent" data-status="sent">I contacted them another way</button>
@@ -735,7 +742,8 @@ Tier D  under 12 — the site is fine, drop it</pre>
     $('drafts').innerHTML =
       section('ready', 'ready to send', 'Each has a real address off their own site and nothing that needs fixing first.')
       + section('attention', 'need a look before sending', 'Each has an address, but something in the yellow note needs dealing with. These are never sent by Send all.')
-      + section('noEmail', 'No email anywhere on their site', 'Never sent — there is nobody to send to.');
+      + section('pick', 'found an address that may be theirs', 'Each has an address on their site that is not on their own domain or a regular email provider. Check it is theirs and click Use — the letter then moves up to ready.')
+      + section('noEmail', 'No email found on their site', 'Never sent — there is nobody to send to.');
 
     wireDrafts();
     updateMailStatus();
@@ -748,6 +756,7 @@ Tier D  under 12 — the site is fine, drop it</pre>
     const { counts } = mailData;
     $('mailstatus').textContent = `${ready} ready to send`
       + (counts.attention ? `, ${counts.attention} need a look` : '')
+      + (counts.pick ? `, ${counts.pick} with an address to check` : '')
       + (counts.noEmail ? `, ${counts.noEmail} with no email on their site` : '') + '.';
     const m = mailData.mail;
     $('sendallrow').hidden = !ready;
